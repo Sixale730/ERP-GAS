@@ -5,9 +5,10 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col
 } from 'antd'
-import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
+import { generarPDFCotizacion } from '@/lib/utils/pdf'
 
 const { Title, Text } = Typography
 
@@ -171,6 +172,12 @@ export default function CotizacionDetallePage() {
     })
   }
 
+  const handleDescargarPDF = () => {
+    if (!cotizacion) return
+    generarPDFCotizacion(cotizacion, items)
+    message.success('PDF descargado')
+  }
+
   const columns = [
     {
       title: 'SKU',
@@ -246,6 +253,13 @@ export default function CotizacionDetallePage() {
         </Space>
 
         <Space>
+          <Button
+            icon={<FilePdfOutlined />}
+            onClick={handleDescargarPDF}
+            size="large"
+          >
+            Descargar PDF
+          </Button>
           {canConvert && (
             <Button
               type="primary"

@@ -5,9 +5,10 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col
 } from 'antd'
-import { ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
+import { generarPDFFactura } from '@/lib/utils/pdf'
 
 const { Title, Text } = Typography
 
@@ -118,6 +119,12 @@ export default function FacturaDetallePage() {
     }
   }
 
+  const handleDescargarPDF = () => {
+    if (!factura) return
+    generarPDFFactura(factura, items)
+    message.success('PDF descargado')
+  }
+
   const columns = [
     {
       title: 'SKU',
@@ -191,6 +198,13 @@ export default function FacturaDetallePage() {
         </Space>
 
         <Space>
+          <Button
+            icon={<FilePdfOutlined />}
+            onClick={handleDescargarPDF}
+            size="large"
+          >
+            Descargar PDF
+          </Button>
           {factura.status === 'pagada' && (
             <Tag icon={<CheckCircleOutlined />} color="green" style={{ fontSize: 14, padding: '4px 12px' }}>
               Pagada

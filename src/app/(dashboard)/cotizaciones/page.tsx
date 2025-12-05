@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
-import { PlusOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
+import { generarPDFCotizacion } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
@@ -79,6 +80,41 @@ export default function CotizacionesPage() {
     }
   }
 
+  const handleDescargarPDF = async (cotizacionId: string) => {
+    const supabase = getSupabaseClient()
+    try {
+      // Cargar cotización completa
+      const { data: cotData, error: cotError } = await supabase
+        .schema('erp')
+        .from('v_cotizaciones')
+        .select('*')
+        .eq('id', cotizacionId)
+        .single()
+
+      if (cotError) throw cotError
+
+      // Cargar items
+      const { data: itemsData, error: itemsError } = await supabase
+        .schema('erp')
+        .from('cotizacion_items')
+        .select('*, productos:producto_id (sku)')
+        .eq('cotizacion_id', cotizacionId)
+
+      if (itemsError) throw itemsError
+
+      const items = itemsData?.map(item => ({
+        ...item,
+        sku: item.productos?.sku || '-'
+      })) || []
+
+      generarPDFCotizacion(cotData, items)
+      message.success('PDF descargado')
+    } catch (error) {
+      console.error('Error generando PDF:', error)
+      message.error('Error al generar PDF')
+    }
+  }
+
   const filteredCotizaciones = cotizaciones.filter(
     (c) =>
       c.folio.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -136,6 +172,13 @@ export default function CotizacionesPage() {
             type="link"
             icon={<EyeOutlined />}
             onClick={() => router.push(`/cotizaciones/${record.id}`)}
+            title="Ver detalle"
+          />
+          <Button
+            type="link"
+            icon={<FilePdfOutlined />}
+            onClick={() => handleDescargarPDF(record.id)}
+            title="Descargar PDF"
           />
         </Space>
       ),

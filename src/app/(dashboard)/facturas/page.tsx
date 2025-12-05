@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
-import { SearchOutlined, EyeOutlined } from '@ant-design/icons'
+import { SearchOutlined, EyeOutlined, FilePdfOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
+import { generarPDFFactura } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
@@ -73,6 +74,41 @@ export default function FacturasPage() {
       message.error('Error al cargar facturas')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDescargarPDF = async (facturaId: string) => {
+    const supabase = getSupabaseClient()
+    try {
+      // Cargar factura completa
+      const { data: facData, error: facError } = await supabase
+        .schema('erp')
+        .from('v_facturas')
+        .select('*')
+        .eq('id', facturaId)
+        .single()
+
+      if (facError) throw facError
+
+      // Cargar items
+      const { data: itemsData, error: itemsError } = await supabase
+        .schema('erp')
+        .from('factura_items')
+        .select('*, productos:producto_id (sku)')
+        .eq('factura_id', facturaId)
+
+      if (itemsError) throw itemsError
+
+      const items = itemsData?.map(item => ({
+        ...item,
+        sku: item.productos?.sku || '-'
+      })) || []
+
+      generarPDFFactura(facData, items)
+      message.success('PDF descargado')
+    } catch (error) {
+      console.error('Error generando PDF:', error)
+      message.error('Error al generar PDF')
     }
   }
 
@@ -158,6 +194,13 @@ export default function FacturasPage() {
             type="link"
             icon={<EyeOutlined />}
             onClick={() => router.push(`/facturas/${record.id}`)}
+            title="Ver detalle"
+          />
+          <Button
+            type="link"
+            icon={<FilePdfOutlined />}
+            onClick={() => handleDescargarPDF(record.id)}
+            title="Descargar PDF"
           />
         </Space>
       ),
