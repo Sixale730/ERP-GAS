@@ -1,19 +1,74 @@
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
+import { MONEDAS, type CodigoMoneda } from '@/lib/config/moneda'
 
 dayjs.locale('es')
 
 /**
- * Formatea un número como moneda MXN
+ * Formatea un número como moneda (USD por defecto)
  */
 export function formatMoney(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined) return '$0.00'
+  if (amount === null || amount === undefined) return '$0.00 USD'
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount) + ' USD'
+}
+
+/**
+ * Formatea un número como moneda USD
+ */
+export function formatMoneyUSD(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined) return '$0.00 USD'
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount) + ' USD'
+}
+
+/**
+ * Formatea un número como moneda MXN
+ */
+export function formatMoneyMXN(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined) return '$0.00 MXN'
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount)
+  }).format(amount) + ' MXN'
+}
+
+/**
+ * Formatea un número en la moneda especificada
+ * Si la moneda es MXN y se proporciona tipoCambio, convierte el monto
+ */
+export function formatMoneyCurrency(
+  amount: number | null | undefined,
+  moneda: CodigoMoneda,
+  tipoCambio?: number
+): string {
+  if (amount === null || amount === undefined) return `$0.00 ${moneda}`
+
+  let finalAmount = amount
+
+  // Si es MXN y hay tipo de cambio, convertir
+  if (moneda === 'MXN' && tipoCambio) {
+    finalAmount = amount * tipoCambio
+  }
+
+  const config = MONEDAS[moneda]
+
+  return new Intl.NumberFormat(config.locale, {
+    style: 'currency',
+    currency: moneda,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(finalAmount) + ` ${moneda}`
 }
 
 /**

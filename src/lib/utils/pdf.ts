@@ -1,7 +1,19 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { EMPRESA } from '@/lib/config/empresa'
-import { formatMoney, formatDate } from './format'
+import { formatMoneyCurrency, formatDate } from './format'
+import { type CodigoMoneda } from '@/lib/config/moneda'
+
+// Opciones de moneda para PDFs
+export interface OpcionesMoneda {
+  moneda: CodigoMoneda
+  tipoCambio?: number // Solo aplica si moneda es MXN
+}
+
+// Helper para formatear montos con la moneda seleccionada
+function formatMontoConMoneda(amount: number, opciones: OpcionesMoneda): string {
+  return formatMoneyCurrency(amount, opciones.moneda, opciones.tipoCambio)
+}
 
 // Tipos para cotizaciones
 interface CotizacionPDF {
@@ -148,14 +160,14 @@ function generarDatosCliente(
 /**
  * Genera la tabla de productos
  */
-function generarTablaProductos(doc: jsPDF, y: number, items: ItemPDF[]): number {
+function generarTablaProductos(doc: jsPDF, y: number, items: ItemPDF[], opciones: OpcionesMoneda): number {
   const tableData = items.map(item => [
     item.sku || '-',
     item.descripcion,
     item.cantidad.toString(),
-    formatMoney(item.precio_unitario),
+    formatMontoConMoneda(item.precio_unitario, opciones),
     item.descuento_porcentaje ? `${item.descuento_porcentaje}%` : '-',
-    formatMoney(item.subtotal),
+    formatMontoConMoneda(item.subtotal, opciones),
   ])
 
   autoTable(doc, {
@@ -193,7 +205,8 @@ function generarTablaProductos(doc: jsPDF, y: number, items: ItemPDF[]): number 
 function generarTotales(
   doc: jsPDF,
   y: number,
-  totales: { subtotal: number; descuento_porcentaje: number; descuento_monto: number; iva: number; total: number; saldo?: number }
+  totales: { subtotal: number; descuento_porcentaje: number; descuento_monto: number; iva: number; total: number; saldo?: number },
+  opciones: OpcionesMoneda
 ): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const xLabel = pageWidth - 80
@@ -205,21 +218,21 @@ function generarTotales(
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLOR_GRIS)
   doc.text('Subtotal:', xLabel, y)
-  doc.text(formatMoney(totales.subtotal), xValue, y, { align: 'right' })
+  doc.text(formatMontoConMoneda(totales.subtotal, opciones), xValue, y, { align: 'right' })
 
   // Descuento (si hay)
   if (totales.descuento_monto > 0) {
     y += 6
     doc.text(`Descuento (${totales.descuento_porcentaje}%):`, xLabel, y)
     doc.setTextColor(220, 53, 69)
-    doc.text(`-${formatMoney(totales.descuento_monto)}`, xValue, y, { align: 'right' })
+    doc.text(`-${formatMontoConMoneda(totales.descuento_monto, opciones)}`, xValue, y, { align: 'right' })
     doc.setTextColor(...COLOR_GRIS)
   }
 
   // IVA
   y += 6
   doc.text('IVA (16%):', xLabel, y)
-  doc.text(formatMoney(totales.iva), xValue, y, { align: 'right' })
+  doc.text(formatMontoConMoneda(totales.iva, opciones), xValue, y, { align: 'right' })
 
   // Línea
   y += 4
@@ -232,7 +245,7 @@ function generarTotales(
   doc.setFontSize(12)
   doc.setTextColor(...COLOR_PRIMARIO)
   doc.text('TOTAL:', xLabel, y)
-  doc.text(formatMoney(totales.total), xValue, y, { align: 'right' })
+  doc.text(formatMontoConMoneda(totales.total, opciones), xValue, y, { align: 'right' })
 
   // Saldo pendiente (solo facturas)
   if (totales.saldo !== undefined && totales.saldo > 0) {
@@ -240,7 +253,7 @@ function generarTotales(
     doc.setFontSize(10)
     doc.setTextColor(220, 53, 69)
     doc.text('Saldo Pendiente:', xLabel, y)
-    doc.text(formatMoney(totales.saldo), xValue, y, { align: 'right' })
+    doc.text(formatMontoConMoneda(totales.saldo, opciones), xValue, y, { align: 'right' })
   }
 
   return y + 15
@@ -270,13 +283,27 @@ function generarNotas(doc: jsPDF, y: number, notas: string | null | undefined): 
 /**
  * Genera PDF de cotización
  */
-export function generarPDFCotizacion(cotizacion: CotizacionPDF, items: ItemPDF[]): void {
+export function generarPDFCotizacion(
+  cotizacion: CotizacionPDF,
+  items: ItemPDF[],
+  opciones: OpcionesMoneda = { moneda: 'USD' }
+): void {
   const doc = new jsPDF()
 
   let y = generarEncabezado(doc, 'COTIZACION', cotizacion.folio)
   y = generarDatosCliente(doc, y, cotizacion)
-  y = generarTablaProductos(doc, y, items)
-  y = generarTotales(doc, y, cotizacion)
+
+  // Mostrar moneda y tipo de cambio si aplica
+  if (opciones.moneda === 'MXN' && opciones.tipoCambio) {
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(...COLOR_GRIS)
+    doc.text(`Tipo de cambio: 1 USD = ${opciones.tipoCambio.toFixed(2)} MXN`, 14, y - 5)
+    y += 5
+  }
+
+  y = generarTablaProductos(doc, y, items, opciones)
+  y = generarTotales(doc, y, cotizacion, opciones)
   generarNotas(doc, y, cotizacion.notas)
 
   // Pie de página
@@ -291,7 +318,11 @@ export function generarPDFCotizacion(cotizacion: CotizacionPDF, items: ItemPDF[]
 /**
  * Genera PDF de factura
  */
-export function generarPDFFactura(factura: FacturaPDF, items: ItemPDF[]): void {
+export function generarPDFFactura(
+  factura: FacturaPDF,
+  items: ItemPDF[],
+  opciones: OpcionesMoneda = { moneda: 'USD' }
+): void {
   const doc = new jsPDF()
 
   let y = generarEncabezado(doc, 'FACTURA', factura.folio)
@@ -306,8 +337,17 @@ export function generarPDFFactura(factura: FacturaPDF, items: ItemPDF[]): void {
     y += 5
   }
 
-  y = generarTablaProductos(doc, y, items)
-  y = generarTotales(doc, y, { ...factura, saldo: factura.saldo })
+  // Mostrar moneda y tipo de cambio si aplica
+  if (opciones.moneda === 'MXN' && opciones.tipoCambio) {
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(...COLOR_GRIS)
+    doc.text(`Tipo de cambio: 1 USD = ${opciones.tipoCambio.toFixed(2)} MXN`, 14, y - 5)
+    y += 5
+  }
+
+  y = generarTablaProductos(doc, y, items, opciones)
+  y = generarTotales(doc, y, { ...factura, saldo: factura.saldo }, opciones)
   generarNotas(doc, y, factura.notas)
 
   // Pie de página

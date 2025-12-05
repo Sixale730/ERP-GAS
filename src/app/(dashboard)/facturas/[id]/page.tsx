@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col
+  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Modal, Select, InputNumber, Form
 } from 'antd'
 import { ArrowLeftOutlined, CheckCircleOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
-import { generarPDFFactura } from '@/lib/utils/pdf'
+import { generarPDFFactura, type OpcionesMoneda } from '@/lib/utils/pdf'
+import { TIPO_CAMBIO_DEFAULT, type CodigoMoneda } from '@/lib/config/moneda'
 
 const { Title, Text } = Typography
 
@@ -68,6 +69,11 @@ export default function FacturaDetallePage() {
   const [factura, setFactura] = useState<FacturaDetalle | null>(null)
   const [items, setItems] = useState<FacturaItem[]>([])
 
+  // Estado para modal de PDF
+  const [pdfModalOpen, setPdfModalOpen] = useState(false)
+  const [pdfMoneda, setPdfMoneda] = useState<CodigoMoneda>('USD')
+  const [pdfTipoCambio, setPdfTipoCambio] = useState(TIPO_CAMBIO_DEFAULT)
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (id) {
@@ -119,10 +125,21 @@ export default function FacturaDetallePage() {
     }
   }
 
+  const handleAbrirModalPDF = () => {
+    setPdfModalOpen(true)
+  }
+
   const handleDescargarPDF = () => {
     if (!factura) return
-    generarPDFFactura(factura, items)
+
+    const opciones: OpcionesMoneda = {
+      moneda: pdfMoneda,
+      tipoCambio: pdfMoneda === 'MXN' ? pdfTipoCambio : undefined
+    }
+
+    generarPDFFactura(factura, items, opciones)
     message.success('PDF descargado')
+    setPdfModalOpen(false)
   }
 
   const columns = [
@@ -200,7 +217,7 @@ export default function FacturaDetallePage() {
         <Space wrap>
           <Button
             icon={<FilePdfOutlined />}
-            onClick={handleDescargarPDF}
+            onClick={handleAbrirModalPDF}
             size="large"
           >
             Descargar PDF
@@ -333,6 +350,48 @@ export default function FacturaDetallePage() {
           </Card>
         </Col>
       </Row>
+
+      {/* Modal para seleccionar moneda del PDF */}
+      <Modal
+        title="Opciones de PDF"
+        open={pdfModalOpen}
+        onCancel={() => setPdfModalOpen(false)}
+        onOk={handleDescargarPDF}
+        okText="Descargar"
+        cancelText="Cancelar"
+      >
+        <Form layout="vertical">
+          <Form.Item label="Moneda">
+            <Select
+              value={pdfMoneda}
+              onChange={(value) => setPdfMoneda(value)}
+              options={[
+                { value: 'USD', label: 'USD - Dólar Americano' },
+                { value: 'MXN', label: 'MXN - Peso Mexicano' },
+              ]}
+            />
+          </Form.Item>
+          {pdfMoneda === 'MXN' && (
+            <Form.Item label="Tipo de Cambio (MXN por 1 USD)">
+              <InputNumber
+                value={pdfTipoCambio}
+                onChange={(value) => setPdfTipoCambio(value || TIPO_CAMBIO_DEFAULT)}
+                min={1}
+                max={100}
+                step={0.01}
+                precision={2}
+                style={{ width: '100%' }}
+                addonAfter="MXN"
+              />
+            </Form.Item>
+          )}
+          {pdfMoneda === 'MXN' && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Los precios base están en USD. Se convertirán a MXN usando el tipo de cambio indicado.
+            </Text>
+          )}
+        </Form>
+      </Modal>
     </div>
   )
 }
