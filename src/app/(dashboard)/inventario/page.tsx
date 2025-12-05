@@ -32,6 +32,7 @@ export default function InventarioPage() {
   const [almacenFilter, setAlmacenFilter] = useState<string | null>(null)
   const [searchText, setSearchText] = useState('')
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadAlmacenes()
     loadInventario()

@@ -67,6 +67,7 @@ export default function FacturaDetallePage() {
   const [factura, setFactura] = useState<FacturaDetalle | null>(null)
   const [items, setItems] = useState<FacturaItem[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (id) {
       loadFactura()

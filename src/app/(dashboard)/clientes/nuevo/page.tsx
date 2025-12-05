@@ -22,6 +22,7 @@ export default function NuevoClientePage() {
   const [saving, setSaving] = useState(false)
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadData()
   }, [])
@@ -59,7 +60,7 @@ export default function NuevoClientePage() {
       const { data: codigoData } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'cliente' })
       const codigo = codigoData as string || `CLI-${Date.now()}`
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .schema('erp')
         .from('clientes')
         .insert({
@@ -221,7 +222,7 @@ export default function NuevoClientePage() {
                   placeholder="0.00"
                   style={{ width: '100%' }}
                   formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                  parser={(value: string | undefined) => Number(value?.replace(/\$\s?|(,*)/g, '') || 0)}
                 />
               </Form.Item>
             </Col>

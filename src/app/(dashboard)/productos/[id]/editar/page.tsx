@@ -33,6 +33,7 @@ export default function EditarProductoPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (id) {
       loadData()

@@ -47,10 +47,12 @@ export default function NuevaCotizacionPage() {
   const [productSearch, setProductSearch] = useState('')
   const [productOptions, setProductOptions] = useState<any[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadData()
   }, [])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (clienteId) {
       const cliente = clientes.find(c => c.id === clienteId)
@@ -61,6 +63,7 @@ export default function NuevaCotizacionPage() {
     }
   }, [clienteId, clientes])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (listaPrecioId && almacenId) {
       loadProductosConPrecios()

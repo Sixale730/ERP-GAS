@@ -55,6 +55,7 @@ export default function ProductoDetallePage() {
   const [precios, setPrecios] = useState<PrecioLista[]>([])
   const [inventario, setInventario] = useState<InventarioAlmacen[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (id) {
       loadProducto()

@@ -24,6 +24,7 @@ export default function EditarCategoriaPage() {
   const [saving, setSaving] = useState(false)
   const [categoriasPadre, setCategoriasPadre] = useState<Categoria[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (id) loadData()
   }, [id])

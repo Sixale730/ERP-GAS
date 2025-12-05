@@ -58,6 +58,7 @@ export default function ClienteDetallePage() {
   const [facturas, setFacturas] = useState<FacturaResumen[]>([])
   const [listaPrecioNombre, setListaPrecioNombre] = useState<string | null>(null)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (id) {
       loadCliente()

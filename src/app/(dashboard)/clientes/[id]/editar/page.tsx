@@ -26,6 +26,7 @@ export default function EditarClientePage() {
   const [saving, setSaving] = useState(false)
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (id) {
       loadData()
@@ -244,7 +245,7 @@ export default function EditarClientePage() {
                   placeholder="0.00"
                   style={{ width: '100%' }}
                   formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                  parser={(value: string | undefined) => Number(value?.replace(/\$\s?|(,*)/g, '') || 0)}
                 />
               </Form.Item>
             </Col>

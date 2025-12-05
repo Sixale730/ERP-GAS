@@ -69,6 +69,7 @@ export default function CotizacionDetallePage() {
   const [cotizacion, setCotizacion] = useState<CotizacionDetalle | null>(null)
   const [items, setItems] = useState<CotizacionItem[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (id) {
       loadCotizacion()

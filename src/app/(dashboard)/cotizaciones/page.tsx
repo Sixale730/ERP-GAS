@@ -47,6 +47,7 @@ export default function CotizacionesPage() {
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadCotizaciones()
   }, [statusFilter])
