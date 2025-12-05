@@ -179,6 +179,9 @@ export default function CotizacionDetallePage() {
   }
 
   const handleAbrirModalPDF = () => {
+    // Reiniciar estados al abrir
+    setPdfMoneda('USD')
+    setPdfTipoCambio(TIPO_CAMBIO_DEFAULT)
     setPdfModalOpen(true)
   }
 
@@ -420,6 +423,7 @@ export default function CotizacionDetallePage() {
         onOk={handleDescargarPDF}
         okText="Descargar"
         cancelText="Cancelar"
+        destroyOnClose
       >
         <Form layout="vertical">
           <Form.Item label="Moneda">

@@ -22,8 +22,12 @@ export const MONEDAS: Record<CodigoMoneda, Moneda> = {
   }
 }
 
-// Tipo de cambio por defecto (MXN por 1 USD)
-export const TIPO_CAMBIO_DEFAULT = 17.50
+// Valores de fallback (usados si no hay configuración en BD)
+export const TIPO_CAMBIO_FALLBACK = 17.50
+export const MARGEN_GANANCIA_FALLBACK = 30
 
-// Moneda base del sistema
+// Mantener compatibilidad con código existente
+export const TIPO_CAMBIO_DEFAULT = TIPO_CAMBIO_FALLBACK
+
+// Moneda base del sistema (los costos están en USD)
 export const MONEDA_BASE: CodigoMoneda = 'USD'

@@ -15,6 +15,7 @@ import {
   TagsOutlined,
   ShopOutlined,
   UnorderedListOutlined,
+  ToolOutlined,
 } from '@ant-design/icons'
 
 type MenuItem = Required<MenuProps>['items'][number]
@@ -79,6 +80,11 @@ const menuItems: MenuItem[] = [
         label: 'Listas de Precios',
       },
     ],
+  },
+  {
+    key: '/configuracion',
+    icon: <ToolOutlined />,
+    label: 'Configuracion',
   },
 ]
 

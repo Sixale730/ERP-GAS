@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete
+  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip
 } from 'antd'
-import { DeleteOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons'
+import { DeleteOutlined, SaveOutlined, SendOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoney, calcularTotal } from '@/lib/utils/format'
+import { formatMoneyMXN, calcularTotal } from '@/lib/utils/format'
+import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -17,9 +18,10 @@ interface CotizacionItem {
   producto_id: string
   producto_nombre: string
   sku: string
+  precio_lista_usd: number
+  margen_porcentaje: number
   cantidad: number
-  precio_unitario: number
-  descuento_porcentaje: number
+  precio_unitario_mxn: number
   subtotal: number
 }
 
@@ -27,6 +29,12 @@ export default function NuevaCotizacionPage() {
   const router = useRouter()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+
+  // Configuracion global
+  const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
+
+  // Tipo de cambio para esta cotizacion (editable)
+  const [tipoCambio, setTipoCambio] = useState(17.50)
 
   // Data
   const [clientes, setClientes] = useState<Cliente[]>([])
@@ -47,11 +55,19 @@ export default function NuevaCotizacionPage() {
   const [productSearch, setProductSearch] = useState('')
   const [productOptions, setProductOptions] = useState<any[]>([])
 
+  // Actualizar tipo de cambio cuando cargue la config global
+  useEffect(() => {
+    if (!loadingConfig) {
+      setTipoCambio(tcGlobal)
+    }
+  }, [loadingConfig, tcGlobal])
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadData()
   }, [])
 
+  // Cuando cambia el cliente, cargar su lista de precios
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (clienteId) {
@@ -63,6 +79,7 @@ export default function NuevaCotizacionPage() {
     }
   }, [clienteId, clientes])
 
+  // Cuando cambia la lista de precios o almacen, cargar productos
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (listaPrecioId && almacenId) {
@@ -113,6 +130,11 @@ export default function NuevaCotizacionPage() {
     }
   }
 
+  // Calcular precio MXN: precio_usd * (1 + margen%) * tipoCambio
+  const calcularPrecioMXN = (precioUSD: number, margenPct: number) => {
+    return precioUSD * (1 + margenPct / 100) * tipoCambio
+  }
+
   const handleProductSearch = (value: string) => {
     setProductSearch(value)
     if (value.length >= 2) {
@@ -124,7 +146,7 @@ export default function NuevaCotizacionPage() {
         .slice(0, 10)
         .map(p => ({
           value: p.id,
-          label: `${p.sku} - ${p.nombre} (${formatMoney(p.precio)})`,
+          label: `${p.sku} - ${p.nombre} ($${p.precio.toFixed(2)} USD)`,
           producto: p,
         }))
       setProductOptions(filtered)
@@ -137,21 +159,25 @@ export default function NuevaCotizacionPage() {
     const producto = option.producto
     if (!producto) return
 
-    // Check if already in list
     if (items.find(i => i.producto_id === producto.id)) {
-      message.warning('El producto ya está en la lista')
+      message.warning('El producto ya esta en la lista')
       return
     }
+
+    const precioUSD = producto.precio
+    const margen = 0 // Default 0%
+    const precioMXN = calcularPrecioMXN(precioUSD, margen)
 
     const newItem: CotizacionItem = {
       key: producto.id,
       producto_id: producto.id,
       producto_nombre: producto.nombre,
       sku: producto.sku,
+      precio_lista_usd: precioUSD,
+      margen_porcentaje: margen,
       cantidad: 1,
-      precio_unitario: producto.precio,
-      descuento_porcentaje: 0,
-      subtotal: producto.precio,
+      precio_unitario_mxn: precioMXN,
+      subtotal: precioMXN,
     }
 
     setItems([...items, newItem])
@@ -163,7 +189,14 @@ export default function NuevaCotizacionPage() {
     setItems(items.map(item => {
       if (item.key === key) {
         const updated = { ...item, [field]: value }
-        updated.subtotal = updated.cantidad * updated.precio_unitario * (1 - updated.descuento_porcentaje / 100)
+
+        // Si cambia el margen, recalcular precio MXN
+        if (field === 'margen_porcentaje') {
+          updated.precio_unitario_mxn = calcularPrecioMXN(updated.precio_lista_usd, value)
+        }
+
+        // Recalcular subtotal
+        updated.subtotal = updated.cantidad * updated.precio_unitario_mxn
         return updated
       }
       return item
@@ -172,6 +205,22 @@ export default function NuevaCotizacionPage() {
 
   const handleRemoveItem = (key: string) => {
     setItems(items.filter(i => i.key !== key))
+  }
+
+  // Recalcular todos los precios cuando cambia el tipo de cambio
+  const handleTipoCambioChange = (value: number | null) => {
+    const newTC = value || tcGlobal
+    setTipoCambio(newTC)
+
+    // Recalcular todos los items con el nuevo TC
+    setItems(items.map(item => {
+      const nuevoPrecio = item.precio_lista_usd * (1 + item.margen_porcentaje / 100) * newTC
+      return {
+        ...item,
+        precio_unitario_mxn: nuevoPrecio,
+        subtotal: item.cantidad * nuevoPrecio
+      }
+    }))
   }
 
   // Totals
@@ -189,11 +238,9 @@ export default function NuevaCotizacionPage() {
     const supabase = getSupabaseClient()
 
     try {
-      // Generate folio
       const { data: folioData } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'cotizacion' })
       const folio = folioData as string
 
-      // Create cotizacion
       const { data: cotizacion, error: cotError } = await supabase
         .schema('erp')
         .from('cotizaciones')
@@ -208,6 +255,7 @@ export default function NuevaCotizacionPage() {
           descuento_monto: descuentoMonto,
           iva,
           total,
+          tipo_cambio: tipoCambio,
           notas: form.getFieldValue('notas'),
         })
         .select()
@@ -215,14 +263,13 @@ export default function NuevaCotizacionPage() {
 
       if (cotError) throw cotError
 
-      // Create items
       const itemsToInsert = items.map(i => ({
         cotizacion_id: cotizacion.id,
         producto_id: i.producto_id,
         descripcion: i.producto_nombre,
         cantidad: i.cantidad,
-        precio_unitario: i.precio_unitario,
-        descuento_porcentaje: i.descuento_porcentaje,
+        precio_unitario: i.precio_unitario_mxn,
+        descuento_porcentaje: 0,
         subtotal: i.subtotal,
       }))
 
@@ -233,11 +280,11 @@ export default function NuevaCotizacionPage() {
 
       if (itemsError) throw itemsError
 
-      message.success(`Cotización ${folio} creada`)
+      message.success(`Cotizacion ${folio} creada`)
       router.push('/cotizaciones')
     } catch (error: any) {
       console.error('Error saving cotizacion:', error)
-      message.error(error.message || 'Error al guardar cotización')
+      message.error(error.message || 'Error al guardar cotizacion')
     } finally {
       setSaving(false)
     }
@@ -247,67 +294,120 @@ export default function NuevaCotizacionPage() {
     {
       title: 'SKU',
       dataIndex: 'sku',
-      width: 100,
+      width: 80,
     },
     {
       title: 'Producto',
       dataIndex: 'producto_nombre',
+      ellipsis: true,
     },
     {
-      title: 'Cantidad',
-      dataIndex: 'cantidad',
+      title: 'Precio USD',
+      dataIndex: 'precio_lista_usd',
       width: 100,
+      render: (val: number) => `$${val.toFixed(2)}`,
+    },
+    {
+      title: (
+        <Tooltip title="Margen adicional. Positivo = ganancia extra. Negativo = descuento/regalo.">
+          Margen % <InfoCircleOutlined style={{ fontSize: 12 }} />
+        </Tooltip>
+      ),
+      dataIndex: 'margen_porcentaje',
+      width: 90,
+      render: (val: number, record: CotizacionItem) => (
+        <InputNumber
+          value={val}
+          onChange={(v) => handleUpdateItem(record.key, 'margen_porcentaje', v || 0)}
+          style={{ width: '100%' }}
+          size="small"
+          formatter={(value) => `${value}%`}
+          parser={(value) => parseFloat(value?.replace('%', '') || '0') as any}
+        />
+      ),
+    },
+    {
+      title: 'Cant.',
+      dataIndex: 'cantidad',
+      width: 70,
       render: (val: number, record: CotizacionItem) => (
         <InputNumber
           min={1}
           value={val}
           onChange={(v) => handleUpdateItem(record.key, 'cantidad', v || 1)}
           style={{ width: '100%' }}
+          size="small"
         />
       ),
     },
     {
-      title: 'Precio Unit.',
-      dataIndex: 'precio_unitario',
-      width: 130,
-      render: (val: number) => formatMoney(val),
-    },
-    {
-      title: 'Desc. %',
-      dataIndex: 'descuento_porcentaje',
-      width: 100,
+      title: (
+        <Tooltip title="Precio en MXN. Puedes editarlo manualmente.">
+          Precio MXN <InfoCircleOutlined style={{ fontSize: 12 }} />
+        </Tooltip>
+      ),
+      dataIndex: 'precio_unitario_mxn',
+      width: 120,
       render: (val: number, record: CotizacionItem) => (
         <InputNumber
           min={0}
-          max={100}
           value={val}
-          onChange={(v) => handleUpdateItem(record.key, 'descuento_porcentaje', v || 0)}
+          onChange={(v) => handleUpdateItem(record.key, 'precio_unitario_mxn', v || 0)}
+          formatter={(value) => `$ ${Number(value).toFixed(2)}`}
+          parser={(value) => parseFloat(value?.replace(/\$\s?/g, '') || '0') as any}
           style={{ width: '100%' }}
+          size="small"
         />
       ),
     },
     {
       title: 'Subtotal',
       dataIndex: 'subtotal',
-      width: 130,
-      render: (val: number) => formatMoney(val),
+      width: 110,
+      render: (val: number) => formatMoneyMXN(val),
     },
     {
       title: '',
-      width: 50,
+      width: 40,
       render: (_: any, record: CotizacionItem) => (
-        <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleRemoveItem(record.key)} />
+        <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleRemoveItem(record.key)} size="small" />
       ),
     },
   ]
 
   return (
     <div>
-      <Title level={2}>Nueva Cotización</Title>
+      <Title level={2}>Nueva Cotizacion</Title>
 
-      <Row gutter={24}>
+      <Row gutter={[16, 16]}>
         <Col xs={24} lg={16}>
-          <Card title="Datos de la Cotización" style={{ marginBottom: 16 }}>
+          {/* Card de Tipo de Cambio */}
+          <Card size="small" style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}>
+            <Row gutter={16} align="middle">
+              <Col>
+                <Text strong>Tipo de Cambio:</Text>
+              </Col>
+              <Col>
+                <InputNumber
+                  value={tipoCambio}
+                  onChange={handleTipoCambioChange}
+                  min={1}
+                  max={100}
+                  step={0.01}
+                  precision={2}
+                  addonAfter="MXN/USD"
+                  style={{ width: 180 }}
+                />
+              </Col>
+              <Col>
+                <Text type="secondary">
+                  (Al cambiar se recalculan todos los precios)
+                </Text>
+              </Col>
+            </Row>
+          </Card>
+
+          <Card title="Datos de la Cotizacion" style={{ marginBottom: 16 }}>
             <Form form={form} layout="vertical">
               <Row gutter={16}>
                 <Col xs={24} md={12}>
@@ -325,9 +425,9 @@ export default function NuevaCotizacionPage() {
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Form.Item label="Almacén" required>
+                  <Form.Item label="Almacen" required>
                     <Select
-                      placeholder="Seleccionar almacén"
+                      placeholder="Seleccionar almacen"
                       value={almacenId}
                       onChange={setAlmacenId}
                       options={almacenes.map(a => ({ value: a.id, label: a.nombre }))}
@@ -377,38 +477,45 @@ export default function NuevaCotizacionPage() {
                 rowKey="key"
                 pagination={false}
                 size="small"
-                scroll={{ x: 700 }}
-                locale={{ emptyText: 'Agrega productos a la cotización' }}
+                scroll={{ x: 800 }}
+                locale={{ emptyText: 'Agrega productos a la cotizacion' }}
               />
             </Space>
           </Card>
 
-          <Form.Item name="notas" label="Notas">
-            <Input.TextArea rows={3} placeholder="Notas adicionales..." />
-          </Form.Item>
+          <Form form={form}>
+            <Form.Item name="notas" label="Notas">
+              <Input.TextArea rows={3} placeholder="Notas adicionales..." />
+            </Form.Item>
+          </Form>
         </Col>
 
         <Col xs={24} lg={8}>
           <Card title="Resumen" style={{ position: 'sticky', top: 88 }}>
             <Space direction="vertical" style={{ width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text type="secondary">T/C:</Text>
+                <Text>{tipoCambio} MXN/USD</Text>
+              </div>
+              <Divider style={{ margin: '8px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>Subtotal:</Text>
-                <Text strong>{formatMoney(subtotal)}</Text>
+                <Text strong>{formatMoneyMXN(subtotal)}</Text>
               </div>
               {descuentoGlobal > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#52c41a' }}>
                   <Text>Descuento ({descuentoGlobal}%):</Text>
-                  <Text>-{formatMoney(descuentoMonto)}</Text>
+                  <Text>-{formatMoneyMXN(descuentoMonto)}</Text>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>IVA (16%):</Text>
-                <Text>{formatMoney(iva)}</Text>
+                <Text>{formatMoneyMXN(iva)}</Text>
               </div>
               <Divider style={{ margin: '12px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Title level={4} style={{ margin: 0 }}>Total:</Title>
-                <Title level={4} style={{ margin: 0, color: '#1890ff' }}>{formatMoney(total)}</Title>
+                <Title level={4} style={{ margin: 0, color: '#1890ff' }}>{formatMoneyMXN(total)}</Title>
               </div>
 
               <Divider />

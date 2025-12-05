@@ -341,6 +341,8 @@ export type Database = {
           terminos_condiciones: string | null
           vendedor_id: string | null
           factura_id: string | null
+          tipo_cambio: number | null
+          margen_aplicado: number | null
           created_at: string
           updated_at: string
         }
@@ -362,6 +364,8 @@ export type Database = {
           terminos_condiciones?: string | null
           vendedor_id?: string | null
           factura_id?: string | null
+          tipo_cambio?: number | null
+          margen_aplicado?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -383,6 +387,8 @@ export type Database = {
           terminos_condiciones?: string | null
           vendedor_id?: string | null
           factura_id?: string | null
+          tipo_cambio?: number | null
+          margen_aplicado?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -397,6 +403,7 @@ export type Database = {
           precio_unitario: number
           descuento_porcentaje: number
           subtotal: number
+          costo_base: number | null
           created_at: string
         }
         Insert: {
@@ -408,6 +415,7 @@ export type Database = {
           precio_unitario: number
           descuento_porcentaje?: number
           subtotal?: number
+          costo_base?: number | null
           created_at?: string
         }
         Update: {
@@ -419,6 +427,7 @@ export type Database = {
           precio_unitario?: number
           descuento_porcentaje?: number
           subtotal?: number
+          costo_base?: number | null
           created_at?: string
         }
       }
@@ -534,6 +543,32 @@ export type Database = {
           created_at?: string
         }
       }
+      configuracion: {
+        Row: {
+          id: string
+          clave: string
+          valor: any
+          descripcion: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          clave: string
+          valor: any
+          descripcion?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          clave?: string
+          valor?: any
+          descripcion?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       v_productos_stock: {
@@ -619,6 +654,17 @@ export type Cotizacion = Tables<'cotizaciones'>
 export type CotizacionItem = Tables<'cotizacion_items'>
 export type Factura = Tables<'facturas'>
 export type Pago = Tables<'pagos'>
+export type Configuracion = Tables<'configuracion'>
+
+// Tipos específicos para configuraciones
+export interface ConfigTipoCambio {
+  valor: number
+  fecha: string
+}
+
+export interface ConfigMargenGanancia {
+  porcentaje: number
+}
 
 // View types
 export type ProductoStock = Views<'v_productos_stock'>
