@@ -149,7 +149,7 @@ export default function ClientesPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Clientes</Title>
         <Button
           type="primary"
@@ -161,13 +161,13 @@ export default function ClientesPage() {
       </div>
 
       <Card>
-        <Space style={{ marginBottom: 16 }}>
+        <Space style={{ marginBottom: 16 }} wrap>
           <Input
             placeholder="Buscar por código, nombre o RFC..."
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300 }}
+            style={{ width: '100%', maxWidth: 300 }}
             allowClear
           />
         </Space>
@@ -177,6 +177,7 @@ export default function ClientesPage() {
           columns={columns}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 900 }}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,

@@ -1,10 +1,11 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Layout, theme, Button, Dropdown, Avatar, Space } from 'antd'
+import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid } from 'antd'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MenuOutlined,
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
@@ -13,6 +14,7 @@ import type { MenuProps } from 'antd'
 import Sidebar from './Sidebar'
 
 const { Header, Sider, Content } = Layout
+const { useBreakpoint } = Grid
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -20,6 +22,9 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const screens = useBreakpoint()
+  const isMobile = !screens.md // true si < 768px
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
@@ -46,50 +51,77 @@ export default function AppLayout({ children }: AppLayoutProps) {
     },
   ]
 
-  return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        theme="light"
+  // Contenido del sidebar (reutilizable)
+  const sidebarContent = (
+    <>
+      <div
         style={{
-          overflow: 'auto',
-          height: '100vh',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          borderRight: '1px solid #f0f0f0',
+          height: 64,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderBottom: '1px solid #f0f0f0',
         }}
       >
-        <div
+        <h1
           style={{
-            height: 64,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderBottom: '1px solid #f0f0f0',
+            margin: 0,
+            fontSize: isMobile ? 20 : (collapsed ? 16 : 20),
+            fontWeight: 700,
+            color: '#1890ff',
+            transition: 'all 0.2s',
           }}
         >
-          <h1
-            style={{
-              margin: 0,
-              fontSize: collapsed ? 16 : 20,
-              fontWeight: 700,
-              color: '#1890ff',
-              transition: 'all 0.2s',
-            }}
-          >
-            {collapsed ? 'ERP' : 'ERP Nesui'}
-          </h1>
-        </div>
-        <Sidebar />
-      </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'all 0.2s' }}>
+          {isMobile ? 'ERP Nesui' : (collapsed ? 'ERP' : 'ERP Nesui')}
+        </h1>
+      </div>
+      <Sidebar onNavigate={() => isMobile && setDrawerOpen(false)} />
+    </>
+  )
+
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      {/* Drawer para móvil */}
+      {isMobile && (
+        <Drawer
+          placement="left"
+          onClose={() => setDrawerOpen(false)}
+          open={drawerOpen}
+          width={250}
+          styles={{ body: { padding: 0 } }}
+        >
+          {sidebarContent}
+        </Drawer>
+      )}
+
+      {/* Sider para desktop */}
+      {!isMobile && (
+        <Sider
+          trigger={null}
+          collapsible
+          collapsed={collapsed}
+          theme="light"
+          style={{
+            overflow: 'auto',
+            height: '100vh',
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            borderRight: '1px solid #f0f0f0',
+          }}
+        >
+          {sidebarContent}
+        </Sider>
+      )}
+
+      <Layout style={{
+        marginLeft: isMobile ? 0 : (collapsed ? 80 : 200),
+        transition: 'all 0.2s'
+      }}>
         <Header
           style={{
-            padding: '0 24px',
+            padding: isMobile ? '0 12px' : '0 24px',
             background: colorBgContainer,
             display: 'flex',
             alignItems: 'center',
@@ -102,25 +134,25 @@ export default function AppLayout({ children }: AppLayoutProps) {
         >
           <Button
             type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
+            icon={isMobile ? <MenuOutlined /> : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
+            onClick={() => isMobile ? setDrawerOpen(true) : setCollapsed(!collapsed)}
             style={{
               fontSize: '16px',
-              width: 64,
-              height: 64,
+              width: 48,
+              height: 48,
             }}
           />
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <Space style={{ cursor: 'pointer' }}>
               <Avatar icon={<UserOutlined />} />
-              <span>Admin</span>
+              {!isMobile && <span>Admin</span>}
             </Space>
           </Dropdown>
         </Header>
         <Content
           style={{
-            margin: '24px',
-            padding: 24,
+            margin: isMobile ? '12px' : '24px',
+            padding: isMobile ? 12 : 24,
             minHeight: 280,
             background: colorBgContainer,
             borderRadius: borderRadiusLG,

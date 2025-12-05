@@ -82,12 +82,17 @@ const menuItems: MenuItem[] = [
   },
 ]
 
-export default function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void
+}
+
+export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
     router.push(e.key)
+    onNavigate?.()
   }
 
   // Find selected key based on pathname

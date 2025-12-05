@@ -377,6 +377,7 @@ export default function NuevaCotizacionPage() {
                 rowKey="key"
                 pagination={false}
                 size="small"
+                scroll={{ x: 700 }}
                 locale={{ emptyText: 'Agrega productos a la cotización' }}
               />
             </Space>

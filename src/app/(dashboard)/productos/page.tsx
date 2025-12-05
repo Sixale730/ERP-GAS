@@ -136,7 +136,7 @@ export default function ProductosPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Productos</Title>
         <Button
           type="primary"
@@ -148,13 +148,13 @@ export default function ProductosPage() {
       </div>
 
       <Card>
-        <Space style={{ marginBottom: 16 }}>
+        <Space style={{ marginBottom: 16 }} wrap>
           <Input
             placeholder="Buscar por SKU o nombre..."
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300 }}
+            style={{ width: '100%', maxWidth: 300 }}
             allowClear
           />
         </Space>
@@ -164,6 +164,7 @@ export default function ProductosPage() {
           columns={columns}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 800 }}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,

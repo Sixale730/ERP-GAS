@@ -215,9 +215,9 @@ export default function FacturasPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Facturas</Title>
-        <Space>
+        <Space wrap>
           <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
             Por cobrar: {formatMoney(totalPorCobrar)}
           </Tag>
@@ -236,14 +236,14 @@ export default function FacturasPage() {
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
+            style={{ width: '100%', maxWidth: 250 }}
             allowClear
           />
           <Select
             placeholder="Filtrar por status"
             value={statusFilter}
             onChange={setStatusFilter}
-            style={{ width: 150 }}
+            style={{ width: '100%', maxWidth: 150 }}
             allowClear
             options={[
               { value: 'pendiente', label: 'Pendiente' },
@@ -259,6 +259,7 @@ export default function FacturasPage() {
           columns={columns}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 900 }}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,

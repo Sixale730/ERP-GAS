@@ -44,6 +44,62 @@ body {
   background-color: #fff2f0 !important;
 }
 
+/* Responsive styles - Móvil */
+@media (max-width: 767px) {
+  /* Tablas con scroll horizontal */
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .ant-table {
+    min-width: 600px;
+  }
+
+  /* Cards con menos margen */
+  .ant-card {
+    margin-bottom: 12px !important;
+  }
+
+  /* Títulos más pequeños */
+  .ant-typography h2 {
+    font-size: 20px !important;
+  }
+
+  /* Tags más compactos */
+  .ant-tag {
+    font-size: 12px !important;
+    padding: 2px 6px !important;
+  }
+
+  /* Descriptions más compactas */
+  .ant-descriptions-item-label {
+    font-size: 12px !important;
+  }
+
+  /* Botones más compactos en grupos */
+  .ant-space-compact .ant-btn {
+    padding: 4px 8px;
+  }
+
+  /* Modal más ancho en móvil */
+  .ant-modal {
+    max-width: calc(100vw - 32px) !important;
+    margin: 16px !important;
+  }
+
+  /* Drawer del filtro */
+  .ant-drawer-content-wrapper {
+    max-width: 100vw !important;
+  }
+}
+
+/* Tablets */
+@media (min-width: 768px) and (max-width: 991px) {
+  .ant-table {
+    font-size: 13px;
+  }
+}
+
 /* Print styles */
 @media print {
   .ant-layout-sider,

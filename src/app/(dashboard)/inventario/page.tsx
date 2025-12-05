@@ -200,14 +200,14 @@ export default function InventarioPage() {
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
+            style={{ width: '100%', maxWidth: 250 }}
             allowClear
           />
           <Select
             placeholder="Filtrar por almacén"
             value={almacenFilter}
             onChange={setAlmacenFilter}
-            style={{ width: 200 }}
+            style={{ width: '100%', maxWidth: 200 }}
             allowClear
             options={almacenes.map(a => ({ value: a.id, label: a.nombre }))}
           />
@@ -218,6 +218,7 @@ export default function InventarioPage() {
           columns={columns}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 900 }}
           pagination={{
             pageSize: 15,
             showSizeChanger: true,

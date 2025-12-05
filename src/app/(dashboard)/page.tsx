@@ -225,6 +225,7 @@ export default function DashboardPage() {
               rowKey="id"
               pagination={false}
               size="small"
+              scroll={{ x: 'max-content' }}
               locale={{ emptyText: 'No hay productos con stock bajo' }}
             />
           </Card>
@@ -237,6 +238,7 @@ export default function DashboardPage() {
               rowKey="id"
               pagination={false}
               size="small"
+              scroll={{ x: 'max-content' }}
               locale={{ emptyText: 'No hay facturas pendientes' }}
             />
           </Card>

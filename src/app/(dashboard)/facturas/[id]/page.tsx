@@ -184,8 +184,8 @@ export default function FacturaDetallePage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Space>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+        <Space wrap>
           <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/facturas')}>
             Volver
           </Button>
@@ -197,7 +197,7 @@ export default function FacturaDetallePage() {
           </Tag>
         </Space>
 
-        <Space>
+        <Space wrap>
           <Button
             icon={<FilePdfOutlined />}
             onClick={handleDescargarPDF}
