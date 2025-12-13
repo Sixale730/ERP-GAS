@@ -24,21 +24,17 @@ interface CotizacionRow {
 }
 
 const statusColors: Record<string, string> = {
-  borrador: 'default',
-  enviada: 'processing',
-  aceptada: 'success',
-  rechazada: 'error',
-  facturada: 'purple',
-  vencida: 'warning',
+  propuesta: 'processing',
+  orden_venta: 'success',
+  factura: 'purple',
+  cancelada: 'error',
 }
 
 const statusLabels: Record<string, string> = {
-  borrador: 'Borrador',
-  enviada: 'Enviada',
-  aceptada: 'Aceptada',
-  rechazada: 'Rechazada',
-  facturada: 'Facturada',
-  vencida: 'Vencida',
+  propuesta: 'Propuesta',
+  orden_venta: 'Orden de Venta',
+  factura: 'Facturada',
+  cancelada: 'Cancelada',
 }
 
 export default function CotizacionesPage() {
@@ -212,14 +208,13 @@ export default function CotizacionesPage() {
             placeholder="Filtrar por status"
             value={statusFilter}
             onChange={setStatusFilter}
-            style={{ width: '100%', maxWidth: 150 }}
+            style={{ width: '100%', maxWidth: 180 }}
             allowClear
             options={[
-              { value: 'borrador', label: 'Borrador' },
-              { value: 'enviada', label: 'Enviada' },
-              { value: 'aceptada', label: 'Aceptada' },
-              { value: 'rechazada', label: 'Rechazada' },
-              { value: 'facturada', label: 'Facturada' },
+              { value: 'propuesta', label: 'Propuesta' },
+              { value: 'orden_venta', label: 'Orden de Venta' },
+              { value: 'factura', label: 'Facturada' },
+              { value: 'cancelada', label: 'Cancelada' },
             ]}
           />
         </Space>

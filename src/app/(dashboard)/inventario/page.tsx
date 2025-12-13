@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Table, Select, Input, Space, Tag, Card, Typography, message, Row, Col, Statistic } from 'antd'
-import { SearchOutlined, InboxOutlined, WarningOutlined } from '@ant-design/icons'
+import { Table, Select, Input, Space, Tag, Card, Typography, message, Row, Col, Statistic, Button, Modal, InputNumber, Form } from 'antd'
+import { SearchOutlined, InboxOutlined, WarningOutlined, EditOutlined, SettingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import type { Almacen } from '@/types/database'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 interface InventarioRow {
   id: string
@@ -32,11 +32,32 @@ export default function InventarioPage() {
   const [almacenFilter, setAlmacenFilter] = useState<string | null>(null)
   const [searchText, setSearchText] = useState('')
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Modal para editar cantidad
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<InventarioRow | null>(null)
+  const [nuevaCantidad, setNuevaCantidad] = useState<number>(0)
+  const [tipoAjuste, setTipoAjuste] = useState<'set' | 'add' | 'subtract'>('set')
+  const [notaAjuste, setNotaAjuste] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  // Modal para editar min/max
+  const [minMaxModalOpen, setMinMaxModalOpen] = useState(false)
+  const [editingMinMaxItem, setEditingMinMaxItem] = useState<InventarioRow | null>(null)
+  const [nuevoMinimo, setNuevoMinimo] = useState<number>(0)
+  const [nuevoMaximo, setNuevoMaximo] = useState<number>(0)
+  const [savingMinMax, setSavingMinMax] = useState(false)
+
   useEffect(() => {
     loadAlmacenes()
-    loadInventario()
-  }, [almacenFilter])
+  }, [])
+
+  // Cargar inventario cuando tengamos los almacenes activos
+  useEffect(() => {
+    if (almacenes.length > 0) {
+      loadInventario()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [almacenes, almacenFilter])
 
   const loadAlmacenes = async () => {
     const supabase = getSupabaseClient()
@@ -60,10 +81,14 @@ export default function InventarioPage() {
     setLoading(true)
 
     try {
+      // Obtener IDs de almacenes activos
+      const idsActivos = almacenes.map(a => a.id)
+
       let query = supabase
         .schema('erp')
         .from('v_inventario_detalle')
         .select('*')
+        .in('almacen_id', idsActivos)
         .order('producto_nombre')
 
       if (almacenFilter) {
@@ -79,6 +104,111 @@ export default function InventarioPage() {
       message.error('Error al cargar inventario')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleOpenEditModal = (item: InventarioRow) => {
+    setEditingItem(item)
+    setNuevaCantidad(0)
+    setTipoAjuste('set')
+    setNotaAjuste('')
+    setEditModalOpen(true)
+  }
+
+  const handleSaveInventario = async () => {
+    if (!editingItem) return
+
+    setSaving(true)
+    const supabase = getSupabaseClient()
+
+    try {
+      let cantidadFinal: number
+
+      if (tipoAjuste === 'set') {
+        cantidadFinal = nuevaCantidad
+      } else if (tipoAjuste === 'add') {
+        cantidadFinal = editingItem.cantidad + nuevaCantidad
+      } else {
+        cantidadFinal = editingItem.cantidad - nuevaCantidad
+      }
+
+      // Actualizar inventario
+      const { error: invError } = await supabase
+        .schema('erp')
+        .from('inventario')
+        .update({ cantidad: cantidadFinal, updated_at: new Date().toISOString() })
+        .eq('id', editingItem.id)
+
+      if (invError) throw invError
+
+      // Registrar movimiento
+      const diferencia = cantidadFinal - editingItem.cantidad
+      if (diferencia !== 0) {
+        await supabase
+          .schema('erp')
+          .from('movimientos_inventario')
+          .insert({
+            producto_id: editingItem.producto_id,
+            almacen_origen_id: diferencia < 0 ? editingItem.almacen_id : null,
+            almacen_destino_id: diferencia > 0 ? editingItem.almacen_id : null,
+            tipo: diferencia > 0 ? 'entrada' : 'salida',
+            cantidad: Math.abs(diferencia),
+            referencia_tipo: 'ajuste',
+            notas: notaAjuste || `Ajuste manual de inventario: ${editingItem.cantidad} → ${cantidadFinal}`,
+          })
+      }
+
+      message.success('Inventario actualizado')
+      setEditModalOpen(false)
+      loadInventario()
+    } catch (error: any) {
+      console.error('Error updating inventory:', error)
+      message.error(error.message || 'Error al actualizar inventario')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleOpenMinMaxModal = (item: InventarioRow) => {
+    setEditingMinMaxItem(item)
+    setNuevoMinimo(item.stock_minimo)
+    setNuevoMaximo(item.stock_maximo)
+    setMinMaxModalOpen(true)
+  }
+
+  const handleSaveMinMax = async () => {
+    if (!editingMinMaxItem) return
+
+    if (nuevoMinimo > nuevoMaximo) {
+      message.warning('El mínimo no puede ser mayor al máximo')
+      return
+    }
+
+    setSavingMinMax(true)
+    const supabase = getSupabaseClient()
+
+    try {
+      // Actualizar stock_minimo y stock_maximo en la tabla productos
+      const { error } = await supabase
+        .schema('erp')
+        .from('productos')
+        .update({
+          stock_minimo: nuevoMinimo,
+          stock_maximo: nuevoMaximo,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingMinMaxItem.producto_id)
+
+      if (error) throw error
+
+      message.success('Límites de stock actualizados')
+      setMinMaxModalOpen(false)
+      loadInventario()
+    } catch (error: any) {
+      console.error('Error updating min/max:', error)
+      message.error(error.message || 'Error al actualizar límites')
+    } finally {
+      setSavingMinMax(false)
     }
   }
 
@@ -155,6 +285,29 @@ export default function InventarioPage() {
         return <Tag color={color}>{label}</Tag>
       },
     },
+    {
+      title: 'Acciones',
+      key: 'acciones',
+      width: 100,
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenEditModal(record)}
+            title="Editar cantidad"
+            size="small"
+          />
+          <Button
+            type="link"
+            icon={<SettingOutlined />}
+            onClick={() => handleOpenMinMaxModal(record)}
+            title="Editar límites Min/Max"
+            size="small"
+          />
+        </Space>
+      ),
+    },
   ]
 
   return (
@@ -230,6 +383,158 @@ export default function InventarioPage() {
           }}
         />
       </Card>
+
+      {/* Modal para editar cantidad */}
+      <Modal
+        title={
+          <Space>
+            <EditOutlined />
+            <span>Ajustar Inventario</span>
+          </Space>
+        }
+        open={editModalOpen}
+        onCancel={() => setEditModalOpen(false)}
+        onOk={handleSaveInventario}
+        okText="Guardar"
+        cancelText="Cancelar"
+        confirmLoading={saving}
+        destroyOnClose
+      >
+        {editingItem && (
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Card size="small" style={{ background: '#f5f5f5' }}>
+              <Space direction="vertical" size={0}>
+                <Text strong>{editingItem.producto_nombre}</Text>
+                <Text type="secondary">SKU: {editingItem.sku}</Text>
+                <Text type="secondary">Almacén: {editingItem.almacen_nombre}</Text>
+                <Text>Cantidad actual: <Text strong>{editingItem.cantidad}</Text></Text>
+              </Space>
+            </Card>
+
+            <Form layout="vertical">
+              <Form.Item label="Tipo de ajuste">
+                <Select
+                  value={tipoAjuste}
+                  onChange={setTipoAjuste}
+                  options={[
+                    { value: 'set', label: 'Establecer cantidad exacta' },
+                    { value: 'add', label: 'Agregar a la cantidad actual' },
+                    { value: 'subtract', label: 'Restar de la cantidad actual' },
+                  ]}
+                />
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  tipoAjuste === 'set' ? 'Nueva cantidad' :
+                  tipoAjuste === 'add' ? 'Cantidad a agregar' :
+                  'Cantidad a restar'
+                }
+              >
+                <InputNumber
+                  value={nuevaCantidad}
+                  onChange={(v) => setNuevaCantidad(v || 0)}
+                  min={0}
+                  style={{ width: '100%' }}
+                  size="large"
+                />
+              </Form.Item>
+
+              {tipoAjuste !== 'set' && nuevaCantidad > 0 && (
+                <Card size="small" style={{ background: tipoAjuste === 'add' ? '#f6ffed' : '#fff7e6' }}>
+                  <Text>
+                    Cantidad final: <Text strong>
+                      {tipoAjuste === 'add'
+                        ? editingItem.cantidad + nuevaCantidad
+                        : Math.max(0, editingItem.cantidad - nuevaCantidad)}
+                    </Text>
+                  </Text>
+                </Card>
+              )}
+
+              <Form.Item label="Nota del ajuste" style={{ marginTop: 16 }}>
+                <Input.TextArea
+                  value={notaAjuste}
+                  onChange={(e) => setNotaAjuste(e.target.value)}
+                  placeholder="Razón del ajuste (opcional)"
+                  rows={2}
+                />
+              </Form.Item>
+            </Form>
+          </Space>
+        )}
+      </Modal>
+
+      {/* Modal para editar min/max */}
+      <Modal
+        title={
+          <Space>
+            <SettingOutlined />
+            <span>Editar Límites de Stock</span>
+          </Space>
+        }
+        open={minMaxModalOpen}
+        onCancel={() => setMinMaxModalOpen(false)}
+        onOk={handleSaveMinMax}
+        okText="Guardar"
+        cancelText="Cancelar"
+        confirmLoading={savingMinMax}
+        destroyOnClose
+      >
+        {editingMinMaxItem && (
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Card size="small" style={{ background: '#f5f5f5' }}>
+              <Space direction="vertical" size={0}>
+                <Text strong>{editingMinMaxItem.producto_nombre}</Text>
+                <Text type="secondary">SKU: {editingMinMaxItem.sku}</Text>
+                <Text>Cantidad actual: <Text strong>{editingMinMaxItem.cantidad}</Text></Text>
+              </Space>
+            </Card>
+
+            <Form layout="vertical">
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="Stock Mínimo">
+                    <InputNumber
+                      value={nuevoMinimo}
+                      onChange={(v) => setNuevoMinimo(v || 0)}
+                      min={0}
+                      style={{ width: '100%' }}
+                      size="large"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Stock Máximo">
+                    <InputNumber
+                      value={nuevoMaximo}
+                      onChange={(v) => setNuevoMaximo(v || 0)}
+                      min={0}
+                      style={{ width: '100%' }}
+                      size="large"
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              {nuevoMinimo > nuevoMaximo && (
+                <Card size="small" style={{ background: '#fff2f0', marginTop: 8 }}>
+                  <Text type="danger">
+                    El stock mínimo no puede ser mayor al máximo
+                  </Text>
+                </Card>
+              )}
+
+              <Card size="small" style={{ background: '#f6ffed', marginTop: 16 }}>
+                <Text type="secondary">
+                  Estos límites se usan para determinar el nivel de stock (bajo, normal, exceso)
+                  y para la generación automática de órdenes de compra.
+                </Text>
+              </Card>
+            </Form>
+          </Space>
+        )}
+      </Modal>
 
       <style jsx global>{`
         .row-stock-bajo {

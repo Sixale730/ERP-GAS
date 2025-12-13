@@ -16,6 +16,7 @@ import {
   ShopOutlined,
   UnorderedListOutlined,
   ToolOutlined,
+  ShoppingCartOutlined,
 } from '@ant-design/icons'
 
 type MenuItem = Required<MenuProps>['items'][number]
@@ -50,6 +51,11 @@ const menuItems: MenuItem[] = [
     key: '/facturas',
     icon: <DollarOutlined />,
     label: 'Facturas',
+  },
+  {
+    key: '/compras',
+    icon: <ShoppingCartOutlined />,
+    label: 'Compras',
   },
   {
     type: 'divider',

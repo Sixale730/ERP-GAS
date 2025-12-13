@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Select, InputNumber, Form
 } from 'antd'
-import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
 import { generarPDFCotizacion, type OpcionesMoneda } from '@/lib/utils/pdf'
@@ -44,21 +44,17 @@ interface CotizacionItem {
 }
 
 const statusColors: Record<string, string> = {
-  borrador: 'default',
-  enviada: 'processing',
-  aceptada: 'success',
-  rechazada: 'error',
-  facturada: 'purple',
-  vencida: 'warning',
+  propuesta: 'processing',
+  orden_venta: 'success',
+  factura: 'purple',
+  cancelada: 'error',
 }
 
 const statusLabels: Record<string, string> = {
-  borrador: 'Borrador',
-  enviada: 'Enviada',
-  aceptada: 'Aceptada',
-  rechazada: 'Rechazada',
-  facturada: 'Facturada',
-  vencida: 'Vencida',
+  propuesta: 'Propuesta',
+  orden_venta: 'Orden de Venta',
+  factura: 'Facturada',
+  cancelada: 'Cancelada',
 }
 
 export default function CotizacionDetallePage() {
@@ -198,6 +194,84 @@ export default function CotizacionDetallePage() {
     setPdfModalOpen(false)
   }
 
+  const handleConvertirOrdenVenta = () => {
+    Modal.confirm({
+      title: '¿Convertir a Orden de Venta?',
+      content: (
+        <div>
+          <p>Esta acción convertirá la cotización <strong>{cotizacion?.folio}</strong> en una Orden de Venta.</p>
+          <p style={{ marginTop: 8 }}>
+            <strong>Automáticamente se:</strong>
+          </p>
+          <ul style={{ marginTop: 4 }}>
+            <li>Descontará el inventario del almacén</li>
+            <li>Reservará los productos para esta orden</li>
+          </ul>
+        </div>
+      ),
+      okText: 'Sí, Convertir',
+      cancelText: 'Cancelar',
+      okType: 'primary',
+      onOk: async () => {
+        setConverting(true)
+        const supabase = getSupabaseClient()
+
+        try {
+          const { error } = await supabase
+            .schema('erp')
+            .rpc('cotizacion_a_orden_venta', { p_cotizacion_id: id })
+
+          if (error) throw error
+
+          message.success('Convertido a Orden de Venta')
+          loadCotizacion()
+        } catch (error: any) {
+          console.error('Error converting to orden de venta:', error)
+          message.error(error.message || 'Error al convertir a orden de venta')
+        } finally {
+          setConverting(false)
+        }
+      },
+    })
+  }
+
+  const handleCancelarOrden = () => {
+    Modal.confirm({
+      title: '¿Cancelar Orden de Venta?',
+      content: (
+        <div>
+          <p>Esta acción cancelará la orden <strong>{cotizacion?.folio}</strong>.</p>
+          <p style={{ marginTop: 8, color: '#52c41a' }}>
+            <strong>El inventario será restaurado automáticamente.</strong>
+          </p>
+        </div>
+      ),
+      okText: 'Sí, Cancelar Orden',
+      cancelText: 'No',
+      okType: 'danger',
+      onOk: async () => {
+        setConverting(true)
+        const supabase = getSupabaseClient()
+
+        try {
+          const { error } = await supabase
+            .schema('erp')
+            .rpc('cancelar_orden_venta', { p_cotizacion_id: id })
+
+          if (error) throw error
+
+          message.success('Orden cancelada, inventario restaurado')
+          loadCotizacion()
+        } catch (error: any) {
+          console.error('Error canceling order:', error)
+          message.error(error.message || 'Error al cancelar orden')
+        } finally {
+          setConverting(false)
+        }
+      },
+    })
+  }
+
   const columns = [
     {
       title: 'SKU',
@@ -255,8 +329,6 @@ export default function CotizacionDetallePage() {
     return null
   }
 
-  const canConvert = ['enviada', 'aceptada'].includes(cotizacion.status)
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
@@ -280,20 +352,71 @@ export default function CotizacionDetallePage() {
           >
             Descargar PDF
           </Button>
-          {canConvert && (
-            <Button
-              type="primary"
-              icon={<FileTextOutlined />}
-              onClick={handleConvertirAFactura}
-              loading={converting}
-              size="large"
-            >
-              Convertir a Factura
-            </Button>
+
+          {/* Botones para status PROPUESTA */}
+          {cotizacion.status === 'propuesta' && (
+            <>
+              <Button
+                icon={<EditOutlined />}
+                onClick={() => router.push(`/cotizaciones/${id}/editar`)}
+                size="large"
+              >
+                Editar
+              </Button>
+              <Button
+                type="primary"
+                icon={<ShoppingCartOutlined />}
+                onClick={handleConvertirOrdenVenta}
+                loading={converting}
+                size="large"
+              >
+                Convertir a Orden de Venta
+              </Button>
+            </>
           )}
-          {cotizacion.status === 'facturada' && (
+
+          {/* Botones para status ORDEN_VENTA */}
+          {cotizacion.status === 'orden_venta' && (
+            <>
+              <Button
+                icon={<EditOutlined />}
+                onClick={() => router.push(`/cotizaciones/${id}/editar`)}
+                size="large"
+              >
+                Editar
+              </Button>
+              <Button
+                type="primary"
+                icon={<FileTextOutlined />}
+                onClick={handleConvertirAFactura}
+                loading={converting}
+                size="large"
+              >
+                Convertir a Factura
+              </Button>
+              <Button
+                danger
+                icon={<CloseCircleOutlined />}
+                onClick={handleCancelarOrden}
+                loading={converting}
+                size="large"
+              >
+                Cancelar
+              </Button>
+            </>
+          )}
+
+          {/* Status FACTURA */}
+          {cotizacion.status === 'factura' && (
             <Tag icon={<CheckCircleOutlined />} color="purple" style={{ fontSize: 14, padding: '4px 12px' }}>
               Ya facturada
+            </Tag>
+          )}
+
+          {/* Status CANCELADA */}
+          {cotizacion.status === 'cancelada' && (
+            <Tag icon={<CloseCircleOutlined />} color="error" style={{ fontSize: 14, padding: '4px 12px' }}>
+              Cancelada
             </Tag>
           )}
         </Space>
@@ -392,7 +515,26 @@ export default function CotizacionDetallePage() {
                 <Title level={4} style={{ margin: 0, color: '#1890ff' }}>{formatMoney(cotizacion.total)}</Title>
               </div>
 
-              {canConvert && (
+              {/* Acciones según status */}
+              {cotizacion.status === 'propuesta' && (
+                <>
+                  <Divider />
+                  <Button
+                    type="primary"
+                    block
+                    size="large"
+                    icon={<ShoppingCartOutlined />}
+                    onClick={handleConvertirOrdenVenta}
+                    loading={converting}
+                  >
+                    Convertir a Orden de Venta
+                  </Button>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Al convertir, se descontará el inventario automáticamente.
+                  </Text>
+                </>
+              )}
+              {cotizacion.status === 'orden_venta' && (
                 <>
                   <Divider />
                   <Button
@@ -406,7 +548,7 @@ export default function CotizacionDetallePage() {
                     Convertir a Factura
                   </Button>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Al convertir, se descontará el inventario automáticamente.
+                    El inventario ya fue descontado. Solo se creará la factura.
                   </Text>
                 </>
               )}

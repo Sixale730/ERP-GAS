@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip
+  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin
 } from 'antd'
-import { DeleteOutlined, SaveOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { DeleteOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyMXN, calcularTotal } from '@/lib/utils/format'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
@@ -15,20 +15,41 @@ const { Title, Text } = Typography
 
 interface CotizacionItem {
   key: string
+  id?: string // ID del item existente
   producto_id: string
   producto_nombre: string
   sku: string
   precio_lista_usd: number
   margen_porcentaje: number
   cantidad: number
+  cantidad_original?: number // Para comparar cambios en orden_venta
   precio_unitario_mxn: number
   subtotal: number
 }
 
-export default function NuevaCotizacionPage() {
+interface CotizacionData {
+  id: string
+  folio: string
+  status: string
+  cliente_id: string
+  almacen_id: string
+  lista_precio_id: string | null
+  tipo_cambio: number | null
+  descuento_porcentaje: number
+  notas: string | null
+}
+
+export default function EditarCotizacionPage() {
   const router = useRouter()
+  const params = useParams()
+  const cotizacionId = params.id as string
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  // Datos de la cotizacion original
+  const [cotizacion, setCotizacion] = useState<CotizacionData | null>(null)
+  const [itemsOriginales, setItemsOriginales] = useState<CotizacionItem[]>([])
 
   // Configuracion global
   const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
@@ -56,29 +77,12 @@ export default function NuevaCotizacionPage() {
   const [productSearch, setProductSearch] = useState('')
   const [productOptions, setProductOptions] = useState<any[]>([])
 
-  // Actualizar tipo de cambio cuando cargue la config global
-  useEffect(() => {
-    if (!loadingConfig) {
-      setTipoCambio(tcGlobal)
-    }
-  }, [loadingConfig, tcGlobal])
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    loadData()
-  }, [])
-
-  // Cuando cambia el cliente, cargar su lista de precios
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (clienteId) {
-      const cliente = clientes.find(c => c.id === clienteId)
-      if (cliente?.lista_precio_id) {
-        setListaPrecioId(cliente.lista_precio_id)
-        form.setFieldValue('lista_precio_id', cliente.lista_precio_id)
-      }
+    if (cotizacionId) {
+      loadCotizacionData()
     }
-  }, [clienteId, clientes])
+  }, [cotizacionId])
 
   // Cuando cambia la lista de precios, cargar precios
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,10 +92,51 @@ export default function NuevaCotizacionPage() {
     }
   }, [listaPrecioId])
 
-  const loadData = async () => {
+  const loadCotizacionData = async () => {
     const supabase = getSupabaseClient()
+    setLoading(true)
 
     try {
+      // Cargar cotizacion existente
+      const { data: cotData, error: cotError } = await supabase
+        .schema('erp')
+        .from('cotizaciones')
+        .select('*')
+        .eq('id', cotizacionId)
+        .single()
+
+      if (cotError) throw cotError
+
+      // Solo se puede editar en propuesta u orden_venta
+      if (!['propuesta', 'orden_venta'].includes(cotData.status)) {
+        message.error('Esta cotización no se puede editar')
+        router.push(`/cotizaciones/${cotizacionId}`)
+        return
+      }
+
+      setCotizacion(cotData)
+      setClienteId(cotData.cliente_id)
+      setAlmacenId(cotData.almacen_id)
+      setListaPrecioId(cotData.lista_precio_id)
+      setDescuentoGlobal(cotData.descuento_porcentaje || 0)
+      setTipoCambio(cotData.tipo_cambio || tcGlobal)
+      form.setFieldsValue({
+        notas: cotData.notas,
+        lista_precio_id: cotData.lista_precio_id,
+      })
+
+      // Cargar items de la cotizacion
+      const { data: itemsData } = await supabase
+        .schema('erp')
+        .from('cotizacion_items')
+        .select(`
+          *,
+          productos:producto_id (id, sku, nombre, categoria_id)
+        `)
+        .eq('cotizacion_id', cotizacionId)
+        .order('created_at')
+
+      // Cargar catalogos
       const [clientesRes, almacenesRes, listasRes, productosRes] = await Promise.all([
         supabase.schema('erp').from('clientes').select('*').eq('is_active', true).order('nombre_comercial'),
         supabase.schema('erp').from('almacenes').select('*').eq('is_active', true).order('nombre'),
@@ -104,15 +149,39 @@ export default function NuevaCotizacionPage() {
       setListasPrecios(listasRes.data || [])
       setProductos(productosRes.data || [])
 
-      // Set default lista precio
-      const defaultLista = listasRes.data?.find(l => l.is_default)
-      if (defaultLista) {
-        setListaPrecioId(defaultLista.id)
-        form.setFieldValue('lista_precio_id', defaultLista.id)
+      // Pre-llenar items
+      if (itemsData) {
+        const loadedItems: CotizacionItem[] = itemsData.map(item => {
+          // Calcular precio USD base desde el precio MXN guardado
+          const precioMXN = Number(item.precio_unitario)
+          const tc = cotData.tipo_cambio || tcGlobal
+          // Asumir margen 0 si no podemos calcularlo
+          const precioUSD = precioMXN / tc
+
+          return {
+            key: item.producto_id,
+            id: item.id,
+            producto_id: item.producto_id,
+            producto_nombre: item.descripcion,
+            sku: item.productos?.sku || '-',
+            precio_lista_usd: precioUSD,
+            margen_porcentaje: 0,
+            cantidad: Number(item.cantidad),
+            cantidad_original: Number(item.cantidad),
+            precio_unitario_mxn: precioMXN,
+            subtotal: Number(item.subtotal),
+          }
+        })
+
+        setItems(loadedItems)
+        setItemsOriginales(loadedItems.map(i => ({ ...i })))
       }
     } catch (error) {
-      console.error('Error loading data:', error)
-      message.error('Error al cargar datos')
+      console.error('Error loading cotizacion:', error)
+      message.error('Error al cargar cotización')
+      router.push('/cotizaciones')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -122,7 +191,6 @@ export default function NuevaCotizacionPage() {
     const supabase = getSupabaseClient()
 
     try {
-      // Cargar precios de la lista seleccionada
       const { data, error } = await supabase
         .schema('erp')
         .from('precios_productos')
@@ -131,14 +199,12 @@ export default function NuevaCotizacionPage() {
 
       if (error) throw error
 
-      // Crear mapa de precios
       setPreciosMap(new Map(data?.map(p => [p.producto_id, Number(p.precio)]) || []))
     } catch (error) {
       console.error('Error loading precios:', error)
     }
   }
 
-  // Calcular precio MXN: precio_usd * (1 + margen%) * tipoCambio
   const calcularPrecioMXN = (precioUSD: number, margenPct: number) => {
     return precioUSD * (1 + margenPct / 100) * tipoCambio
   }
@@ -176,7 +242,7 @@ export default function NuevaCotizacionPage() {
     }
 
     const precioUSD = producto.precio
-    const margen = 0 // Default 0%
+    const margen = 0
     const precioMXN = calcularPrecioMXN(precioUSD, margen)
 
     const newItem: CotizacionItem = {
@@ -201,12 +267,10 @@ export default function NuevaCotizacionPage() {
       if (item.key === key) {
         const updated = { ...item, [field]: value }
 
-        // Si cambia el margen, recalcular precio MXN
         if (field === 'margen_porcentaje') {
           updated.precio_unitario_mxn = calcularPrecioMXN(updated.precio_lista_usd, value)
         }
 
-        // Recalcular subtotal
         updated.subtotal = updated.cantidad * updated.precio_unitario_mxn
         return updated
       }
@@ -218,12 +282,10 @@ export default function NuevaCotizacionPage() {
     setItems(items.filter(i => i.key !== key))
   }
 
-  // Recalcular todos los precios cuando cambia el tipo de cambio
   const handleTipoCambioChange = (value: number | null) => {
     const newTC = value || tcGlobal
     setTipoCambio(newTC)
 
-    // Recalcular todos los items con el nuevo TC
     setItems(items.map(item => {
       const nuevoPrecio = item.precio_lista_usd * (1 + item.margen_porcentaje / 100) * newTC
       return {
@@ -240,28 +302,65 @@ export default function NuevaCotizacionPage() {
   const { iva, total } = calcularTotal(subtotal, descuentoMonto)
 
   const handleSave = async () => {
-    const status = 'propuesta'
     if (!clienteId || !almacenId || items.length === 0) {
       message.error('Completa todos los campos requeridos')
       return
     }
 
+    if (!cotizacion) return
+
     setSaving(true)
     const supabase = getSupabaseClient()
 
     try {
-      const { data: folioData } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'cotizacion' })
-      const folio = folioData as string
+      const esOrdenVenta = cotizacion.status === 'orden_venta'
 
-      const { data: cotizacion, error: cotError } = await supabase
+      // Si es orden_venta, manejar cambios de inventario
+      if (esOrdenVenta) {
+        // Restaurar inventario de items originales
+        for (const itemViejo of itemsOriginales) {
+          // Obtener cantidad actual y actualizar
+          const { data: invData } = await supabase
+            .schema('erp')
+            .from('inventario')
+            .select('cantidad')
+            .eq('producto_id', itemViejo.producto_id)
+            .eq('almacen_id', almacenId)
+            .single()
+
+          if (invData) {
+            await supabase
+              .schema('erp')
+              .from('inventario')
+              .update({ cantidad: Number(invData.cantidad) + itemViejo.cantidad })
+              .eq('producto_id', itemViejo.producto_id)
+              .eq('almacen_id', almacenId)
+          }
+
+          // Registrar movimiento de entrada (restauración)
+          await supabase
+            .schema('erp')
+            .from('movimientos_inventario')
+            .insert({
+              producto_id: itemViejo.producto_id,
+              almacen_destino_id: almacenId,
+              tipo: 'entrada',
+              cantidad: itemViejo.cantidad,
+              referencia_tipo: 'cotizacion',
+              referencia_id: cotizacionId,
+              notas: `Restauración por edición OV ${cotizacion.folio}`
+            })
+        }
+      }
+
+      // Actualizar cotización
+      const { error: cotError } = await supabase
         .schema('erp')
         .from('cotizaciones')
-        .insert({
-          folio,
+        .update({
           cliente_id: clienteId,
           almacen_id: almacenId,
           lista_precio_id: listaPrecioId,
-          status,
           subtotal,
           descuento_porcentaje: descuentoGlobal,
           descuento_monto: descuentoMonto,
@@ -270,13 +369,20 @@ export default function NuevaCotizacionPage() {
           tipo_cambio: tipoCambio,
           notas: form.getFieldValue('notas'),
         })
-        .select()
-        .single()
+        .eq('id', cotizacionId)
 
       if (cotError) throw cotError
 
+      // Eliminar items viejos
+      await supabase
+        .schema('erp')
+        .from('cotizacion_items')
+        .delete()
+        .eq('cotizacion_id', cotizacionId)
+
+      // Insertar nuevos items
       const itemsToInsert = items.map(i => ({
-        cotizacion_id: cotizacion.id,
+        cotizacion_id: cotizacionId,
         producto_id: i.producto_id,
         descripcion: i.producto_nombre,
         cantidad: i.cantidad,
@@ -292,11 +398,47 @@ export default function NuevaCotizacionPage() {
 
       if (itemsError) throw itemsError
 
-      message.success(`Cotizacion ${folio} creada`)
-      router.push('/cotizaciones')
+      // Si es orden_venta, descontar nuevo inventario
+      if (esOrdenVenta) {
+        for (const item of items) {
+          const { data: invData } = await supabase
+            .schema('erp')
+            .from('inventario')
+            .select('cantidad')
+            .eq('producto_id', item.producto_id)
+            .eq('almacen_id', almacenId)
+            .single()
+
+          if (invData) {
+            await supabase
+              .schema('erp')
+              .from('inventario')
+              .update({ cantidad: Number(invData.cantidad) - item.cantidad })
+              .eq('producto_id', item.producto_id)
+              .eq('almacen_id', almacenId)
+          }
+
+          // Registrar movimiento de salida
+          await supabase
+            .schema('erp')
+            .from('movimientos_inventario')
+            .insert({
+              producto_id: item.producto_id,
+              almacen_origen_id: almacenId,
+              tipo: 'salida',
+              cantidad: item.cantidad,
+              referencia_tipo: 'cotizacion',
+              referencia_id: cotizacionId,
+              notas: `Orden de Venta ${cotizacion.folio} (editada)`
+            })
+        }
+      }
+
+      message.success('Cotización actualizada')
+      router.push(`/cotizaciones/${cotizacionId}`)
     } catch (error: any) {
       console.error('Error saving cotizacion:', error)
-      message.error(error.message || 'Error al guardar cotizacion')
+      message.error(error.message || 'Error al guardar cotización')
     } finally {
       setSaving(false)
     }
@@ -387,9 +529,25 @@ export default function NuevaCotizacionPage() {
     },
   ]
 
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: 50 }}>
+        <Spin size="large" />
+      </div>
+    )
+  }
+
   return (
     <div>
-      <Title level={2}>Nueva Cotizacion</Title>
+      <Space style={{ marginBottom: 16 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(`/cotizaciones/${cotizacionId}`)}>
+          Volver
+        </Button>
+        <Title level={2} style={{ margin: 0 }}>Editar Cotización {cotizacion?.folio}</Title>
+        {cotizacion?.status === 'orden_venta' && (
+          <Text type="warning" strong>(Orden de Venta - El inventario será recalculado)</Text>
+        )}
+      </Space>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={16}>
@@ -419,7 +577,7 @@ export default function NuevaCotizacionPage() {
             </Row>
           </Card>
 
-          <Card title="Datos de la Cotizacion" style={{ marginBottom: 16 }}>
+          <Card title="Datos de la Cotización" style={{ marginBottom: 16 }}>
             <Form form={form} layout="vertical">
               <Row gutter={16}>
                 <Col xs={24} md={12}>
@@ -437,12 +595,13 @@ export default function NuevaCotizacionPage() {
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Form.Item label="Almacen" required>
+                  <Form.Item label="Almacén" required>
                     <Select
-                      placeholder="Seleccionar almacen"
+                      placeholder="Seleccionar almacén"
                       value={almacenId}
                       onChange={setAlmacenId}
                       options={almacenes.map(a => ({ value: a.id, label: a.nombre }))}
+                      disabled={cotizacion?.status === 'orden_venta'}
                     />
                   </Form.Item>
                 </Col>
@@ -490,7 +649,7 @@ export default function NuevaCotizacionPage() {
                 pagination={false}
                 size="small"
                 scroll={{ x: 800 }}
-                locale={{ emptyText: 'Agrega productos a la cotizacion' }}
+                locale={{ emptyText: 'Agrega productos a la cotización' }}
               />
             </Space>
           </Card>
@@ -542,12 +701,21 @@ export default function NuevaCotizacionPage() {
                   disabled={items.length === 0}
                   size="large"
                 >
-                  Guardar Cotización
+                  Guardar Cambios
                 </Button>
-                <Button block onClick={() => router.back()}>
+                <Button block onClick={() => router.push(`/cotizaciones/${cotizacionId}`)}>
                   Cancelar
                 </Button>
               </Space>
+
+              {cotizacion?.status === 'orden_venta' && (
+                <>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Text type="warning" style={{ fontSize: 12 }}>
+                    Esta cotización está en Orden de Venta. Al guardar, el inventario será restaurado y vuelto a descontar con las nuevas cantidades.
+                  </Text>
+                </>
+              )}
             </Space>
           </Card>
         </Col>

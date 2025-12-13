@@ -569,6 +569,129 @@ export type Database = {
           updated_at?: string
         }
       }
+      ordenes_compra: {
+        Row: {
+          id: string
+          folio: string
+          proveedor_id: string
+          almacen_destino_id: string
+          fecha: string
+          fecha_esperada: string | null
+          status: 'borrador' | 'enviada' | 'parcialmente_recibida' | 'recibida' | 'cancelada'
+          moneda: 'USD' | 'MXN'
+          tipo_cambio: number | null
+          subtotal: number
+          iva: number
+          total: number
+          notas: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          folio: string
+          proveedor_id: string
+          almacen_destino_id: string
+          fecha?: string
+          fecha_esperada?: string | null
+          status?: 'borrador' | 'enviada' | 'parcialmente_recibida' | 'recibida' | 'cancelada'
+          moneda?: 'USD' | 'MXN'
+          tipo_cambio?: number | null
+          subtotal?: number
+          iva?: number
+          total?: number
+          notas?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          folio?: string
+          proveedor_id?: string
+          almacen_destino_id?: string
+          fecha?: string
+          fecha_esperada?: string | null
+          status?: 'borrador' | 'enviada' | 'parcialmente_recibida' | 'recibida' | 'cancelada'
+          moneda?: 'USD' | 'MXN'
+          tipo_cambio?: number | null
+          subtotal?: number
+          iva?: number
+          total?: number
+          notas?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      orden_compra_items: {
+        Row: {
+          id: string
+          orden_compra_id: string
+          producto_id: string
+          cantidad_solicitada: number
+          cantidad_recibida: number
+          precio_unitario: number
+          descuento_porcentaje: number
+          subtotal: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          orden_compra_id: string
+          producto_id: string
+          cantidad_solicitada: number
+          cantidad_recibida?: number
+          precio_unitario: number
+          descuento_porcentaje?: number
+          subtotal?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          orden_compra_id?: string
+          producto_id?: string
+          cantidad_solicitada?: number
+          cantidad_recibida?: number
+          precio_unitario?: number
+          descuento_porcentaje?: number
+          subtotal?: number
+          created_at?: string
+        }
+      }
+      recepciones_orden: {
+        Row: {
+          id: string
+          orden_compra_id: string
+          orden_compra_item_id: string
+          fecha_recepcion: string
+          cantidad_recibida: number
+          numero_lote: string | null
+          notas: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          orden_compra_id: string
+          orden_compra_item_id: string
+          fecha_recepcion?: string
+          cantidad_recibida: number
+          numero_lote?: string | null
+          notas?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          orden_compra_id?: string
+          orden_compra_item_id?: string
+          fecha_recepcion?: string
+          cantidad_recibida?: number
+          numero_lote?: string | null
+          notas?: string | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       v_productos_stock: {
@@ -613,6 +736,32 @@ export type Database = {
           dias_vencida: number
         }
       }
+      v_ordenes_compra: {
+        Row: {
+          id: string
+          folio: string
+          fecha: string
+          fecha_esperada: string | null
+          status: string
+          status_label: string
+          moneda: 'USD' | 'MXN'
+          tipo_cambio: number | null
+          subtotal: number
+          iva: number
+          total: number
+          notas: string | null
+          proveedor_id: string
+          proveedor_codigo: string
+          proveedor_nombre: string
+          almacen_id: string
+          almacen_codigo: string
+          almacen_nombre: string
+          total_items: number
+          items_completos: number
+          created_at: string
+          updated_at: string
+        }
+      }
     }
     Functions: {
       generar_folio: {
@@ -630,6 +779,15 @@ export type Database = {
       recalcular_totales_factura: {
         Args: { p_factura_id: string }
         Returns: void
+      }
+      registrar_recepcion: {
+        Args: {
+          p_orden_compra_item_id: string
+          p_cantidad: number
+          p_notas?: string | null
+          p_numero_lote?: string | null
+        }
+        Returns: string
       }
     }
   }
@@ -670,3 +828,15 @@ export interface ConfigMargenGanancia {
 export type ProductoStock = Views<'v_productos_stock'>
 export type CotizacionView = Views<'v_cotizaciones'>
 export type FacturaView = Views<'v_facturas'>
+export type OrdenCompraView = Views<'v_ordenes_compra'>
+
+// Ordenes de compra types
+export type OrdenCompra = Tables<'ordenes_compra'>
+export type OrdenCompraItem = Tables<'orden_compra_items'>
+export type RecepcionOrden = Tables<'recepciones_orden'>
+
+// Configuracion de margenes por categoria
+export interface ConfigMargenesCategoria {
+  global: number
+  por_categoria: Record<string, number>
+}

@@ -1,19 +1,33 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin } from 'antd'
+import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin, Table, Input } from 'antd'
 import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined } from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
+import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { formatDate } from '@/lib/utils/format'
+import { getSupabaseClient } from '@/lib/supabase/client'
+import type { Categoria } from '@/types/database'
 
 const { Title, Text } = Typography
 
+interface CategoriaConMargen extends Categoria {
+  margen_especifico: number | null
+}
+
 export default function ConfiguracionPage() {
   const { tipoCambio, fechaTipoCambio, margenGanancia, loading, updateTipoCambio, updateMargenGanancia, reload } = useConfiguracion()
+  const { config: margenesConfig, loading: loadingMargenes, updateConfig: updateMargenes, reload: reloadMargenes } = useMargenesCategoria()
 
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const [savingMargenes, setSavingMargenes] = useState(false)
   const [formValues, setFormValues] = useState({ tipo_cambio: tipoCambio, margen_ganancia: margenGanancia })
+  const [categorias, setCategorias] = useState<CategoriaConMargen[]>([])
+  const [loadingCategorias, setLoadingCategorias] = useState(true)
+  const [margenGlobal, setMargenGlobal] = useState(30)
+  const [margenesPorCategoria, setMargenesPorCategoria] = useState<Record<string, number | null>>({})
 
   useEffect(() => {
     if (!loading) {
@@ -24,6 +38,55 @@ export default function ConfiguracionPage() {
       setFormValues({ tipo_cambio: tipoCambio, margen_ganancia: margenGanancia })
     }
   }, [loading, tipoCambio, margenGanancia, form])
+
+  useEffect(() => {
+    if (!loadingMargenes) {
+      setMargenGlobal(margenesConfig.global)
+      setMargenesPorCategoria(
+        Object.fromEntries(
+          Object.entries(margenesConfig.por_categoria).map(([k, v]) => [k, v])
+        )
+      )
+    }
+  }, [loadingMargenes, margenesConfig])
+
+  useEffect(() => {
+    loadCategorias()
+  }, [])
+
+  const loadCategorias = async () => {
+    const supabase = getSupabaseClient()
+    setLoadingCategorias(true)
+
+    try {
+      const { data, error } = await supabase
+        .schema('erp')
+        .from('categorias')
+        .select('*')
+        .eq('is_active', true)
+        .order('nombre')
+
+      if (error) throw error
+
+      setCategorias((data || []).map(cat => ({
+        ...cat,
+        margen_especifico: margenesConfig.por_categoria[cat.id] ?? null
+      })))
+    } catch (err) {
+      console.error('Error loading categorias:', err)
+    } finally {
+      setLoadingCategorias(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!loadingMargenes && categorias.length > 0) {
+      setCategorias(cats => cats.map(cat => ({
+        ...cat,
+        margen_especifico: margenesConfig.por_categoria[cat.id] ?? null
+      })))
+    }
+  }, [loadingMargenes, margenesConfig])
 
   const handleValuesChange = (_: any, allValues: any) => {
     setFormValues(allValues)
@@ -51,13 +114,95 @@ export default function ConfiguracionPage() {
     }
   }
 
+  const handleSaveMargenes = async () => {
+    setSavingMargenes(true)
+
+    try {
+      const porCategoria: Record<string, number> = {}
+      Object.entries(margenesPorCategoria).forEach(([id, valor]) => {
+        if (valor !== null && valor !== undefined) {
+          porCategoria[id] = valor
+        }
+      })
+
+      const result = await updateMargenes({
+        global: margenGlobal,
+        por_categoria: porCategoria
+      })
+
+      if (result.error) {
+        throw new Error('Error al guardar margenes')
+      }
+
+      message.success('Margenes guardados correctamente')
+    } catch (err: any) {
+      message.error(err.message)
+    } finally {
+      setSavingMargenes(false)
+    }
+  }
+
+  const handleMargenCategoriaChange = (categoriaId: string, valor: number | null) => {
+    setMargenesPorCategoria(prev => ({
+      ...prev,
+      [categoriaId]: valor
+    }))
+  }
+
+  const handleReloadAll = () => {
+    reload()
+    reloadMargenes()
+    loadCategorias()
+  }
+
   // Ejemplo de calculo
   const costoEjemplo = 100 // USD
   const tcActual = formValues.tipo_cambio || tipoCambio
   const margenActual = formValues.margen_ganancia || margenGanancia
   const precioCalculado = costoEjemplo * tcActual * (1 + margenActual / 100)
 
-  if (loading) {
+  const columnsCategoria: ColumnsType<CategoriaConMargen> = [
+    {
+      title: 'Categoria',
+      dataIndex: 'nombre',
+      key: 'nombre',
+    },
+    {
+      title: 'Margen Global',
+      key: 'margen_global',
+      width: 120,
+      align: 'center',
+      render: () => <Text type="secondary">{margenGlobal}%</Text>,
+    },
+    {
+      title: 'Margen Especifico',
+      key: 'margen_especifico',
+      width: 150,
+      render: (_, record) => (
+        <InputNumber
+          min={0}
+          max={500}
+          placeholder="Usar global"
+          value={margenesPorCategoria[record.id]}
+          onChange={(val) => handleMargenCategoriaChange(record.id, val)}
+          addonAfter="%"
+          style={{ width: '100%' }}
+        />
+      ),
+    },
+    {
+      title: 'Margen Efectivo',
+      key: 'margen_efectivo',
+      width: 120,
+      align: 'center',
+      render: (_, record) => {
+        const efectivo = margenesPorCategoria[record.id] ?? margenGlobal
+        return <Text strong style={{ color: margenesPorCategoria[record.id] !== null && margenesPorCategoria[record.id] !== undefined ? '#1890ff' : undefined }}>{efectivo}%</Text>
+      },
+    },
+  ]
+
+  if (loading || loadingMargenes) {
     return (
       <div style={{ textAlign: 'center', padding: 50 }}>
         <Spin size="large" />
@@ -69,7 +214,7 @@ export default function ConfiguracionPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Configuracion del Sistema</Title>
-        <Button icon={<ReloadOutlined />} onClick={reload}>
+        <Button icon={<ReloadOutlined />} onClick={handleReloadAll}>
           Recargar
         </Button>
       </div>
@@ -174,6 +319,50 @@ export default function ConfiguracionPage() {
           </Card>
         </Col>
       </Row>
+
+      <Card title="Margenes por Categoria (Ordenes de Compra)" style={{ marginTop: 16 }}>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+          Define margenes de ganancia por categoria para ordenes de compra a proveedores.
+          El margen especifico tiene prioridad sobre el global.
+        </Text>
+
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={8}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text strong>Margen Global (aplica a todas)</Text>
+              <InputNumber
+                min={0}
+                max={500}
+                value={margenGlobal}
+                onChange={(val) => setMargenGlobal(val || 0)}
+                addonAfter="%"
+                style={{ width: '100%' }}
+              />
+            </Space>
+          </Col>
+        </Row>
+
+        <Table
+          dataSource={categorias}
+          columns={columnsCategoria}
+          rowKey="id"
+          loading={loadingCategorias}
+          pagination={false}
+          size="small"
+          scroll={{ x: 500 }}
+        />
+
+        <Divider />
+
+        <Button
+          type="primary"
+          icon={<SaveOutlined />}
+          onClick={handleSaveMargenes}
+          loading={savingMargenes}
+        >
+          Guardar Margenes
+        </Button>
+      </Card>
     </div>
   )
 }

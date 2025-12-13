@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Table
+  Card, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Table, Modal, InputNumber, Form
 } from 'antd'
-import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, SettingOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney } from '@/lib/utils/format'
 
@@ -54,6 +54,12 @@ export default function ProductoDetallePage() {
   const [producto, setProducto] = useState<ProductoDetalle | null>(null)
   const [precios, setPrecios] = useState<PrecioLista[]>([])
   const [inventario, setInventario] = useState<InventarioAlmacen[]>([])
+
+  // Modal para editar min/max
+  const [stockModalOpen, setStockModalOpen] = useState(false)
+  const [stockMinimo, setStockMinimo] = useState(0)
+  const [stockMaximo, setStockMaximo] = useState(0)
+  const [savingStock, setSavingStock] = useState(false)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -125,6 +131,44 @@ export default function ProductoDetallePage() {
       router.push('/productos')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleOpenStockModal = () => {
+    if (producto) {
+      setStockMinimo(producto.stock_minimo)
+      setStockMaximo(producto.stock_maximo)
+      setStockModalOpen(true)
+    }
+  }
+
+  const handleSaveStock = async () => {
+    if (!producto) return
+
+    setSavingStock(true)
+    const supabase = getSupabaseClient()
+
+    try {
+      const { error } = await supabase
+        .schema('erp')
+        .from('productos')
+        .update({
+          stock_minimo: stockMinimo,
+          stock_maximo: stockMaximo,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+
+      if (error) throw error
+
+      message.success('Stock mínimo/máximo actualizado')
+      setStockModalOpen(false)
+      loadProducto()
+    } catch (error: any) {
+      console.error('Error saving stock:', error)
+      message.error(error.message || 'Error al guardar')
+    } finally {
+      setSavingStock(false)
     }
   }
 
@@ -227,10 +271,16 @@ export default function ProductoDetallePage() {
                 {formatMoney(producto.costo_promedio || 0)}
               </Descriptions.Item>
               <Descriptions.Item label="Stock Mínimo">
-                {producto.stock_minimo}
+                <Space>
+                  {producto.stock_minimo}
+                  <Button type="link" size="small" icon={<SettingOutlined />} onClick={handleOpenStockModal} />
+                </Space>
               </Descriptions.Item>
               <Descriptions.Item label="Stock Máximo">
-                {producto.stock_maximo}
+                <Space>
+                  {producto.stock_maximo}
+                  <Button type="link" size="small" icon={<SettingOutlined />} onClick={handleOpenStockModal} />
+                </Space>
               </Descriptions.Item>
             </Descriptions>
             {producto.descripcion && (
@@ -302,6 +352,51 @@ export default function ProductoDetallePage() {
           </Card>
         </Col>
       </Row>
+
+      {/* Modal para editar stock mínimo/máximo */}
+      <Modal
+        title={
+          <Space>
+            <SettingOutlined />
+            <span>Configurar Stock Mínimo/Máximo</span>
+          </Space>
+        }
+        open={stockModalOpen}
+        onCancel={() => setStockModalOpen(false)}
+        onOk={handleSaveStock}
+        okText="Guardar"
+        cancelText="Cancelar"
+        confirmLoading={savingStock}
+        destroyOnClose
+      >
+        <Form layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item label="Stock Mínimo" help="Cantidad mínima antes de generar alerta de reabastecimiento">
+            <InputNumber
+              value={stockMinimo}
+              onChange={(v) => setStockMinimo(v || 0)}
+              min={0}
+              style={{ width: '100%' }}
+              size="large"
+            />
+          </Form.Item>
+
+          <Form.Item label="Stock Máximo" help="Cantidad objetivo para órdenes de compra automáticas">
+            <InputNumber
+              value={stockMaximo}
+              onChange={(v) => setStockMaximo(v || 0)}
+              min={0}
+              style={{ width: '100%' }}
+              size="large"
+            />
+          </Form.Item>
+
+          {stockMaximo > 0 && stockMinimo >= stockMaximo && (
+            <Tag color="warning" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
+              El stock mínimo debe ser menor que el máximo
+            </Tag>
+          )}
+        </Form>
+      </Modal>
     </div>
   )
 }
