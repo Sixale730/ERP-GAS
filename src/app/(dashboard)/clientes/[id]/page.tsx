@@ -8,6 +8,7 @@ import {
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
+import { getRegimenFiscalLabel, getUsoCfdiLabel, getFormaPagoLabel, getMetodoPagoLabel } from '@/lib/config/sat'
 
 const { Title, Text } = Typography
 
@@ -30,6 +31,16 @@ interface ClienteDetalle {
   saldo_pendiente: number
   notas: string | null
   is_active: boolean
+  // Campos de envío
+  direccion_envio: string | null
+  ciudad_envio: string | null
+  estado_envio: string | null
+  codigo_postal_envio: string | null
+  contacto_envio: string | null
+  telefono_envio: string | null
+  // Campos de pago
+  forma_pago: string | null
+  metodo_pago: string | null
 }
 
 interface FacturaResumen {
@@ -209,11 +220,33 @@ export default function ClienteDetallePage() {
             <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
               <Descriptions.Item label="Razón Social">{cliente.razon_social || '-'}</Descriptions.Item>
               <Descriptions.Item label="RFC">{cliente.rfc || '-'}</Descriptions.Item>
-              <Descriptions.Item label="Régimen Fiscal">{cliente.regimen_fiscal || '-'}</Descriptions.Item>
-              <Descriptions.Item label="Uso CFDI">{cliente.uso_cfdi || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Régimen Fiscal">{getRegimenFiscalLabel(cliente.regimen_fiscal)}</Descriptions.Item>
+              <Descriptions.Item label="Uso CFDI">{getUsoCfdiLabel(cliente.uso_cfdi)}</Descriptions.Item>
               <Descriptions.Item label="C.P. Fiscal">{cliente.codigo_postal_fiscal || '-'}</Descriptions.Item>
             </Descriptions>
           </Card>
+
+          {(cliente.direccion_envio || cliente.ciudad_envio || cliente.contacto_envio) && (
+            <Card title="Dirección de Envío" style={{ marginBottom: 16 }}>
+              <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
+                <Descriptions.Item label="Dirección" span={2}>{cliente.direccion_envio || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Ciudad">{cliente.ciudad_envio || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Estado">{cliente.estado_envio || '-'}</Descriptions.Item>
+                <Descriptions.Item label="C.P.">{cliente.codigo_postal_envio || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Contacto">{cliente.contacto_envio || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Teléfono">{cliente.telefono_envio || '-'}</Descriptions.Item>
+              </Descriptions>
+            </Card>
+          )}
+
+          {(cliente.forma_pago || cliente.metodo_pago) && (
+            <Card title="Preferencias de Pago" style={{ marginBottom: 16 }}>
+              <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
+                <Descriptions.Item label="Forma de Pago">{getFormaPagoLabel(cliente.forma_pago)}</Descriptions.Item>
+                <Descriptions.Item label="Método de Pago">{getMetodoPagoLabel(cliente.metodo_pago)}</Descriptions.Item>
+              </Descriptions>
+            </Card>
+          )}
 
           <Card title="Facturas Recientes">
             <Table

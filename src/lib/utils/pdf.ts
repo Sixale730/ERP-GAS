@@ -11,8 +11,10 @@ export interface OpcionesMoneda {
 }
 
 // Helper para formatear montos con la moneda seleccionada
+// NO convierte el monto - los precios ya están guardados en la moneda correcta
 function formatMontoConMoneda(amount: number, opciones: OpcionesMoneda): string {
-  return formatMoneyCurrency(amount, opciones.moneda, opciones.tipoCambio)
+  // No pasar tipoCambio para evitar doble conversión - los precios ya están en la moneda guardada
+  return formatMoneyCurrency(amount, opciones.moneda)
 }
 
 // Tipos para cotizaciones

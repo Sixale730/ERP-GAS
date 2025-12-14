@@ -186,6 +186,22 @@ export default function ComprasPage() {
         .select('producto_id, cantidad')
         .eq('almacen_id', almacenId)
 
+      // Cargar órdenes de compra enviadas/parcialmente recibidas con sus items
+      const { data: ordenesEnTransitoData } = await supabase
+        .schema('erp')
+        .from('ordenes_compra')
+        .select(`
+          id,
+          status,
+          orden_compra_items(
+            producto_id,
+            cantidad_solicitada,
+            cantidad_recibida
+          )
+        `)
+        .eq('almacen_destino_id', almacenId)
+        .in('status', ['enviada', 'parcialmente_recibida'])
+
       // Cargar precios de la lista "Público General"
       const { data: preciosData } = await supabase
         .schema('erp')
@@ -196,6 +212,25 @@ export default function ComprasPage() {
       const inventarioMap = new Map(
         inventarioData?.map((i) => [i.producto_id, Number(i.cantidad)]) || []
       )
+
+      // Crear mapa de cantidades pendientes por producto (en tránsito)
+      const cantidadesPendientesMap = new Map<string, number>()
+      if (ordenesEnTransitoData) {
+        ordenesEnTransitoData.forEach((orden) => {
+          const items = orden.orden_compra_items as Array<{
+            producto_id: string
+            cantidad_solicitada: number
+            cantidad_recibida: number
+          }> | null
+          items?.forEach((item) => {
+            const pendiente = (Number(item.cantidad_solicitada) || 0) - (Number(item.cantidad_recibida) || 0)
+            if (pendiente > 0) {
+              const actual = cantidadesPendientesMap.get(item.producto_id) ?? 0
+              cantidadesPendientesMap.set(item.producto_id, actual + pendiente)
+            }
+          })
+        })
+      }
 
       const nuevoPreciosMap = new Map(
         preciosData?.map((p) => [p.producto_id, Number(p.precio)]) || []
@@ -208,7 +243,11 @@ export default function ComprasPage() {
       const faltantes: ProductoFaltante[] = (todoProductos || [])
         .map((p) => {
           const cantidadActual = inventarioMap.get(p.id) ?? 0
-          const cantidadSugerida = Math.max(p.stock_maximo - cantidadActual, 0)
+          const cantidadEnTransito = cantidadesPendientesMap.get(p.id) ?? 0
+          // Stock efectivo = actual + lo que ya viene en camino
+          const stockEfectivo = cantidadActual + cantidadEnTransito
+          // Solo sugerir lo que falta después de considerar lo en tránsito
+          const cantidadSugerida = Math.max(p.stock_maximo - stockEfectivo, 0)
           const proveedorData = p.proveedores as unknown
           const proveedor = (Array.isArray(proveedorData) ? proveedorData[0] : proveedorData) as { id: string; razon_social: string } | null
           // Usar precio de lista (USD), fallback a costo_promedio
@@ -240,7 +279,13 @@ export default function ComprasPage() {
             categoria_id: p.categoria_id,
           }
         })
-        .filter((p) => p.cantidad_actual < p.stock_minimo || p.cantidad_actual < 0)
+        .filter((p) => {
+          // Mostrar si hay algo que pedir Y:
+          // - Stock efectivo está bajo mínimo, O
+          // - Inventario actual es negativo (urgente, aunque haya pedidos en tránsito)
+          const stockEfectivo = p.cantidad_actual + (cantidadesPendientesMap.get(p.producto_id) ?? 0)
+          return p.cantidad_sugerida > 0 && (stockEfectivo < p.stock_minimo || p.cantidad_actual < 0)
+        })
 
       // Extraer proveedores únicos disponibles
       const proveedoresUnicos = new Map<string, string>()
@@ -710,8 +755,8 @@ export default function ComprasPage() {
                     }
                   }}
                   min={0.01}
-                  step={0.01}
-                  precision={2}
+                  step={0.0001}
+                  precision={4}
                   prefix="$"
                   style={{ width: '100%', marginTop: 8 }}
                 />

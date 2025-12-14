@@ -7,6 +7,7 @@ import {
 } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 
 const { Title } = Typography
 const { TextArea } = Input
@@ -62,6 +63,16 @@ export default function EditarClientePage() {
         dias_credito: clienteRes.data.dias_credito,
         limite_credito: clienteRes.data.limite_credito,
         notas: clienteRes.data.notas,
+        // Campos de envío
+        direccion_envio: clienteRes.data.direccion_envio,
+        ciudad_envio: clienteRes.data.ciudad_envio,
+        estado_envio: clienteRes.data.estado_envio,
+        codigo_postal_envio: clienteRes.data.codigo_postal_envio,
+        contacto_envio: clienteRes.data.contacto_envio,
+        telefono_envio: clienteRes.data.telefono_envio,
+        // Campos de pago
+        forma_pago: clienteRes.data.forma_pago,
+        metodo_pago: clienteRes.data.metodo_pago,
       })
     } catch (error) {
       console.error('Error loading cliente:', error)
@@ -95,6 +106,16 @@ export default function EditarClientePage() {
           dias_credito: values.dias_credito || 0,
           limite_credito: values.limite_credito || 0,
           notas: values.notas || null,
+          // Campos de envío
+          direccion_envio: values.direccion_envio || null,
+          ciudad_envio: values.ciudad_envio || null,
+          estado_envio: values.estado_envio || null,
+          codigo_postal_envio: values.codigo_postal_envio || null,
+          contacto_envio: values.contacto_envio || null,
+          telefono_envio: values.telefono_envio || null,
+          // Campos de pago
+          forma_pago: values.forma_pago || null,
+          metodo_pago: values.metodo_pago || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -187,17 +208,7 @@ export default function EditarClientePage() {
                 <Select
                   placeholder="Seleccionar régimen"
                   allowClear
-                  options={[
-                    { value: '601', label: '601 - General de Ley PM' },
-                    { value: '603', label: '603 - Personas Morales sin fines de lucro' },
-                    { value: '605', label: '605 - Sueldos y salarios' },
-                    { value: '606', label: '606 - Arrendamiento' },
-                    { value: '612', label: '612 - Personas Físicas con Actividad Empresarial' },
-                    { value: '616', label: '616 - Sin obligaciones fiscales' },
-                    { value: '621', label: '621 - Incorporación Fiscal' },
-                    { value: '625', label: '625 - Régimen de las Actividades Agrícolas' },
-                    { value: '626', label: '626 - Régimen Simplificado de Confianza' },
-                  ]}
+                  options={REGIMENES_FISCALES_SAT}
                 />
               </Form.Item>
             </Col>
@@ -206,18 +217,69 @@ export default function EditarClientePage() {
                 <Select
                   placeholder="Seleccionar uso"
                   allowClear
-                  options={[
-                    { value: 'G01', label: 'G01 - Adquisición de mercancías' },
-                    { value: 'G03', label: 'G03 - Gastos en general' },
-                    { value: 'P01', label: 'P01 - Por definir' },
-                    { value: 'S01', label: 'S01 - Sin efectos fiscales' },
-                  ]}
+                  options={USOS_CFDI_SAT}
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
               <Form.Item name="codigo_postal_fiscal" label="C.P. Fiscal">
                 <Input placeholder="Código postal" maxLength={5} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Title level={5} style={{ marginTop: 24 }}>Dirección de Envío</Title>
+          <Row gutter={16}>
+            <Col xs={24}>
+              <Form.Item name="direccion_envio" label="Dirección de Envío">
+                <TextArea rows={2} placeholder="Dirección completa para envío (si es diferente a la fiscal)" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="ciudad_envio" label="Ciudad">
+                <Input placeholder="Ciudad" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="estado_envio" label="Estado">
+                <Input placeholder="Estado" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="codigo_postal_envio" label="C.P. Envío">
+                <Input placeholder="Código postal" maxLength={10} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="contacto_envio" label="Contacto para Envío">
+                <Input placeholder="Nombre de quien recibe" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="telefono_envio" label="Teléfono Envío">
+                <Input placeholder="Teléfono de contacto para entregas" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Title level={5} style={{ marginTop: 24 }}>Preferencias de Pago</Title>
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item name="forma_pago" label="Forma de Pago Predeterminada">
+                <Select
+                  placeholder="Seleccionar forma de pago"
+                  allowClear
+                  options={FORMAS_PAGO_SAT}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="metodo_pago" label="Método de Pago Predeterminado">
+                <Select
+                  placeholder="Seleccionar método de pago"
+                  allowClear
+                  options={METODOS_PAGO_SAT}
+                />
               </Form.Item>
             </Col>
           </Row>

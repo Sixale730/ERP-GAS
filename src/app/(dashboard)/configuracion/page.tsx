@@ -232,8 +232,8 @@ export default function ConfiguracionPage() {
                 <InputNumber
                   min={1}
                   max={100}
-                  step={0.01}
-                  precision={2}
+                  step={0.0001}
+                  precision={4}
                   style={{ width: '100%' }}
                   prefix={<DollarOutlined />}
                   addonAfter="MXN"

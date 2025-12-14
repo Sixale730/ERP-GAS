@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin
+  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin, Alert, Collapse
 } from 'antd'
-import { DeleteOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { DeleteOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyMXN, calcularTotal } from '@/lib/utils/format'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
+import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -37,6 +38,23 @@ interface CotizacionData {
   tipo_cambio: number | null
   descuento_porcentaje: number
   notas: string | null
+  // CFDI
+  cfdi_rfc: string | null
+  cfdi_razon_social: string | null
+  cfdi_regimen_fiscal: string | null
+  cfdi_uso_cfdi: string | null
+  cfdi_codigo_postal: string | null
+  // Envío
+  envio_direccion: string | null
+  envio_ciudad: string | null
+  envio_estado: string | null
+  envio_codigo_postal: string | null
+  envio_contacto: string | null
+  envio_telefono: string | null
+  // Pago
+  forma_pago: string | null
+  metodo_pago: string | null
+  condiciones_pago: string | null
 }
 
 export default function EditarCotizacionPage() {
@@ -73,6 +91,10 @@ export default function EditarCotizacionPage() {
   const [items, setItems] = useState<CotizacionItem[]>([])
   const [descuentoGlobal, setDescuentoGlobal] = useState(0)
 
+  // Inventario del almacén para alertas de stock
+  const [inventarioMap, setInventarioMap] = useState<Map<string, number>>(new Map())
+  const [mostrarAlertaStock, setMostrarAlertaStock] = useState(true)
+
   // Product search
   const [productSearch, setProductSearch] = useState('')
   const [productOptions, setProductOptions] = useState<any[]>([])
@@ -91,6 +113,30 @@ export default function EditarCotizacionPage() {
       loadProductosConPrecios()
     }
   }, [listaPrecioId])
+
+  // Cuando cambia el almacén, cargar inventario para alertas
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (almacenId) {
+      loadInventarioAlmacen(almacenId)
+    }
+  }, [almacenId])
+
+  const loadInventarioAlmacen = async (almId: string) => {
+    const supabase = getSupabaseClient()
+    try {
+      const { data } = await supabase
+        .schema('erp')
+        .from('inventario')
+        .select('producto_id, cantidad')
+        .eq('almacen_id', almId)
+
+      setInventarioMap(new Map(data?.map(i => [i.producto_id, Number(i.cantidad)]) || []))
+      setMostrarAlertaStock(true)
+    } catch (error) {
+      console.error('Error loading inventario:', error)
+    }
+  }
 
   const loadCotizacionData = async () => {
     const supabase = getSupabaseClient()
@@ -123,6 +169,23 @@ export default function EditarCotizacionPage() {
       form.setFieldsValue({
         notas: cotData.notas,
         lista_precio_id: cotData.lista_precio_id,
+        // CFDI
+        cfdi_rfc: cotData.cfdi_rfc,
+        cfdi_razon_social: cotData.cfdi_razon_social,
+        cfdi_regimen_fiscal: cotData.cfdi_regimen_fiscal,
+        cfdi_uso_cfdi: cotData.cfdi_uso_cfdi,
+        cfdi_codigo_postal: cotData.cfdi_codigo_postal,
+        // Envío
+        envio_direccion: cotData.envio_direccion,
+        envio_ciudad: cotData.envio_ciudad,
+        envio_estado: cotData.envio_estado,
+        envio_codigo_postal: cotData.envio_codigo_postal,
+        envio_contacto: cotData.envio_contacto,
+        envio_telefono: cotData.envio_telefono,
+        // Pago
+        forma_pago: cotData.forma_pago,
+        metodo_pago: cotData.metodo_pago,
+        condiciones_pago: cotData.condiciones_pago,
       })
 
       // Cargar items de la cotizacion
@@ -354,6 +417,7 @@ export default function EditarCotizacionPage() {
       }
 
       // Actualizar cotización
+      const formValues = form.getFieldsValue()
       const { error: cotError } = await supabase
         .schema('erp')
         .from('cotizaciones')
@@ -367,7 +431,24 @@ export default function EditarCotizacionPage() {
           iva,
           total,
           tipo_cambio: tipoCambio,
-          notas: form.getFieldValue('notas'),
+          notas: formValues.notas,
+          // CFDI
+          cfdi_rfc: formValues.cfdi_rfc || null,
+          cfdi_razon_social: formValues.cfdi_razon_social || null,
+          cfdi_regimen_fiscal: formValues.cfdi_regimen_fiscal || null,
+          cfdi_uso_cfdi: formValues.cfdi_uso_cfdi || null,
+          cfdi_codigo_postal: formValues.cfdi_codigo_postal || null,
+          // Envío
+          envio_direccion: formValues.envio_direccion || null,
+          envio_ciudad: formValues.envio_ciudad || null,
+          envio_estado: formValues.envio_estado || null,
+          envio_codigo_postal: formValues.envio_codigo_postal || null,
+          envio_contacto: formValues.envio_contacto || null,
+          envio_telefono: formValues.envio_telefono || null,
+          // Pago
+          forma_pago: formValues.forma_pago || null,
+          metodo_pago: formValues.metodo_pago || null,
+          condiciones_pago: formValues.condiciones_pago || null,
         })
         .eq('id', cotizacionId)
 
@@ -563,8 +644,8 @@ export default function EditarCotizacionPage() {
                   onChange={handleTipoCambioChange}
                   min={1}
                   max={100}
-                  step={0.01}
-                  precision={2}
+                  step={0.0001}
+                  precision={4}
                   addonAfter="MXN/USD"
                   style={{ width: 180 }}
                 />
@@ -642,6 +723,35 @@ export default function EditarCotizacionPage() {
                 disabled={!listaPrecioId || !almacenId}
               />
 
+              {/* Alerta de productos sin stock */}
+              {mostrarAlertaStock && almacenId && items.length > 0 && (() => {
+                const productosSinStock = items.filter(item => {
+                  const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
+                  return stockDisponible < item.cantidad
+                })
+                if (productosSinStock.length === 0) return null
+                return (
+                  <Alert
+                    type="warning"
+                    closable
+                    onClose={() => setMostrarAlertaStock(false)}
+                    message="Productos sin stock disponible"
+                    description={
+                      <ul style={{ margin: 0, paddingLeft: 20 }}>
+                        {productosSinStock.map(p => {
+                          const stock = inventarioMap.get(p.producto_id) ?? 0
+                          return (
+                            <li key={p.key}>
+                              <strong>{p.sku}</strong>: Stock {stock}, Solicitado {p.cantidad}
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    }
+                  />
+                )
+              })()}
+
               <Table
                 dataSource={items}
                 columns={columns}
@@ -654,7 +764,123 @@ export default function EditarCotizacionPage() {
             </Space>
           </Card>
 
-          <Form form={form}>
+          <Form form={form} layout="vertical">
+            <Collapse
+              defaultActiveKey={cotizacion?.status === 'orden_venta' ? ['envio', 'cfdi', 'pago'] : []}
+              style={{ marginBottom: 16 }}
+              items={[
+                {
+                  key: 'envio',
+                  label: (
+                    <Space>
+                      <EnvironmentOutlined />
+                      <span>Datos de Envío</span>
+                    </Space>
+                  ),
+                  children: (
+                    <Row gutter={16}>
+                      <Col xs={24}>
+                        <Form.Item name="envio_direccion" label="Dirección">
+                          <Input.TextArea rows={2} placeholder="Dirección de envío" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="envio_ciudad" label="Ciudad">
+                          <Input placeholder="Ciudad" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="envio_estado" label="Estado">
+                          <Input placeholder="Estado" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="envio_codigo_postal" label="C.P.">
+                          <Input placeholder="Código postal" maxLength={10} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item name="envio_contacto" label="Contacto">
+                          <Input placeholder="Nombre de quien recibe" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item name="envio_telefono" label="Teléfono">
+                          <Input placeholder="Teléfono de contacto" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  ),
+                },
+                {
+                  key: 'cfdi',
+                  label: (
+                    <Space>
+                      <BankOutlined />
+                      <span>Datos de Facturación (CFDI)</span>
+                    </Space>
+                  ),
+                  children: (
+                    <Row gutter={16}>
+                      <Col xs={24} md={12}>
+                        <Form.Item name="cfdi_rfc" label="RFC">
+                          <Input placeholder="RFC" maxLength={13} style={{ textTransform: 'uppercase' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item name="cfdi_razon_social" label="Razón Social">
+                          <Input placeholder="Razón social" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="cfdi_regimen_fiscal" label="Régimen Fiscal">
+                          <Select placeholder="Seleccionar" allowClear options={REGIMENES_FISCALES_SAT} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="cfdi_uso_cfdi" label="Uso CFDI">
+                          <Select placeholder="Seleccionar" allowClear options={USOS_CFDI_SAT} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="cfdi_codigo_postal" label="C.P. Fiscal">
+                          <Input placeholder="Código postal" maxLength={5} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  ),
+                },
+                {
+                  key: 'pago',
+                  label: (
+                    <Space>
+                      <CreditCardOutlined />
+                      <span>Datos de Pago</span>
+                    </Space>
+                  ),
+                  children: (
+                    <Row gutter={16}>
+                      <Col xs={24} md={12}>
+                        <Form.Item name="forma_pago" label="Forma de Pago">
+                          <Select placeholder="Seleccionar" allowClear options={FORMAS_PAGO_SAT} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item name="metodo_pago" label="Método de Pago">
+                          <Select placeholder="Seleccionar" allowClear options={METODOS_PAGO_SAT} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24}>
+                        <Form.Item name="condiciones_pago" label="Condiciones de Pago">
+                          <Input.TextArea rows={2} placeholder="Condiciones especiales de pago..." />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  ),
+                },
+              ]}
+            />
+
             <Form.Item name="notas" label="Notas">
               <Input.TextArea rows={3} placeholder="Notas adicionales..." />
             </Form.Item>

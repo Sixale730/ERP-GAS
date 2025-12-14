@@ -481,8 +481,8 @@ export default function NuevaOrdenCompraPage() {
                         style={{ width: '100%' }}
                         value={tipoCambioLocal}
                         min={1}
-                        step={0.1}
-                        precision={2}
+                        step={0.0001}
+                        precision={4}
                         prefix="$"
                         onChange={(value) => {
                           const nuevoTC = value || tipoCambio

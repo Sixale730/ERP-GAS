@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
-import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
@@ -16,11 +16,18 @@ interface CotizacionRow {
   id: string
   folio: string
   fecha: string
+  vigencia_dias: number
   status: string
   total: number
   cliente_nombre?: string
   cliente_rfc?: string
   almacen_nombre?: string
+}
+
+// Helper para verificar si la cotización está caducada
+function esCaducada(fecha: string, vigenciaDias: number): boolean {
+  const vencimiento = dayjs(fecha).add(vigenciaDias, 'day')
+  return dayjs().isAfter(vencimiento)
 }
 
 const statusColors: Record<string, string> = {
@@ -151,11 +158,20 @@ export default function CotizacionesPage() {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 120,
-      render: (status) => (
-        <Tag color={statusColors[status]}>
-          {statusLabels[status] || status}
-        </Tag>
+      width: 180,
+      render: (status: string, record: CotizacionRow) => (
+        <Space size={4}>
+          <Tag color={statusColors[status]}>
+            {statusLabels[status] || status}
+          </Tag>
+          {esCaducada(record.fecha, record.vigencia_dias || 30) &&
+           status !== 'factura' &&
+           status !== 'cancelada' && (
+            <Tag color="warning" icon={<ClockCircleOutlined />}>
+              Caducada
+            </Tag>
+          )}
+        </Space>
       ),
     },
     {

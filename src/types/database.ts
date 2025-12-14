@@ -274,6 +274,17 @@ export type Database = {
           saldo_pendiente: number
           notas: string | null
           is_active: boolean
+          moneda: 'USD' | 'MXN'
+          // Campos de envío
+          direccion_envio: string | null
+          ciudad_envio: string | null
+          estado_envio: string | null
+          codigo_postal_envio: string | null
+          contacto_envio: string | null
+          telefono_envio: string | null
+          // Campos de pago predeterminados
+          forma_pago: string | null
+          metodo_pago: string | null
           created_at: string
           updated_at: string
         }
@@ -296,6 +307,17 @@ export type Database = {
           saldo_pendiente?: number
           notas?: string | null
           is_active?: boolean
+          moneda?: 'USD' | 'MXN'
+          // Campos de envío
+          direccion_envio?: string | null
+          ciudad_envio?: string | null
+          estado_envio?: string | null
+          codigo_postal_envio?: string | null
+          contacto_envio?: string | null
+          telefono_envio?: string | null
+          // Campos de pago predeterminados
+          forma_pago?: string | null
+          metodo_pago?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -318,6 +340,17 @@ export type Database = {
           saldo_pendiente?: number
           notas?: string | null
           is_active?: boolean
+          moneda?: 'USD' | 'MXN'
+          // Campos de envío
+          direccion_envio?: string | null
+          ciudad_envio?: string | null
+          estado_envio?: string | null
+          codigo_postal_envio?: string | null
+          contacto_envio?: string | null
+          telefono_envio?: string | null
+          // Campos de pago predeterminados
+          forma_pago?: string | null
+          metodo_pago?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -343,6 +376,24 @@ export type Database = {
           factura_id: string | null
           tipo_cambio: number | null
           margen_aplicado: number | null
+          moneda: 'USD' | 'MXN'
+          // Datos CFDI (copiados del cliente)
+          cfdi_rfc: string | null
+          cfdi_razon_social: string | null
+          cfdi_regimen_fiscal: string | null
+          cfdi_uso_cfdi: string | null
+          cfdi_codigo_postal: string | null
+          // Datos de envío
+          envio_direccion: string | null
+          envio_ciudad: string | null
+          envio_estado: string | null
+          envio_codigo_postal: string | null
+          envio_contacto: string | null
+          envio_telefono: string | null
+          // Datos de pago
+          forma_pago: string | null
+          metodo_pago: string | null
+          condiciones_pago: string | null
           created_at: string
           updated_at: string
         }
@@ -366,6 +417,24 @@ export type Database = {
           factura_id?: string | null
           tipo_cambio?: number | null
           margen_aplicado?: number | null
+          moneda?: 'USD' | 'MXN'
+          // Datos CFDI (copiados del cliente)
+          cfdi_rfc?: string | null
+          cfdi_razon_social?: string | null
+          cfdi_regimen_fiscal?: string | null
+          cfdi_uso_cfdi?: string | null
+          cfdi_codigo_postal?: string | null
+          // Datos de envío
+          envio_direccion?: string | null
+          envio_ciudad?: string | null
+          envio_estado?: string | null
+          envio_codigo_postal?: string | null
+          envio_contacto?: string | null
+          envio_telefono?: string | null
+          // Datos de pago
+          forma_pago?: string | null
+          metodo_pago?: string | null
+          condiciones_pago?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -389,6 +458,24 @@ export type Database = {
           factura_id?: string | null
           tipo_cambio?: number | null
           margen_aplicado?: number | null
+          moneda?: 'USD' | 'MXN'
+          // Datos CFDI (copiados del cliente)
+          cfdi_rfc?: string | null
+          cfdi_razon_social?: string | null
+          cfdi_regimen_fiscal?: string | null
+          cfdi_uso_cfdi?: string | null
+          cfdi_codigo_postal?: string | null
+          // Datos de envío
+          envio_direccion?: string | null
+          envio_ciudad?: string | null
+          envio_estado?: string | null
+          envio_codigo_postal?: string | null
+          envio_contacto?: string | null
+          envio_telefono?: string | null
+          // Datos de pago
+          forma_pago?: string | null
+          metodo_pago?: string | null
+          condiciones_pago?: string | null
           created_at?: string
           updated_at?: string
         }

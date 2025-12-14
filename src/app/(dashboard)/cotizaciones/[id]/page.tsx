@@ -3,13 +3,15 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Select, InputNumber, Form
+  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Alert, Collapse
 } from 'antd'
-import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoney, formatDate } from '@/lib/utils/format'
+import { formatMoneyMXN, formatMoneyUSD, formatDate } from '@/lib/utils/format'
+import { getFormaPagoLabel, getMetodoPagoLabel, getRegimenFiscalLabel, getUsoCfdiLabel } from '@/lib/config/sat'
+import dayjs from 'dayjs'
 import { generarPDFCotizacion, type OpcionesMoneda } from '@/lib/utils/pdf'
-import { TIPO_CAMBIO_DEFAULT, type CodigoMoneda } from '@/lib/config/moneda'
+import type { CodigoMoneda } from '@/lib/config/moneda'
 
 const { Title, Text } = Typography
 
@@ -17,7 +19,7 @@ interface CotizacionDetalle {
   id: string
   folio: string
   fecha: string
-  fecha_vencimiento: string
+  vigencia_dias: number
   status: string
   subtotal: number
   descuento_porcentaje: number
@@ -30,6 +32,37 @@ interface CotizacionDetalle {
   cliente_rfc: string | null
   almacen_id: string
   almacen_nombre: string
+  moneda: CodigoMoneda
+  tipo_cambio: number | null
+  // Datos CFDI
+  cfdi_rfc: string | null
+  cfdi_razon_social: string | null
+  cfdi_regimen_fiscal: string | null
+  cfdi_uso_cfdi: string | null
+  cfdi_codigo_postal: string | null
+  // Datos de envío
+  envio_direccion: string | null
+  envio_ciudad: string | null
+  envio_estado: string | null
+  envio_codigo_postal: string | null
+  envio_contacto: string | null
+  envio_telefono: string | null
+  // Datos de pago
+  forma_pago: string | null
+  metodo_pago: string | null
+  condiciones_pago: string | null
+  // Datos del cliente para días de crédito
+  cliente_dias_credito?: number
+}
+
+// Helpers para vigencia
+function calcularFechaVencimiento(fecha: string, vigenciaDias: number): string {
+  return dayjs(fecha).add(vigenciaDias, 'day').format('YYYY-MM-DD')
+}
+
+function esCaducada(fecha: string, vigenciaDias: number): boolean {
+  const vencimiento = dayjs(fecha).add(vigenciaDias, 'day')
+  return dayjs().isAfter(vencimiento)
 }
 
 interface CotizacionItem {
@@ -66,11 +99,8 @@ export default function CotizacionDetallePage() {
   const [converting, setConverting] = useState(false)
   const [cotizacion, setCotizacion] = useState<CotizacionDetalle | null>(null)
   const [items, setItems] = useState<CotizacionItem[]>([])
-
-  // Estado para modal de PDF
-  const [pdfModalOpen, setPdfModalOpen] = useState(false)
-  const [pdfMoneda, setPdfMoneda] = useState<CodigoMoneda>('USD')
-  const [pdfTipoCambio, setPdfTipoCambio] = useState(TIPO_CAMBIO_DEFAULT)
+  const [inventarioMap, setInventarioMap] = useState<Map<string, number>>(new Map())
+  const [mostrarAlertaStock, setMostrarAlertaStock] = useState(true)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -79,21 +109,72 @@ export default function CotizacionDetallePage() {
     }
   }, [id])
 
+  // Formatear dinero segun moneda de la cotizacion
+  const formatMoney = (amount: number) => {
+    if (!cotizacion) return `$${amount.toFixed(2)}`
+    return cotizacion.moneda === 'USD' ? formatMoneyUSD(amount) : formatMoneyMXN(amount)
+  }
+
   const loadCotizacion = async () => {
     const supabase = getSupabaseClient()
     setLoading(true)
 
     try {
-      // Load cotizacion from view
+      // Load cotizacion directly from table to get moneda and tipo_cambio
       const { data: cotData, error: cotError } = await supabase
         .schema('erp')
-        .from('v_cotizaciones')
-        .select('*')
+        .from('cotizaciones')
+        .select(`
+          *,
+          clientes:cliente_id (nombre_comercial, rfc, dias_credito),
+          almacenes:almacen_id (nombre)
+        `)
         .eq('id', id)
         .single()
 
       if (cotError) throw cotError
-      setCotizacion(cotData)
+
+      // Transform data to match interface
+      const cotizacionData: CotizacionDetalle = {
+        id: cotData.id,
+        folio: cotData.folio,
+        fecha: cotData.fecha,
+        vigencia_dias: cotData.vigencia_dias || 30,
+        status: cotData.status,
+        subtotal: cotData.subtotal,
+        descuento_porcentaje: cotData.descuento_porcentaje,
+        descuento_monto: cotData.descuento_monto,
+        iva: cotData.iva,
+        total: cotData.total,
+        notas: cotData.notas,
+        cliente_id: cotData.cliente_id,
+        cliente_nombre: cotData.clientes?.nombre_comercial || '-',
+        cliente_rfc: cotData.clientes?.rfc || null,
+        almacen_id: cotData.almacen_id,
+        almacen_nombre: cotData.almacenes?.nombre || '-',
+        moneda: cotData.moneda || 'MXN',
+        tipo_cambio: cotData.tipo_cambio,
+        // Datos CFDI
+        cfdi_rfc: cotData.cfdi_rfc,
+        cfdi_razon_social: cotData.cfdi_razon_social,
+        cfdi_regimen_fiscal: cotData.cfdi_regimen_fiscal,
+        cfdi_uso_cfdi: cotData.cfdi_uso_cfdi,
+        cfdi_codigo_postal: cotData.cfdi_codigo_postal,
+        // Datos de envío
+        envio_direccion: cotData.envio_direccion,
+        envio_ciudad: cotData.envio_ciudad,
+        envio_estado: cotData.envio_estado,
+        envio_codigo_postal: cotData.envio_codigo_postal,
+        envio_contacto: cotData.envio_contacto,
+        envio_telefono: cotData.envio_telefono,
+        // Datos de pago
+        forma_pago: cotData.forma_pago,
+        metodo_pago: cotData.metodo_pago,
+        condiciones_pago: cotData.condiciones_pago,
+        cliente_dias_credito: cotData.clientes?.dias_credito || 0
+      }
+
+      setCotizacion(cotizacionData)
 
       // Load items
       const { data: itemsData, error: itemsError } = await supabase
@@ -122,6 +203,30 @@ export default function CotizacionDetallePage() {
       setLoading(false)
     }
   }
+
+  // Cargar inventario del almacén
+  const loadInventarioAlmacen = async (almId: string) => {
+    const supabase = getSupabaseClient()
+    try {
+      const { data } = await supabase
+        .schema('erp')
+        .from('inventario')
+        .select('producto_id, cantidad')
+        .eq('almacen_id', almId)
+
+      setInventarioMap(new Map(data?.map(i => [i.producto_id, Number(i.cantidad)]) || []))
+      setMostrarAlertaStock(true)
+    } catch (error) {
+      console.error('Error loading inventario:', error)
+    }
+  }
+
+  // Cargar inventario cuando se carga la cotización
+  useEffect(() => {
+    if (cotizacion?.almacen_id) {
+      loadInventarioAlmacen(cotizacion.almacen_id)
+    }
+  }, [cotizacion?.almacen_id])
 
   const handleConvertirAFactura = () => {
     Modal.confirm({
@@ -174,24 +279,23 @@ export default function CotizacionDetallePage() {
     })
   }
 
-  const handleAbrirModalPDF = () => {
-    // Reiniciar estados al abrir
-    setPdfMoneda('USD')
-    setPdfTipoCambio(TIPO_CAMBIO_DEFAULT)
-    setPdfModalOpen(true)
-  }
-
   const handleDescargarPDF = () => {
     if (!cotizacion) return
 
+    // Usar la moneda y tipo de cambio guardados en la cotizacion
     const opciones: OpcionesMoneda = {
-      moneda: pdfMoneda,
-      tipoCambio: pdfMoneda === 'MXN' ? pdfTipoCambio : undefined
+      moneda: cotizacion.moneda,
+      tipoCambio: cotizacion.tipo_cambio || undefined
     }
 
-    generarPDFCotizacion(cotizacion, items, opciones)
-    message.success('PDF descargado')
-    setPdfModalOpen(false)
+    // Agregar fecha_vencimiento calculada para el PDF
+    const cotizacionConVigencia = {
+      ...cotizacion,
+      fecha_vencimiento: calcularFechaVencimiento(cotizacion.fecha, cotizacion.vigencia_dias)
+    }
+
+    generarPDFCotizacion(cotizacionConVigencia, items, opciones)
+    message.success(`PDF descargado en ${cotizacion.moneda}`)
   }
 
   const handleConvertirOrdenVenta = () => {
@@ -342,12 +446,23 @@ export default function CotizacionDetallePage() {
           <Tag color={statusColors[cotizacion.status]} style={{ fontSize: 14, padding: '4px 12px' }}>
             {statusLabels[cotizacion.status] || cotizacion.status}
           </Tag>
+          <Tag color={cotizacion.moneda === 'USD' ? 'green' : 'blue'} style={{ fontSize: 14, padding: '4px 12px' }}>
+            <DollarOutlined /> {cotizacion.moneda}
+          </Tag>
+          {/* Tag Caducada - solo visual, no bloquea acciones */}
+          {esCaducada(cotizacion.fecha, cotizacion.vigencia_dias) &&
+           cotizacion.status !== 'factura' &&
+           cotizacion.status !== 'cancelada' && (
+            <Tag color="warning" icon={<ClockCircleOutlined />} style={{ fontSize: 14, padding: '4px 12px' }}>
+              Caducada
+            </Tag>
+          )}
         </Space>
 
         <Space wrap>
           <Button
             icon={<FilePdfOutlined />}
-            onClick={handleAbrirModalPDF}
+            onClick={handleDescargarPDF}
             size="large"
           >
             Descargar PDF
@@ -431,7 +546,24 @@ export default function CotizacionDetallePage() {
               <Descriptions.Item label="Cliente">{cotizacion.cliente_nombre}</Descriptions.Item>
               <Descriptions.Item label="RFC">{cotizacion.cliente_rfc || '-'}</Descriptions.Item>
               <Descriptions.Item label="Almacén">{cotizacion.almacen_nombre}</Descriptions.Item>
-              <Descriptions.Item label="Vencimiento">{formatDate(cotizacion.fecha_vencimiento)}</Descriptions.Item>
+              <Descriptions.Item label="Vigencia">
+                {formatDate(calcularFechaVencimiento(cotizacion.fecha, cotizacion.vigencia_dias))}
+                {esCaducada(cotizacion.fecha, cotizacion.vigencia_dias) &&
+                 cotizacion.status !== 'factura' &&
+                 cotizacion.status !== 'cancelada' && (
+                  <Tag color="warning" style={{ marginLeft: 8 }}>Caducada</Tag>
+                )}
+              </Descriptions.Item>
+              <Descriptions.Item label="Moneda">
+                <Tag color={cotizacion.moneda === 'USD' ? 'green' : 'blue'}>
+                  {cotizacion.moneda}
+                </Tag>
+                {cotizacion.moneda === 'MXN' && cotizacion.tipo_cambio && (
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    T/C: {cotizacion.tipo_cambio}
+                  </Text>
+                )}
+              </Descriptions.Item>
             </Descriptions>
             {cotizacion.notas && (
               <>
@@ -440,6 +572,98 @@ export default function CotizacionDetallePage() {
               </>
             )}
           </Card>
+
+          {/* Secciones colapsables de Envío, Facturación y Pago */}
+          <Collapse
+            defaultActiveKey={cotizacion.status === 'orden_venta' ? ['envio', 'cfdi', 'pago'] : []}
+            style={{ marginBottom: 16 }}
+            items={[
+              {
+                key: 'envio',
+                label: (
+                  <Space>
+                    <EnvironmentOutlined />
+                    <span>Datos de Envío</span>
+                  </Space>
+                ),
+                children: (
+                  <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
+                    <Descriptions.Item label="Dirección" span={2}>{cotizacion.envio_direccion || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Ciudad">{cotizacion.envio_ciudad || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Estado">{cotizacion.envio_estado || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="C.P.">{cotizacion.envio_codigo_postal || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Contacto">{cotizacion.envio_contacto || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Teléfono">{cotizacion.envio_telefono || '-'}</Descriptions.Item>
+                  </Descriptions>
+                ),
+              },
+              {
+                key: 'cfdi',
+                label: (
+                  <Space>
+                    <BankOutlined />
+                    <span>Datos de Facturación (CFDI)</span>
+                  </Space>
+                ),
+                children: (
+                  <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
+                    <Descriptions.Item label="RFC">{cotizacion.cfdi_rfc || cotizacion.cliente_rfc || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Razón Social">{cotizacion.cfdi_razon_social || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="Régimen Fiscal">{getRegimenFiscalLabel(cotizacion.cfdi_regimen_fiscal)}</Descriptions.Item>
+                    <Descriptions.Item label="Uso CFDI">{getUsoCfdiLabel(cotizacion.cfdi_uso_cfdi)}</Descriptions.Item>
+                    <Descriptions.Item label="C.P. Fiscal">{cotizacion.cfdi_codigo_postal || '-'}</Descriptions.Item>
+                  </Descriptions>
+                ),
+              },
+              {
+                key: 'pago',
+                label: (
+                  <Space>
+                    <CreditCardOutlined />
+                    <span>Datos de Pago</span>
+                  </Space>
+                ),
+                children: (
+                  <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
+                    <Descriptions.Item label="Forma de Pago">{getFormaPagoLabel(cotizacion.forma_pago)}</Descriptions.Item>
+                    <Descriptions.Item label="Método de Pago">{getMetodoPagoLabel(cotizacion.metodo_pago)}</Descriptions.Item>
+                    <Descriptions.Item label="Días de Crédito">{cotizacion.cliente_dias_credito || 0}</Descriptions.Item>
+                    <Descriptions.Item label="Condiciones" span={2}>{cotizacion.condiciones_pago || '-'}</Descriptions.Item>
+                  </Descriptions>
+                ),
+              },
+            ]}
+          />
+
+          {/* Alerta de stock insuficiente - solo en propuesta */}
+          {mostrarAlertaStock && cotizacion.status === 'propuesta' && items.length > 0 && (() => {
+            const productosSinStock = items.filter(item => {
+              const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
+              return stockDisponible < item.cantidad
+            })
+            if (productosSinStock.length === 0) return null
+            return (
+              <Alert
+                type="warning"
+                closable
+                onClose={() => setMostrarAlertaStock(false)}
+                message="Productos sin stock suficiente"
+                description={
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {productosSinStock.map(p => {
+                      const stock = inventarioMap.get(p.producto_id) ?? 0
+                      return (
+                        <li key={p.id}>
+                          <strong>{p.sku}</strong>: Stock {stock}, Solicitado {p.cantidad}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                }
+                style={{ marginBottom: 16 }}
+              />
+            )
+          })()}
 
           <Card title="Productos">
             <Table
@@ -495,6 +719,19 @@ export default function CotizacionDetallePage() {
         <Col xs={24} lg={8}>
           <Card title="Resumen" style={{ position: 'sticky', top: 88 }}>
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text type="secondary">Moneda:</Text>
+                <Text strong style={{ color: cotizacion.moneda === 'USD' ? '#52c41a' : '#1890ff' }}>
+                  <DollarOutlined /> {cotizacion.moneda}
+                </Text>
+              </div>
+              {cotizacion.moneda === 'MXN' && cotizacion.tipo_cambio && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text type="secondary">T/C:</Text>
+                  <Text>{cotizacion.tipo_cambio} MXN/USD</Text>
+                </div>
+              )}
+              <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>Subtotal:</Text>
                 <Text strong>{formatMoney(cotizacion.subtotal)}</Text>
@@ -556,49 +793,6 @@ export default function CotizacionDetallePage() {
           </Card>
         </Col>
       </Row>
-
-      {/* Modal para seleccionar moneda del PDF */}
-      <Modal
-        title="Opciones de PDF"
-        open={pdfModalOpen}
-        onCancel={() => setPdfModalOpen(false)}
-        onOk={handleDescargarPDF}
-        okText="Descargar"
-        cancelText="Cancelar"
-        destroyOnClose
-      >
-        <Form layout="vertical">
-          <Form.Item label="Moneda">
-            <Select
-              value={pdfMoneda}
-              onChange={(value) => setPdfMoneda(value)}
-              options={[
-                { value: 'USD', label: 'USD - Dólar Americano' },
-                { value: 'MXN', label: 'MXN - Peso Mexicano' },
-              ]}
-            />
-          </Form.Item>
-          {pdfMoneda === 'MXN' && (
-            <Form.Item label="Tipo de Cambio (MXN por 1 USD)">
-              <InputNumber
-                value={pdfTipoCambio}
-                onChange={(value) => setPdfTipoCambio(value || TIPO_CAMBIO_DEFAULT)}
-                min={1}
-                max={100}
-                step={0.01}
-                precision={2}
-                style={{ width: '100%' }}
-                addonAfter="MXN"
-              />
-            </Form.Item>
-          )}
-          {pdfMoneda === 'MXN' && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Los precios base están en USD. Se convertirán a MXN usando el tipo de cambio indicado.
-            </Text>
-          )}
-        </Form>
-      </Modal>
     </div>
   )
 }
