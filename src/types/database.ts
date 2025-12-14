@@ -544,6 +544,20 @@ export type Database = {
           saldo: number
           notas: string | null
           vendedor_id: string | null
+          // Campos CFDI
+          uuid_cfdi: string | null
+          xml_cfdi: string | null
+          xml_sin_timbrar: string | null
+          fecha_timbrado: string | null
+          certificado_emisor: string | null
+          certificado_sat: string | null
+          sello_cfdi: string | null
+          sello_sat: string | null
+          cadena_original: string | null
+          status_sat: string | null
+          acuse_cancelacion: string | null
+          motivo_cancelacion: string | null
+          uuid_sustitucion: string | null
           created_at: string
           updated_at: string
         }
@@ -569,6 +583,20 @@ export type Database = {
           saldo?: number
           notas?: string | null
           vendedor_id?: string | null
+          // Campos CFDI
+          uuid_cfdi?: string | null
+          xml_cfdi?: string | null
+          xml_sin_timbrar?: string | null
+          fecha_timbrado?: string | null
+          certificado_emisor?: string | null
+          certificado_sat?: string | null
+          sello_cfdi?: string | null
+          sello_sat?: string | null
+          cadena_original?: string | null
+          status_sat?: string | null
+          acuse_cancelacion?: string | null
+          motivo_cancelacion?: string | null
+          uuid_sustitucion?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -594,6 +622,20 @@ export type Database = {
           saldo?: number
           notas?: string | null
           vendedor_id?: string | null
+          // Campos CFDI
+          uuid_cfdi?: string | null
+          xml_cfdi?: string | null
+          xml_sin_timbrar?: string | null
+          fecha_timbrado?: string | null
+          certificado_emisor?: string | null
+          certificado_sat?: string | null
+          sello_cfdi?: string | null
+          sello_sat?: string | null
+          cadena_original?: string | null
+          status_sat?: string | null
+          acuse_cancelacion?: string | null
+          motivo_cancelacion?: string | null
+          uuid_sustitucion?: string | null
           created_at?: string
           updated_at?: string
         }
