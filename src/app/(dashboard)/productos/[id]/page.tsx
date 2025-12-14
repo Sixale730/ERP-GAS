@@ -5,9 +5,11 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Table, Modal, InputNumber, Form
 } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, SettingOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, SettingOutlined, SwapOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney } from '@/lib/utils/format'
+import MovimientosTable from '@/components/movimientos/MovimientosTable'
+import type { MovimientoView } from '@/types/database'
 
 const { Title, Text } = Typography
 
@@ -28,6 +30,7 @@ interface ProductoDetalle {
   stock_total: number
   reservado_total: number
   disponible_total: number
+  numero_parte: string | null
   is_active: boolean
 }
 
@@ -54,6 +57,8 @@ export default function ProductoDetallePage() {
   const [producto, setProducto] = useState<ProductoDetalle | null>(null)
   const [precios, setPrecios] = useState<PrecioLista[]>([])
   const [inventario, setInventario] = useState<InventarioAlmacen[]>([])
+  const [movimientos, setMovimientos] = useState<MovimientoView[]>([])
+  const [loadingMovimientos, setLoadingMovimientos] = useState(false)
 
   // Modal para editar min/max
   const [stockModalOpen, setStockModalOpen] = useState(false)
@@ -73,15 +78,19 @@ export default function ProductoDetallePage() {
     setLoading(true)
 
     try {
-      // Load producto from view
-      const { data: prodData, error: prodError } = await supabase
-        .schema('erp')
-        .from('v_productos_stock')
-        .select('*')
-        .eq('id', id)
-        .single()
+      // Load producto from view + numero_parte from productos table
+      const [viewRes, prodRes] = await Promise.all([
+        supabase.schema('erp').from('v_productos_stock').select('*').eq('id', id).single(),
+        supabase.schema('erp').from('productos').select('numero_parte').eq('id', id).single(),
+      ])
 
-      if (prodError) throw prodError
+      if (viewRes.error) throw viewRes.error
+
+      // Merge numero_parte into producto data
+      const prodData = {
+        ...viewRes.data,
+        numero_parte: prodRes.data?.numero_parte || null,
+      }
       setProducto(prodData)
 
       // Load precios
@@ -125,12 +134,37 @@ export default function ProductoDetallePage() {
         }))
         setInventario(invFormatted)
       }
+
+      // Load movimientos for this product
+      loadMovimientos()
     } catch (error) {
       console.error('Error loading producto:', error)
       message.error('Error al cargar producto')
       router.push('/productos')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadMovimientos = async () => {
+    setLoadingMovimientos(true)
+    const supabase = getSupabaseClient()
+
+    try {
+      const { data, error } = await supabase
+        .schema('erp')
+        .from('v_movimientos')
+        .select('*')
+        .eq('producto_id', id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (error) throw error
+      setMovimientos(data || [])
+    } catch (error) {
+      console.error('Error loading movimientos:', error)
+    } finally {
+      setLoadingMovimientos(false)
     }
   }
 
@@ -258,6 +292,9 @@ export default function ProductoDetallePage() {
               <Descriptions.Item label="Código de Barras">
                 {producto.codigo_barras || '-'}
               </Descriptions.Item>
+              <Descriptions.Item label="Número de Parte">
+                {producto.numero_parte || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="Categoría">
                 {producto.categoria_nombre || '-'}
               </Descriptions.Item>
@@ -303,7 +340,7 @@ export default function ProductoDetallePage() {
           </Card>
 
           {inventario.length > 0 && (
-            <Card title="Inventario por Almacén">
+            <Card title="Inventario por Almacén" style={{ marginBottom: 16 }}>
               <Table
                 dataSource={inventario}
                 columns={inventarioColumns}
@@ -313,6 +350,27 @@ export default function ProductoDetallePage() {
               />
             </Card>
           )}
+
+          <Card
+            title={
+              <Space>
+                <SwapOutlined />
+                <span>Historial de Movimientos</span>
+              </Space>
+            }
+            extra={
+              <Button type="link" onClick={() => router.push(`/movimientos`)}>
+                Ver todos
+              </Button>
+            }
+          >
+            <MovimientosTable
+              data={movimientos}
+              loading={loadingMovimientos}
+              compact
+              pageSize={10}
+            />
+          </Card>
         </Col>
 
         <Col xs={24} lg={8}>

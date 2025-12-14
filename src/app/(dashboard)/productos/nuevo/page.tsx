@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import {
   Card, Form, Input, Select, InputNumber, Button, Space, Typography, message, Spin
 } from 'antd'
@@ -22,10 +22,8 @@ interface Proveedor {
   codigo: string
 }
 
-export default function EditarProductoPage() {
+export default function NuevoProductoPage() {
   const router = useRouter()
-  const params = useParams()
-  const id = params.id as string
   const [form] = Form.useForm()
 
   const [loading, setLoading] = useState(true)
@@ -33,47 +31,32 @@ export default function EditarProductoPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (id) {
-      loadData()
-    }
-  }, [id])
+    loadCatalogos()
+  }, [])
 
-  const loadData = async () => {
+  const loadCatalogos = async () => {
     const supabase = getSupabaseClient()
     setLoading(true)
 
     try {
-      // Load producto, categorias, proveedores in parallel
-      const [prodRes, catRes, provRes] = await Promise.all([
-        supabase.schema('erp').from('productos').select('*').eq('id', id).single(),
+      const [catRes, provRes] = await Promise.all([
         supabase.schema('erp').from('categorias').select('id, nombre').eq('is_active', true).order('nombre'),
         supabase.schema('erp').from('proveedores').select('id, codigo, nombre_comercial').eq('is_active', true).order('nombre_comercial'),
       ])
 
-      if (prodRes.error) throw prodRes.error
-
       setCategorias(catRes.data || [])
       setProveedores(provRes.data || [])
 
-      // Set form values
+      // Set default values
       form.setFieldsValue({
-        sku: prodRes.data.sku,
-        codigo_barras: prodRes.data.codigo_barras,
-        numero_parte: prodRes.data.numero_parte,
-        nombre: prodRes.data.nombre,
-        descripcion: prodRes.data.descripcion,
-        categoria_id: prodRes.data.categoria_id,
-        proveedor_principal_id: prodRes.data.proveedor_principal_id,
-        unidad_medida: prodRes.data.unidad_medida,
-        stock_minimo: prodRes.data.stock_minimo,
-        stock_maximo: prodRes.data.stock_maximo,
+        unidad_medida: 'PZA',
+        stock_minimo: 0,
+        stock_maximo: 0,
       })
     } catch (error) {
-      console.error('Error loading data:', error)
-      message.error('Error al cargar producto')
-      router.push('/productos')
+      console.error('Error loading catalogos:', error)
+      message.error('Error al cargar catálogos')
     } finally {
       setLoading(false)
     }
@@ -84,10 +67,10 @@ export default function EditarProductoPage() {
     const supabase = getSupabaseClient()
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .schema('erp')
         .from('productos')
-        .update({
+        .insert({
           sku: values.sku,
           codigo_barras: values.codigo_barras || null,
           numero_parte: values.numero_parte || null,
@@ -98,17 +81,23 @@ export default function EditarProductoPage() {
           unidad_medida: values.unidad_medida,
           stock_minimo: values.stock_minimo || 0,
           stock_maximo: values.stock_maximo || 0,
-          updated_at: new Date().toISOString(),
+          costo_promedio: 0,
+          is_active: true,
         })
-        .eq('id', id)
+        .select()
+        .single()
 
       if (error) throw error
 
-      message.success('Producto actualizado')
-      router.push(`/productos/${id}`)
+      message.success('Producto creado exitosamente')
+      router.push(`/productos/${data.id}`)
     } catch (error: any) {
       console.error('Error saving producto:', error)
-      message.error(error.message || 'Error al guardar producto')
+      if (error.code === '23505') {
+        message.error('Ya existe un producto con ese SKU')
+      } else {
+        message.error(error.message || 'Error al crear producto')
+      }
     } finally {
       setSaving(false)
     }
@@ -126,11 +115,11 @@ export default function EditarProductoPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(`/productos/${id}`)}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/productos')}>
             Volver
           </Button>
           <Title level={2} style={{ margin: 0 }}>
-            Editar Producto
+            Nuevo Producto
           </Title>
         </Space>
       </div>
@@ -251,9 +240,9 @@ export default function EditarProductoPage() {
                 icon={<SaveOutlined />}
                 loading={saving}
               >
-                Guardar Cambios
+                Crear Producto
               </Button>
-              <Button onClick={() => router.push(`/productos/${id}`)}>
+              <Button onClick={() => router.push('/productos')}>
                 Cancelar
               </Button>
             </Space>

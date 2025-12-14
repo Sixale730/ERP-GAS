@@ -17,6 +17,7 @@ import {
   UnorderedListOutlined,
   ToolOutlined,
   ShoppingCartOutlined,
+  SwapOutlined,
 } from '@ant-design/icons'
 
 type MenuItem = Required<MenuProps>['items'][number]
@@ -36,6 +37,11 @@ const menuItems: MenuItem[] = [
     key: '/inventario',
     icon: <InboxOutlined />,
     label: 'Inventario',
+  },
+  {
+    key: '/movimientos',
+    icon: <SwapOutlined />,
+    label: 'Movimientos',
   },
   {
     key: '/clientes',

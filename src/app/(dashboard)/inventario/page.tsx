@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Table, Select, Input, Space, Tag, Card, Typography, message, Row, Col, Statistic, Button, Modal, InputNumber, Form } from 'antd'
-import { SearchOutlined, InboxOutlined, WarningOutlined, EditOutlined, SettingOutlined } from '@ant-design/icons'
+import { SearchOutlined, InboxOutlined, WarningOutlined, EditOutlined, SettingOutlined, SwapOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import type { Almacen } from '@/types/database'
+import MovimientosTable from '@/components/movimientos/MovimientosTable'
+import type { Almacen, MovimientoView } from '@/types/database'
 
 const { Title, Text } = Typography
 
@@ -26,11 +28,16 @@ interface InventarioRow {
 }
 
 export default function InventarioPage() {
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [inventario, setInventario] = useState<InventarioRow[]>([])
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const [almacenFilter, setAlmacenFilter] = useState<string | null>(null)
   const [searchText, setSearchText] = useState('')
+
+  // Estado para movimientos recientes
+  const [movimientos, setMovimientos] = useState<MovimientoView[]>([])
+  const [loadingMovimientos, setLoadingMovimientos] = useState(false)
 
   // Modal para editar cantidad
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -55,6 +62,7 @@ export default function InventarioPage() {
   useEffect(() => {
     if (almacenes.length > 0) {
       loadInventario()
+      loadMovimientos()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [almacenes, almacenFilter])
@@ -104,6 +112,32 @@ export default function InventarioPage() {
       message.error('Error al cargar inventario')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadMovimientos = async () => {
+    setLoadingMovimientos(true)
+    const supabase = getSupabaseClient()
+
+    try {
+      let query = supabase
+        .schema('erp')
+        .from('v_movimientos')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (almacenFilter) {
+        query = query.or(`almacen_origen_id.eq.${almacenFilter},almacen_destino_id.eq.${almacenFilter}`)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+      setMovimientos(data || [])
+    } catch (error) {
+      console.error('Error loading movimientos:', error)
+    } finally {
+      setLoadingMovimientos(false)
     }
   }
 
@@ -161,6 +195,7 @@ export default function InventarioPage() {
       message.success('Inventario actualizado')
       setEditModalOpen(false)
       loadInventario()
+      loadMovimientos()
     } catch (error: any) {
       console.error('Error updating inventory:', error)
       message.error(error.message || 'Error al actualizar inventario')
@@ -381,6 +416,29 @@ export default function InventarioPage() {
             if (record.nivel_stock === 'bajo') return 'row-stock-bajo'
             return ''
           }}
+        />
+      </Card>
+
+      {/* Sección de últimos movimientos */}
+      <Card
+        title={
+          <Space>
+            <SwapOutlined />
+            <span>Últimos Movimientos</span>
+          </Space>
+        }
+        style={{ marginTop: 16 }}
+        extra={
+          <Button type="link" onClick={() => router.push('/movimientos')}>
+            Ver todos
+          </Button>
+        }
+      >
+        <MovimientosTable
+          data={movimientos}
+          loading={loadingMovimientos}
+          compact
+          showPagination={false}
         />
       </Card>
 

@@ -162,6 +162,7 @@ export type Database = {
           costo_promedio: number
           stock_minimo: number
           stock_maximo: number
+          numero_parte: string | null
           is_active: boolean
           created_at: string
           updated_at: string
@@ -178,6 +179,7 @@ export type Database = {
           costo_promedio?: number
           stock_minimo?: number
           stock_maximo?: number
+          numero_parte?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -194,6 +196,7 @@ export type Database = {
           costo_promedio?: number
           stock_minimo?: number
           stock_maximo?: number
+          numero_parte?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -849,6 +852,24 @@ export type Database = {
           updated_at: string
         }
       }
+      v_movimientos: {
+        Row: {
+          id: string
+          producto_id: string
+          almacen_origen_id: string | null
+          almacen_destino_id: string | null
+          tipo: 'entrada' | 'salida'
+          cantidad: number
+          referencia_tipo: string | null
+          referencia_id: string | null
+          notas: string | null
+          created_at: string
+          sku: string
+          producto_nombre: string
+          almacen_origen: string | null
+          almacen_destino: string | null
+        }
+      }
     }
     Functions: {
       generar_folio: {
@@ -916,6 +937,7 @@ export type ProductoStock = Views<'v_productos_stock'>
 export type CotizacionView = Views<'v_cotizaciones'>
 export type FacturaView = Views<'v_facturas'>
 export type OrdenCompraView = Views<'v_ordenes_compra'>
+export type MovimientoView = Views<'v_movimientos'>
 
 // Ordenes de compra types
 export type OrdenCompra = Tables<'ordenes_compra'>
