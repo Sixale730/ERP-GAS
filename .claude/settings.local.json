@@ -4,7 +4,10 @@
       "mcp__supabase__apply_migration",
       "mcp__supabase__list_tables",
       "mcp__supabase__execute_sql",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebSearch",
+      "WebFetch(domain:finkok.com)",
+      "WebFetch(domain:github.com)"
     ]
   },
   "enableAllProjectMcpServers": true,
