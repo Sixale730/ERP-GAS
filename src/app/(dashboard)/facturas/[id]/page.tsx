@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Modal, Select, InputNumber, Form, Alert
+  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Modal, Select, InputNumber, Form, Alert, Popconfirm
 } from 'antd'
 import {
   ArrowLeftOutlined, CheckCircleOutlined, FilePdfOutlined, FileTextOutlined,
-  SafetyCertificateOutlined, CloseCircleOutlined, DownloadOutlined, ExclamationCircleOutlined
+  SafetyCertificateOutlined, CloseCircleOutlined, DownloadOutlined, ExclamationCircleOutlined, DeleteOutlined
 } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
@@ -108,6 +108,9 @@ export default function FacturaDetallePage() {
   const [cancelLoading, setCancelLoading] = useState(false)
   const [motivoCancelacion, setMotivoCancelacion] = useState<string>('02')
   const [uuidSustitucion, setUuidSustitucion] = useState<string>('')
+
+  // Estado para eliminación
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -248,6 +251,88 @@ export default function FacturaDetallePage() {
     generarPDFFactura(factura, items, opciones)
     message.success('PDF descargado')
     setPdfModalOpen(false)
+  }
+
+  // === FUNCION ELIMINAR FACTURA ===
+
+  const handleDeleteFactura = async () => {
+    if (!factura) return
+
+    // Validar que no este timbrada
+    if (factura.status_sat === 'timbrado') {
+      message.error('No se puede eliminar una factura timbrada. Use la opcion de cancelar CFDI.')
+      return
+    }
+
+    setDeleteLoading(true)
+    const supabase = getSupabaseClient()
+
+    try {
+      // 1. Verificar que no tenga pagos
+      const { data: pagos } = await supabase
+        .schema('erp')
+        .from('pagos')
+        .select('id')
+        .eq('factura_id', factura.id)
+        .limit(1)
+
+      if (pagos && pagos.length > 0) {
+        message.error('No se puede eliminar: la factura tiene pagos registrados')
+        setDeleteLoading(false)
+        return
+      }
+
+      // 2. Eliminar factura_items asociados
+      await supabase
+        .schema('erp')
+        .from('factura_items')
+        .delete()
+        .eq('factura_id', factura.id)
+
+      // 3. Limpiar referencia en cotizaciones (si existe)
+      await supabase
+        .schema('erp')
+        .from('cotizaciones')
+        .update({ factura_id: null })
+        .eq('factura_id', factura.id)
+
+      // 4. Revertir saldo del cliente si hay saldo pendiente
+      if (factura.saldo > 0 && factura.cliente_id) {
+        // Obtener saldo actual del cliente
+        const { data: clienteData } = await supabase
+          .schema('erp')
+          .from('clientes')
+          .select('saldo_pendiente')
+          .eq('id', factura.cliente_id)
+          .single()
+
+        if (clienteData) {
+          const nuevoSaldo = Math.max(0, (clienteData.saldo_pendiente || 0) - factura.saldo)
+          await supabase
+            .schema('erp')
+            .from('clientes')
+            .update({ saldo_pendiente: nuevoSaldo })
+            .eq('id', factura.cliente_id)
+        }
+      }
+
+      // 5. Eliminar la factura
+      const { error } = await supabase
+        .schema('erp')
+        .from('facturas')
+        .delete()
+        .eq('id', factura.id)
+
+      if (error) throw error
+
+      message.success('Factura eliminada correctamente')
+      router.push('/facturas')
+    } catch (error) {
+      console.error('Error al eliminar factura:', error)
+      message.error('Error al eliminar la factura')
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   // === FUNCIONES CFDI ===
@@ -471,6 +556,25 @@ export default function FacturaDetallePage() {
           >
             Descargar PDF
           </Button>
+          {factura.status_sat !== 'timbrado' && (
+            <Popconfirm
+              title="¿Eliminar factura?"
+              description="Esta acción eliminará la factura y no se puede deshacer."
+              onConfirm={handleDeleteFactura}
+              okText="Sí, eliminar"
+              cancelText="No"
+              okButtonProps={{ danger: true, loading: deleteLoading }}
+            >
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                size="large"
+                loading={deleteLoading}
+              >
+                Eliminar
+              </Button>
+            </Popconfirm>
+          )}
           {factura.status === 'pagada' && (
             <Tag icon={<CheckCircleOutlined />} color="green" style={{ fontSize: 14, padding: '4px 12px' }}>
               Pagada
