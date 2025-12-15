@@ -227,3 +227,125 @@ export const CLAVES_UNIDAD = {
   TRABAJO: 'E51', // Trabajo
   NO_APLICA: 'XNA', // No aplica
 } as const
+
+// === TIPOS PARA FINKOK REGISTRATION ===
+
+/**
+ * Tipo de usuario en Finkok
+ * O = OnDemand (ilimitado)
+ * P = Prepago (limitado por timbres)
+ */
+export type FinkokUserType = 'O' | 'P'
+
+/**
+ * Estado de un cliente en Finkok
+ * A = Activo
+ * S = Suspendido
+ */
+export type FinkokClientStatus = 'A' | 'S'
+
+/**
+ * Datos de un cliente/RFC registrado en Finkok
+ */
+export interface FinkokResellerUser {
+  status: FinkokClientStatus
+  counter: number        // Timbres usados en el mes actual
+  taxpayer_id: string    // RFC
+  credit: number         // Timbres restantes (-1 = ilimitado/OnDemand)
+}
+
+/**
+ * Parametros para agregar un cliente (metodo Add)
+ */
+export interface FinkokAddClientParams {
+  taxpayer_id: string
+  type_user: FinkokUserType
+  cer?: string           // Certificado .cer en Base64
+  key?: string           // Llave privada .key en Base64
+  passphrase?: string    // Contraseña de la llave
+  coupon?: string        // Cupon opcional
+}
+
+/**
+ * Respuesta del metodo Add
+ */
+export interface FinkokAddClientResponse {
+  success: boolean
+  message: string
+  error?: string
+}
+
+/**
+ * Parametros para asignar timbres (metodo Assign)
+ */
+export interface FinkokAssignCreditsParams {
+  taxpayer_id: string
+  credit: number
+}
+
+/**
+ * Respuesta del metodo Assign
+ */
+export interface FinkokAssignCreditsResponse {
+  success: boolean
+  credit: number         // Total de timbres del RFC
+  message: string
+  error?: string
+}
+
+/**
+ * Parametros para editar un cliente (metodo Edit)
+ */
+export interface FinkokEditClientParams {
+  taxpayer_id: string
+  status?: FinkokClientStatus  // A=Activar, S=Suspender
+  cer?: string                 // Certificado .cer en Base64
+  key?: string                 // Llave privada .key en Base64
+  passphrase?: string          // Contraseña de la llave
+}
+
+/**
+ * Respuesta del metodo Edit
+ */
+export interface FinkokEditClientResponse {
+  success: boolean
+  message: string
+  error?: string
+}
+
+/**
+ * Respuesta del metodo Get
+ */
+export interface FinkokGetClientResponse {
+  success: boolean
+  users?: FinkokResellerUser[]
+  message?: string
+  error?: string
+}
+
+/**
+ * Parametros para cambiar tipo de cliente (metodo Switch)
+ */
+export interface FinkokSwitchClientParams {
+  taxpayer_id: string
+  type_user: FinkokUserType
+}
+
+/**
+ * Respuesta del metodo Switch
+ */
+export interface FinkokSwitchClientResponse {
+  success: boolean
+  message: string
+  error?: string
+}
+
+/**
+ * Respuesta del metodo Customers
+ */
+export interface FinkokCustomersResponse {
+  success: boolean
+  message: string        // "Showing 1 to 50 of X entries"
+  users: FinkokResellerUser[]
+  error?: string
+}

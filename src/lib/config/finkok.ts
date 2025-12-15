@@ -21,6 +21,7 @@ export interface FinkokConfig {
     stamp: string
     cancel: string
     utilities: string
+    registration: string
   }
 }
 
@@ -30,11 +31,13 @@ const FINKOK_URLS = {
     stamp: 'https://demo-facturacion.finkok.com/servicios/soap/stamp.wsdl',
     cancel: 'https://demo-facturacion.finkok.com/servicios/soap/cancel.wsdl',
     utilities: 'https://demo-facturacion.finkok.com/servicios/soap/utilities.wsdl',
+    registration: 'https://demo-facturacion.finkok.com/servicios/soap/registration.wsdl',
   },
   production: {
     stamp: 'https://facturacion.finkok.com/servicios/soap/stamp.wsdl',
     cancel: 'https://facturacion.finkok.com/servicios/soap/cancel.wsdl',
     utilities: 'https://facturacion.finkok.com/servicios/soap/utilities.wsdl',
+    registration: 'https://facturacion.finkok.com/servicios/soap/registration.wsdl',
   },
 }
 

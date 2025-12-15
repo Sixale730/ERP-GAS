@@ -12,9 +12,9 @@ import {
   validarDatosFactura,
 } from '@/lib/cfdi/xml-builder'
 import { firmarCFDI } from '@/lib/cfdi/sello'
-import { timbrar } from '@/lib/cfdi/finkok/stamp'
+import { timbrar, signStamp } from '@/lib/cfdi/finkok/stamp'
 import { DatosFacturaCFDI, ItemFacturaCFDI } from '@/lib/cfdi/types'
-import { isFinkokConfigured, getFinkokConfigError } from '@/lib/config/finkok'
+import { isFinkokConfigured, getFinkokConfigError, getFinkokConfig } from '@/lib/config/finkok'
 
 interface TimbrarRequest {
   factura_id: string
@@ -225,32 +225,73 @@ export async function POST(request: NextRequest) {
     // 1. Generar XML pre-CFDI
     const xmlPreCFDI = generarPreCFDI(datosFactura)
 
-    // 2. Generar cadena original
-    const cadenaOriginal = generarCadenaOriginal(datosFactura)
+    // Detectar ambiente para usar el metodo apropiado
+    const config = getFinkokConfig()
 
-    // 3. Firmar CFDI
-    const resultadoFirma = await firmarCFDI(xmlPreCFDI, cadenaOriginal)
+    let resultadoTimbrado
+    let xmlSinTimbrar: string
+    let noCertificadoEmisor: string | undefined
+    let selloEmisor: string | undefined
 
-    if (!resultadoFirma.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: resultadoFirma.error || 'Error al firmar el CFDI',
-        },
-        { status: 500 }
+    if (config.environment === 'demo') {
+      // DEMO: Firma local + stamp
+      // El XML se firma localmente y luego se envia a Finkok para timbrar
+
+      // 2. Generar cadena original
+      const cadenaOriginal = generarCadenaOriginal(datosFactura)
+
+      // 3. Firmar CFDI localmente
+      const resultadoFirma = await firmarCFDI(xmlPreCFDI, cadenaOriginal)
+
+      if (!resultadoFirma.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: resultadoFirma.error || 'Error al firmar el CFDI',
+          },
+          { status: 500 }
+        )
+      }
+
+      // 4. Agregar sello y certificado al XML
+      const xmlFirmado = agregarSelloYCertificado(
+        xmlPreCFDI,
+        resultadoFirma.sello!,
+        resultadoFirma.certificadoBase64!,
+        resultadoFirma.noCertificado!
       )
+
+      xmlSinTimbrar = xmlFirmado
+      noCertificadoEmisor = resultadoFirma.noCertificado
+      selloEmisor = resultadoFirma.sello
+
+      // 5. Timbrar con Finkok (stamp o quick_stamp)
+      resultadoTimbrado = await timbrar(xmlFirmado)
+    } else {
+      // PRODUCCION: sign_stamp
+      // Finkok firma el XML con los CSD que tiene almacenados
+      // El XML se envia SIN firmar (sin atributos Sello, Certificado, NoCertificado)
+
+      xmlSinTimbrar = xmlPreCFDI
+
+      // Timbrar con sign_stamp (Finkok firma y timbra)
+      resultadoTimbrado = await signStamp(xmlPreCFDI)
+
+      // En produccion, el certificado y sello vienen en el XML timbrado
+      // Los extraemos del resultado si es exitoso
+      if (resultadoTimbrado.success && resultadoTimbrado.xml) {
+        // Extraer noCertificado del XML timbrado
+        const matchCert = resultadoTimbrado.xml.match(/NoCertificado="([^"]+)"/)
+        if (matchCert) {
+          noCertificadoEmisor = matchCert[1]
+        }
+        // El sello del emisor tambien esta en el XML
+        const matchSello = resultadoTimbrado.xml.match(/Sello="([^"]+)"/)
+        if (matchSello) {
+          selloEmisor = matchSello[1]
+        }
+      }
     }
-
-    // 4. Agregar sello y certificado al XML
-    const xmlFirmado = agregarSelloYCertificado(
-      xmlPreCFDI,
-      resultadoFirma.sello!,
-      resultadoFirma.certificadoBase64!,
-      resultadoFirma.noCertificado!
-    )
-
-    // 5. Timbrar con Finkok
-    const resultadoTimbrado = await timbrar(xmlFirmado)
 
     if (!resultadoTimbrado.success) {
       return NextResponse.json(
@@ -270,11 +311,11 @@ export async function POST(request: NextRequest) {
       .update({
         uuid_cfdi: resultadoTimbrado.uuid,
         xml_cfdi: resultadoTimbrado.xml,
-        xml_sin_timbrar: xmlFirmado,
+        xml_sin_timbrar: xmlSinTimbrar,
         fecha_timbrado: resultadoTimbrado.fecha_timbrado,
-        certificado_emisor: resultadoFirma.noCertificado,
+        certificado_emisor: noCertificadoEmisor,
         certificado_sat: resultadoTimbrado.certificado_sat,
-        sello_cfdi: resultadoFirma.sello,
+        sello_cfdi: selloEmisor,
         sello_sat: resultadoTimbrado.sello_sat,
         cadena_original: resultadoTimbrado.cadena_original,
         status_sat: 'timbrado',

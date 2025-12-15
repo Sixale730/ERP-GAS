@@ -3,13 +3,18 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Card, Form, Input, Select, InputNumber, Button, Space, Typography, message, Row, Col
+  Card, Form, Input, Select, InputNumber, Button, Space, Typography, message, Row, Col, Alert
 } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SaveOutlined, ExperimentOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
+import {
+  CLIENTES_PRUEBA_SAT,
+  getClientesPruebaAgrupados,
+  type ClientePruebaSAT,
+} from '@/lib/config/clientes-prueba'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 const { TextArea } = Input
 
 interface ListaPrecio {
@@ -22,6 +27,60 @@ export default function NuevoClientePage() {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
+  const [isDemo, setIsDemo] = useState(false)
+
+  // Verificar si estamos en ambiente demo
+  useEffect(() => {
+    const checkDemo = async () => {
+      try {
+        const response = await fetch('/api/cfdi/clientes-prueba')
+        const data = await response.json()
+        setIsDemo(data.success && data.ambiente === 'demo')
+      } catch {
+        setIsDemo(false)
+      }
+    }
+    checkDemo()
+  }, [])
+
+  // Pre-llenar con cliente de prueba SAT
+  const handlePreFill = (rfc: string) => {
+    const cliente = CLIENTES_PRUEBA_SAT.find((c) => c.rfc === rfc)
+    if (cliente) {
+      form.setFieldsValue({
+        nombre_comercial: cliente.razon_social,
+        razon_social: cliente.razon_social,
+        rfc: cliente.rfc,
+        regimen_fiscal: cliente.regimen_fiscal,
+        codigo_postal_fiscal: cliente.codigo_postal,
+        uso_cfdi: 'G03',
+        forma_pago: '99',
+        metodo_pago: 'PUE',
+      })
+      message.success(`Datos de ${cliente.rfc} cargados`)
+    }
+  }
+
+  // Obtener opciones agrupadas para el Select
+  const clientesPruebaOptions = () => {
+    const agrupados = getClientesPruebaAgrupados()
+    return [
+      {
+        label: 'Persona Moral',
+        options: agrupados.moral.map((c) => ({
+          value: c.rfc,
+          label: `${c.rfc} - ${c.razon_social}`,
+        })),
+      },
+      {
+        label: 'Persona Fisica',
+        options: agrupados.fisica.map((c) => ({
+          value: c.rfc,
+          label: `${c.rfc} - ${c.razon_social}`,
+        })),
+      },
+    ]
+  }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -118,6 +177,30 @@ export default function NuevoClientePage() {
         </Space>
       </div>
 
+      {isDemo && (
+        <Alert
+          type="info"
+          icon={<ExperimentOutlined />}
+          message="Ambiente de Pruebas"
+          description={
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text>
+                Puedes pre-llenar el formulario con datos de receptores de prueba del SAT:
+              </Text>
+              <Select
+                placeholder="Seleccionar cliente de prueba SAT..."
+                style={{ width: '100%', maxWidth: 500 }}
+                options={clientesPruebaOptions()}
+                onChange={handlePreFill}
+                allowClear
+              />
+            </Space>
+          }
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
       <Card>
         <Form
           form={form}
@@ -125,7 +208,7 @@ export default function NuevoClientePage() {
           onFinish={handleSave}
           style={{ maxWidth: 900 }}
         >
-          <Title level={5}>Información General</Title>
+          <Title level={5}>Informacion General</Title>
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item

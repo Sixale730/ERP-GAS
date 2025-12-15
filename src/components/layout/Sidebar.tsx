@@ -18,6 +18,7 @@ import {
   ToolOutlined,
   ShoppingCartOutlined,
   SwapOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons'
 
 type MenuItem = Required<MenuProps>['items'][number]
@@ -94,9 +95,21 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    key: '/configuracion',
+    key: 'configuracion',
     icon: <ToolOutlined />,
     label: 'Configuracion',
+    children: [
+      {
+        key: '/configuracion',
+        icon: <SettingOutlined />,
+        label: 'General',
+      },
+      {
+        key: '/configuracion/cfdi',
+        icon: <SafetyCertificateOutlined />,
+        label: 'CFDI / Timbrado',
+      },
+    ],
   },
 ]
 

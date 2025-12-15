@@ -290,10 +290,27 @@ export function validarDatosFactura(factura: DatosFacturaCFDI): string[] {
 
   if (!factura.cliente_codigo_postal) {
     errores.push('Falta el codigo postal fiscal del cliente')
+  } else if (factura.cliente_codigo_postal === '00000') {
+    errores.push('El codigo postal fiscal del cliente no puede ser 00000')
+  } else if (!/^\d{5}$/.test(factura.cliente_codigo_postal)) {
+    errores.push('El codigo postal fiscal debe tener 5 digitos')
   }
 
   if (!factura.items || factura.items.length === 0) {
     errores.push('La factura no tiene items')
+  } else {
+    // Validar que cada item tenga los campos requeridos
+    factura.items.forEach((item, index) => {
+      if (!item.descripcion) {
+        errores.push(`El item ${index + 1} no tiene descripcion`)
+      }
+      if (item.cantidad <= 0) {
+        errores.push(`El item ${index + 1} debe tener cantidad mayor a 0`)
+      }
+      if (item.precio_unitario < 0) {
+        errores.push(`El item ${index + 1} tiene precio unitario negativo`)
+      }
+    })
   }
 
   if (factura.total <= 0) {
