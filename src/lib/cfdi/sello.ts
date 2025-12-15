@@ -70,9 +70,12 @@ export function leerCertificado(rutaCer: string): CertificadoInfo {
   const cert = forge.pki.certificateFromPem(cerPem)
 
   // Extraer numero de certificado (20 digitos del serial)
+  // node-forge devuelve el serial como string hexadecimal
+  // El SAT espera 20 digitos decimales que son los bytes del serial en ASCII
   const serialHex = cert.serialNumber
-  // El numero de certificado son los ultimos 20 caracteres del serial en hex
-  const noCertificado = serialHex.replace(/^0+/, '').slice(-20).padStart(20, '0')
+
+  // Decodificar de hex a ASCII para obtener el numero de certificado real
+  const noCertificado = Buffer.from(serialHex, 'hex').toString('ascii').padStart(20, '0')
 
   // Extraer datos del subject
   const subjectAttrs = cert.subject.attributes
@@ -253,6 +256,58 @@ export async function firmarCFDI(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Error al firmar el CFDI',
+    }
+  }
+}
+
+/**
+ * Obtiene la informacion del certificado sin firmar
+ * Util para obtener el NoCertificado antes de generar la cadena original
+ */
+export function obtenerInfoCertificado(): {
+  success: boolean
+  noCertificado?: string
+  certificadoBase64?: string
+  error?: string
+} {
+  try {
+    const config = getFinkokConfig()
+    const rutaBase = getRutaCertificados()
+
+    let nombreArchivo: string
+    if (config.environment === 'demo') {
+      nombreArchivo = CSD_PRUEBAS.rfc
+    } else {
+      nombreArchivo = process.env.EMPRESA_RFC || 'certificado'
+    }
+
+    const rutaCer = path.join(rutaBase, `${nombreArchivo}.cer`)
+
+    if (!existsSync(rutaCer)) {
+      return {
+        success: false,
+        error: `No se encontro el certificado .cer en: ${rutaCer}`,
+      }
+    }
+
+    const certInfo = leerCertificado(rutaCer)
+
+    if (!certInfo.esValido) {
+      return {
+        success: false,
+        error: `El certificado ha expirado`,
+      }
+    }
+
+    return {
+      success: true,
+      noCertificado: certInfo.noCertificado,
+      certificadoBase64: certInfo.certificadoBase64,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error al leer certificado',
     }
   }
 }

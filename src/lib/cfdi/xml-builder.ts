@@ -55,9 +55,26 @@ function calcularIVA(importe: number, tasa: number = 0.16): number {
 }
 
 /**
- * Genera el XML pre-CFDI 4.0 (sin sello ni certificado)
+ * Opciones para generar el XML
  */
-export function generarPreCFDI(factura: DatosFacturaCFDI): string {
+export interface OpcionesXML {
+  noCertificado?: string
+  certificadoBase64?: string
+  sello?: string
+  /** Si es true, omite completamente Sello, Certificado y NoCertificado (para sign_stamp) */
+  omitirFirma?: boolean
+}
+
+/**
+ * Genera el XML pre-CFDI 4.0
+ *
+ * @param factura - Datos de la factura
+ * @param opciones - Opciones opcionales:
+ *   - Si se pasan noCertificado y certificadoBase64, se usan esos valores con Sello=""
+ *   - Si se pasa sello, se usa ese valor
+ *   - Si no se pasan, se usan placeholders
+ */
+export function generarPreCFDI(factura: DatosFacturaCFDI, opciones?: OpcionesXML): string {
   const emisor = getEmisor()
 
   // Calcular totales de impuestos
@@ -67,13 +84,28 @@ export function generarPreCFDI(factura: DatosFacturaCFDI): string {
   // Crear documento XML
   const doc = create({ version: '1.0', encoding: 'UTF-8' })
 
+  // Si omitirFirma es true, no incluir atributos de firma (para sign_stamp)
+  const omitirFirma = opciones?.omitirFirma === true
+
+  // Determinar valores de certificado y sello (solo si no se omiten)
+  const noCertificado = omitirFirma ? undefined : (opciones?.noCertificado || '__NOCERT_PLACEHOLDER__')
+  const certificado = omitirFirma ? undefined : (opciones?.certificadoBase64 || '__CERT_PLACEHOLDER__')
+  const sello = omitirFirma ? undefined : (opciones?.sello || (opciones?.noCertificado ? '' : '__SELLO_PLACEHOLDER__'))
+
+  // Orden de atributos segun XSD CFDI 4.0:
+  // Version, Serie, Folio, Fecha, Sello, FormaPago, NoCertificado, Certificado,
+  // CondicionesDePago, SubTotal, Descuento, Moneda, TipoCambio, Total,
+  // TipoDeComprobante, Exportacion, MetodoPago, LugarExpedicion
   const comprobante = doc.ele('cfdi:Comprobante', {
     ...CFDI_NAMESPACES,
     Version: '4.0',
     Serie: factura.serie || 'A',
     Folio: factura.folio.replace(/[^0-9]/g, ''), // Solo numeros
     Fecha: formatFechaCFDI(factura.fecha),
+    ...(sello !== undefined && { Sello: sello }),
     FormaPago: factura.forma_pago || '99', // Por definir
+    ...(noCertificado !== undefined && { NoCertificado: noCertificado }),
+    ...(certificado !== undefined && { Certificado: certificado }),
     SubTotal: formatDecimal(factura.subtotal),
     ...(factura.descuento_monto > 0 && {
       Descuento: formatDecimal(factura.descuento_monto),
@@ -88,7 +120,6 @@ export function generarPreCFDI(factura: DatosFacturaCFDI): string {
     Exportacion: '01', // No aplica
     MetodoPago: factura.metodo_pago || 'PUE',
     LugarExpedicion: emisor.codigoPostal,
-    // Sello y Certificado se agregan despues de firmar
   })
 
   // Emisor
@@ -166,19 +197,30 @@ export function generarPreCFDI(factura: DatosFacturaCFDI): string {
 /**
  * Genera la cadena original del CFDI para firmado
  * Segun especificacion del SAT Anexo 20
+ *
+ * IMPORTANTE: El orden de los campos debe coincidir EXACTAMENTE con el XSLT del SAT
+ * Version, Serie, Folio, Fecha, FormaPago, NoCertificado, SubTotal, Descuento,
+ * Moneda, TipoCambio, Total, TipoDeComprobante, Exportacion, MetodoPago, LugarExpedicion
+ *
+ * @param factura - Datos de la factura
+ * @param noCertificado - Numero de certificado (20 digitos)
  */
-export function generarCadenaOriginal(factura: DatosFacturaCFDI): string {
+export function generarCadenaOriginal(
+  factura: DatosFacturaCFDI,
+  noCertificado: string
+): string {
   const emisor = getEmisor()
   const baseIVA = factura.subtotal - factura.descuento_monto
   const totalIVA = calcularIVA(baseIVA)
 
   const partes: string[] = [
-    // Comprobante
+    // Comprobante (orden segun XSLT SAT)
     '4.0',
     factura.serie || 'A',
     factura.folio.replace(/[^0-9]/g, ''),
     formatFechaCFDI(factura.fecha),
     factura.forma_pago || '99',
+    noCertificado, // NoCertificado DEBE estar aqui
     formatDecimal(factura.subtotal),
     factura.descuento_monto > 0 ? formatDecimal(factura.descuento_monto) : '',
     factura.moneda || 'MXN',
@@ -248,6 +290,9 @@ export function generarCadenaOriginal(factura: DatosFacturaCFDI): string {
 
 /**
  * Agrega el sello y certificado al XML pre-CFDI
+ *
+ * Reemplaza los placeholders con los valores reales.
+ * Los placeholders estan en el orden correcto segun el XSD del SAT.
  */
 export function agregarSelloYCertificado(
   xml: string,
@@ -255,11 +300,48 @@ export function agregarSelloYCertificado(
   certificado: string,
   noCertificado: string
 ): string {
-  // Insertar atributos en el nodo Comprobante
-  const xmlConSello = xml.replace(
-    'LugarExpedicion=',
-    `NoCertificado="${noCertificado}" Certificado="${certificado}" Sello="${sello}" LugarExpedicion=`
-  )
+  // Reemplazar placeholders con valores reales
+  const xmlConSello = xml
+    .replace('__SELLO_PLACEHOLDER__', sello)
+    .replace('__NOCERT_PLACEHOLDER__', noCertificado)
+    .replace('__CERT_PLACEHOLDER__', certificado)
+
+  // Validar que los reemplazos se hicieron correctamente
+  if (
+    xmlConSello.includes('__SELLO_PLACEHOLDER__') ||
+    xmlConSello.includes('__NOCERT_PLACEHOLDER__') ||
+    xmlConSello.includes('__CERT_PLACEHOLDER__')
+  ) {
+    throw new Error('Error al insertar atributos de sello y certificado en el XML')
+  }
+
+  // Validar que los atributos existen con valores reales
+  if (!xmlConSello.includes('Sello="') || !xmlConSello.includes('Certificado="')) {
+    throw new Error('XML no contiene los atributos Sello o Certificado')
+  }
+
+  return xmlConSello
+}
+
+/**
+ * Reemplaza el Sello vacio con el valor firmado
+ *
+ * Se usa cuando el XML ya tiene NoCertificado y Certificado reales
+ * pero Sello="" (vacio) para la generacion de cadena original con XSLT
+ */
+export function agregarSelloAlXML(xml: string, sello: string): string {
+  // Buscar Sello="" y reemplazar con el valor real
+  const xmlConSello = xml.replace(/Sello=""/, `Sello="${sello}"`)
+
+  // Validar que el reemplazo se hizo
+  if (xmlConSello.includes('Sello=""')) {
+    throw new Error('No se pudo reemplazar el Sello vacio en el XML')
+  }
+
+  // Validar que el Sello tiene valor
+  if (!xmlConSello.includes(`Sello="${sello}"`)) {
+    throw new Error('El Sello no se agrego correctamente al XML')
+  }
 
   return xmlConSello
 }

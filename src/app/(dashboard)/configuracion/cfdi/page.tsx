@@ -12,6 +12,9 @@ import {
   Divider,
   Row,
   Col,
+  Table,
+  Button,
+  message,
 } from 'antd'
 import {
   SafetyCertificateOutlined,
@@ -19,6 +22,9 @@ import {
   CloseCircleOutlined,
   ExperimentOutlined,
   CloudServerOutlined,
+  UserAddOutlined,
+  ReloadOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import CSDUploader from '@/components/cfdi/CSDUploader'
 import { CSD_PRUEBAS } from '@/lib/config/finkok'
@@ -33,10 +39,22 @@ interface CSDStatus {
   message: string
 }
 
+interface FinkokUser {
+  taxpayer_id: string
+  status: 'A' | 'S'
+  counter: number
+  credit: number
+}
+
 export default function ConfiguracionCFDIPage() {
   const [loading, setLoading] = useState(true)
   const [csdStatus, setCsdStatus] = useState<CSDStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Estado para clientes Finkok
+  const [finkokUsers, setFinkokUsers] = useState<FinkokUser[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [registering, setRegistering] = useState(false)
 
   const verificarCSD = async () => {
     setLoading(true)
@@ -58,13 +76,100 @@ export default function ConfiguracionCFDIPage() {
     }
   }
 
+  const cargarClientesFinkok = async () => {
+    setLoadingUsers(true)
+    try {
+      const response = await fetch('/api/cfdi/clientes-finkok')
+      const data = await response.json()
+
+      if (data.success) {
+        setFinkokUsers(data.users || [])
+      }
+    } catch (err) {
+      console.error('Error al cargar clientes Finkok:', err)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const registrarRFC = async (rfc: string) => {
+    setRegistering(true)
+    try {
+      const response = await fetch('/api/cfdi/clientes-finkok', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taxpayer_id: rfc, type_user: 'O' }),
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        if (data.already_exists) {
+          message.info(`El RFC ${rfc} ya estaba registrado`)
+        } else {
+          message.success(`RFC ${rfc} registrado exitosamente`)
+        }
+        cargarClientesFinkok()
+      } else {
+        message.error(data.error || 'Error al registrar RFC')
+      }
+    } catch (err) {
+      message.error('Error de conexion al registrar RFC')
+    } finally {
+      setRegistering(false)
+    }
+  }
+
   useEffect(() => {
     verificarCSD()
+    cargarClientesFinkok()
   }, [])
 
   const handleCSDUploadSuccess = () => {
     verificarCSD()
   }
+
+  // Verificar si el RFC de pruebas está registrado
+  const rfcPruebasRegistrado = finkokUsers.some(
+    (u) => u.taxpayer_id === CSD_PRUEBAS.rfc
+  )
+
+  // Columnas para la tabla de RFCs
+  const columnsRFCs = [
+    {
+      title: 'RFC',
+      dataIndex: 'taxpayer_id',
+      key: 'taxpayer_id',
+      render: (rfc: string) => <Text code>{rfc}</Text>,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) =>
+        status === 'A' ? (
+          <Tag color="success">Activo</Tag>
+        ) : (
+          <Tag color="default">Suspendido</Tag>
+        ),
+    },
+    {
+      title: 'Timbres Usados',
+      dataIndex: 'counter',
+      key: 'counter',
+      render: (counter: number) => counter.toLocaleString(),
+    },
+    {
+      title: 'Timbres Disponibles',
+      dataIndex: 'credit',
+      key: 'credit',
+      render: (credit: number) =>
+        credit === 0 ? (
+          <Tag color="blue">Ilimitado (OnDemand)</Tag>
+        ) : (
+          credit.toLocaleString()
+        ),
+    },
+  ]
 
   return (
     <div>
@@ -188,6 +293,75 @@ export default function ConfiguracionCFDIPage() {
           <CSDUploader onSuccess={handleCSDUploadSuccess} />
         </Col>
       </Row>
+
+      {/* Seccion de RFCs Registrados en Finkok */}
+      <Card
+        title={
+          <Space>
+            <TeamOutlined />
+            RFCs Registrados en Finkok
+          </Space>
+        }
+        extra={
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={cargarClientesFinkok}
+            loading={loadingUsers}
+          >
+            Actualizar
+          </Button>
+        }
+        style={{ marginTop: 16 }}
+      >
+        {/* Alerta si el RFC de pruebas no está registrado (solo en demo) */}
+        {csdStatus?.ambiente === 'demo' && !rfcPruebasRegistrado && !loadingUsers && (
+          <Alert
+            type="warning"
+            message="RFC de Pruebas No Registrado"
+            description={
+              <Space direction="vertical">
+                <Text>
+                  El RFC emisor de pruebas ({CSD_PRUEBAS.rfc}) no está registrado en tu
+                  cuenta de Finkok. Debes registrarlo para poder timbrar.
+                </Text>
+                <Button
+                  type="primary"
+                  icon={<UserAddOutlined />}
+                  onClick={() => registrarRFC(CSD_PRUEBAS.rfc)}
+                  loading={registering}
+                >
+                  Registrar RFC de Pruebas ({CSD_PRUEBAS.rfc})
+                </Button>
+              </Space>
+            }
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        {/* Mensaje de éxito si está registrado */}
+        {csdStatus?.ambiente === 'demo' && rfcPruebasRegistrado && (
+          <Alert
+            type="success"
+            message="RFC de Pruebas Registrado"
+            description={`El RFC ${CSD_PRUEBAS.rfc} está registrado y listo para timbrar.`}
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        <Table
+          columns={columnsRFCs}
+          dataSource={finkokUsers}
+          rowKey="taxpayer_id"
+          loading={loadingUsers}
+          size="small"
+          pagination={false}
+          locale={{
+            emptyText: 'No hay RFCs registrados',
+          }}
+        />
+      </Card>
     </div>
   )
 }

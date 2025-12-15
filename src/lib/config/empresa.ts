@@ -14,8 +14,9 @@ export const EMPRESA = {
 
 // Datos de prueba para ambiente DEMO de Finkok
 // Usar estos datos cuando FINKOK_ENVIRONMENT=demo
+// IMPORTANTE: El nombre debe coincidir EXACTAMENTE con el registrado en el SAT
 export const EMPRESA_PRUEBAS = {
-  nombre: 'ESCUELA KEMPER URGATE SA DE CV',
+  nombre: 'ESCUELA KEMPER URGATE',
   rfc: 'EKU9003173C9',
   direccion: 'Calle de Prueba #123, Col. Centro, Tijuana, BC, CP 21000',
   telefono: '(664) 123-4567',

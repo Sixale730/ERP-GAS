@@ -51,15 +51,16 @@ export async function stamp(xmlFirmado: string): Promise<FinkokStampResponse> {
     // Obtener cliente SOAP
     const client = await getSOAPClient(config.urls.stamp)
 
-    // Preparar parametros
+    // Preparar parametros (Finkok requiere el XML en Base64)
     const params = {
       username: config.user,
       password: config.password,
-      xml: xmlFirmado,
+      xml: Buffer.from(xmlFirmado, 'utf-8').toString('base64'),
     }
 
     // Llamar al servicio
-    const [result]: [StampResult] = await client.stampAsync(params)
+    const [rawResult] = await client.stampAsync(params)
+    const result: StampResult = rawResult.stampResult || rawResult
 
     // Verificar respuesta
     if (result.Incidencias?.Incidencia) {
@@ -128,13 +129,25 @@ export async function quickStamp(
 
     const client = await getSOAPClient(config.urls.stamp)
 
+    // Finkok requiere el XML en Base64
     const params = {
       username: config.user,
       password: config.password,
-      xml: xmlFirmado,
+      xml: Buffer.from(xmlFirmado, 'utf-8').toString('base64'),
     }
 
-    const [result]: [StampResult] = await client.quick_stampAsync(params)
+    const [rawResult] = await client.quick_stampAsync(params)
+    const result: StampResult = rawResult.quick_stampResult || rawResult
+
+    // DEBUG: Log completo de la respuesta de Finkok
+    console.log('=== FINKOK RESPONSE ===')
+    console.log('Result keys:', Object.keys(result || {}))
+    console.log('UUID:', result?.UUID)
+    console.log('CodEstatus:', result?.CodEstatus)
+    console.log('Incidencias:', JSON.stringify(result?.Incidencias, null, 2))
+    console.log('XML length:', result?.xml?.length || 0)
+    console.log('XML preview:', result?.xml?.substring(0, 300) || 'NO XML')
+    console.log('=======================')
 
     if (result.Incidencias?.Incidencia) {
       const error = parseFinkokError(result)
@@ -156,9 +169,10 @@ export async function quickStamp(
     const cadenaOriginal = extraerCadenaOriginalTFD(xmlTimbrado)
 
     if (!uuid) {
+      // Incluir información de debug en el error
       return {
         success: false,
-        error: 'No se pudo obtener el UUID del timbrado',
+        error: `No se pudo obtener el UUID. CodEstatus: ${result?.CodEstatus || 'N/A'}. XML recibido: ${result?.xml?.length || 0} bytes. Incidencias: ${JSON.stringify(result?.Incidencias) || 'ninguna'}`,
         codigo_error: 'NO_UUID',
       }
     }
@@ -173,6 +187,7 @@ export async function quickStamp(
       cadena_original: cadenaOriginal || undefined,
     }
   } catch (error) {
+    console.error('Error en quickStamp:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Error al timbrar',
@@ -198,13 +213,15 @@ export async function stamped(xmlFirmado: string): Promise<FinkokStampResponse> 
 
     const client = await getSOAPClient(config.urls.stamp)
 
+    // Finkok requiere el XML en Base64
     const params = {
       username: config.user,
       password: config.password,
-      xml: xmlFirmado,
+      xml: Buffer.from(xmlFirmado, 'utf-8').toString('base64'),
     }
 
-    const [result]: [StampResult] = await client.stampedAsync(params)
+    const [rawResult] = await client.stampedAsync(params)
+    const result: StampResult = rawResult.stampedResult || rawResult
 
     if (result.Incidencias?.Incidencia) {
       const error = parseFinkokError(result)
@@ -280,14 +297,16 @@ export async function signStamp(xmlSinFirmar: string): Promise<FinkokStampRespon
 
     const client = await getSOAPClient(config.urls.stamp)
 
+    // Finkok requiere el XML en Base64
     const params = {
       username: config.user,
       password: config.password,
-      xml: xmlSinFirmar,
+      xml: Buffer.from(xmlSinFirmar, 'utf-8').toString('base64'),
     }
 
     // Llamar al metodo sign_stamp de Finkok
-    const [result]: [StampResult] = await client.sign_stampAsync(params)
+    const [rawResult] = await client.sign_stampAsync(params)
+    const result: StampResult = rawResult.sign_stampResult || rawResult
 
     if (result.Incidencias?.Incidencia) {
       const error = parseFinkokError(result)

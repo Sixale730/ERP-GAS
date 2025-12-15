@@ -1,18 +1,18 @@
 /**
  * API Route para Timbrar CFDI
  * POST /api/cfdi/timbrar
+ *
+ * Usa sign_stamp de Finkok para que el PAC maneje todo el proceso de firmado.
+ * Requiere que los CSD esten cargados en Finkok via /api/cfdi/csd
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import {
   generarPreCFDI,
-  generarCadenaOriginal,
-  agregarSelloYCertificado,
   validarDatosFactura,
 } from '@/lib/cfdi/xml-builder'
-import { firmarCFDI } from '@/lib/cfdi/sello'
-import { timbrar, signStamp } from '@/lib/cfdi/finkok/stamp'
+import { signStamp } from '@/lib/cfdi/finkok/stamp'
 import { DatosFacturaCFDI, ItemFacturaCFDI } from '@/lib/cfdi/types'
 import { isFinkokConfigured, getFinkokConfigError, getFinkokConfig } from '@/lib/config/finkok'
 
@@ -222,74 +222,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 1. Generar XML pre-CFDI
-    const xmlPreCFDI = generarPreCFDI(datosFactura)
+    // Usar sign_stamp de Finkok para AMBOS ambientes
+    // Finkok firma el XML con los CSD que tiene almacenados
+    // El XML se envia SIN atributos de firma (sin Sello, Certificado, NoCertificado)
 
-    // Detectar ambiente para usar el metodo apropiado
     const config = getFinkokConfig()
 
-    let resultadoTimbrado
-    let xmlSinTimbrar: string
+    // Generar XML SIN atributos de firma (Finkok los agregara)
+    const xmlSinFirmar = generarPreCFDI(datosFactura, { omitirFirma: true })
+
+    // DEBUG: Log del XML antes de enviar a Finkok
+    console.log('=== CFDI DEBUG ===')
+    console.log('Ambiente:', config.environment)
+    console.log('XML Length:', xmlSinFirmar.length)
+    console.log('Contiene Sello:', xmlSinFirmar.includes('Sello='))
+    console.log('Contiene Certificado:', xmlSinFirmar.includes('Certificado='))
+    console.log('Contiene NoCertificado:', xmlSinFirmar.includes('NoCertificado='))
+    console.log('Primeros 1000 chars:', xmlSinFirmar.substring(0, 1000))
+    console.log('==================')
+
+    // Timbrar con sign_stamp (Finkok genera cadena original, firma y timbra)
+    const resultadoTimbrado = await signStamp(xmlSinFirmar)
+
+    // Extraer certificado y sello del XML timbrado
     let noCertificadoEmisor: string | undefined
     let selloEmisor: string | undefined
 
-    if (config.environment === 'demo') {
-      // DEMO: Firma local + stamp
-      // El XML se firma localmente y luego se envia a Finkok para timbrar
-
-      // 2. Generar cadena original
-      const cadenaOriginal = generarCadenaOriginal(datosFactura)
-
-      // 3. Firmar CFDI localmente
-      const resultadoFirma = await firmarCFDI(xmlPreCFDI, cadenaOriginal)
-
-      if (!resultadoFirma.success) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: resultadoFirma.error || 'Error al firmar el CFDI',
-          },
-          { status: 500 }
-        )
+    if (resultadoTimbrado.success && resultadoTimbrado.xml) {
+      // Extraer NoCertificado del XML timbrado
+      const matchCert = resultadoTimbrado.xml.match(/NoCertificado="([^"]+)"/)
+      if (matchCert) {
+        noCertificadoEmisor = matchCert[1]
       }
-
-      // 4. Agregar sello y certificado al XML
-      const xmlFirmado = agregarSelloYCertificado(
-        xmlPreCFDI,
-        resultadoFirma.sello!,
-        resultadoFirma.certificadoBase64!,
-        resultadoFirma.noCertificado!
-      )
-
-      xmlSinTimbrar = xmlFirmado
-      noCertificadoEmisor = resultadoFirma.noCertificado
-      selloEmisor = resultadoFirma.sello
-
-      // 5. Timbrar con Finkok (stamp o quick_stamp)
-      resultadoTimbrado = await timbrar(xmlFirmado)
-    } else {
-      // PRODUCCION: sign_stamp
-      // Finkok firma el XML con los CSD que tiene almacenados
-      // El XML se envia SIN firmar (sin atributos Sello, Certificado, NoCertificado)
-
-      xmlSinTimbrar = xmlPreCFDI
-
-      // Timbrar con sign_stamp (Finkok firma y timbra)
-      resultadoTimbrado = await signStamp(xmlPreCFDI)
-
-      // En produccion, el certificado y sello vienen en el XML timbrado
-      // Los extraemos del resultado si es exitoso
-      if (resultadoTimbrado.success && resultadoTimbrado.xml) {
-        // Extraer noCertificado del XML timbrado
-        const matchCert = resultadoTimbrado.xml.match(/NoCertificado="([^"]+)"/)
-        if (matchCert) {
-          noCertificadoEmisor = matchCert[1]
-        }
-        // El sello del emisor tambien esta en el XML
-        const matchSello = resultadoTimbrado.xml.match(/Sello="([^"]+)"/)
-        if (matchSello) {
-          selloEmisor = matchSello[1]
-        }
+      // Extraer Sello del emisor del XML
+      const matchSello = resultadoTimbrado.xml.match(/Sello="([^"]+)"/)
+      if (matchSello) {
+        selloEmisor = matchSello[1]
       }
     }
 
@@ -311,7 +279,7 @@ export async function POST(request: NextRequest) {
       .update({
         uuid_cfdi: resultadoTimbrado.uuid,
         xml_cfdi: resultadoTimbrado.xml,
-        xml_sin_timbrar: xmlSinTimbrar,
+        xml_sin_timbrar: xmlSinFirmar,
         fecha_timbrado: resultadoTimbrado.fecha_timbrado,
         certificado_emisor: noCertificadoEmisor,
         certificado_sat: resultadoTimbrado.certificado_sat,

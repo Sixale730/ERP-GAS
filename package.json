@@ -25,6 +25,7 @@
     "soap": "^1.6.1",
     "xml2js": "^0.6.2",
     "xmlbuilder2": "^4.0.3",
+    "xslt-processor": "^3.4.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
