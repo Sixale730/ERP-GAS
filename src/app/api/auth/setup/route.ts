@@ -15,16 +15,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    // Verificar si ya existe algun super_admin
-    const { data: existingSuperAdmin } = await supabase
-      .schema('erp')
-      .from('usuarios')
-      .select('id')
-      .eq('rol', 'super_admin')
-      .limit(1)
-      .single()
+    // Verificar si ya existe algun super_admin usando funcion RPC
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: needsSetup } = await (supabase.rpc as any)('necesita_setup_inicial')
 
-    if (existingSuperAdmin) {
+    if (needsSetup === false) {
       return NextResponse.json(
         { error: 'Ya existe un super admin en el sistema' },
         { status: 400 }
@@ -67,17 +62,20 @@ export async function GET() {
   try {
     const supabase = await createServerSupabaseClient()
 
-    // Verificar si ya existe algun super_admin
-    const { data: existingSuperAdmin } = await supabase
-      .schema('erp')
-      .from('usuarios')
-      .select('id')
-      .eq('rol', 'super_admin')
-      .limit(1)
-      .single()
+    // Usar funcion con SECURITY DEFINER para bypasear RLS
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: needsSetup, error } = await (supabase.rpc as any)('necesita_setup_inicial')
+
+    if (error) {
+      console.error('Error verificando setup:', error)
+      return NextResponse.json(
+        { error: 'Error verificando estado del sistema' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
-      needsSetup: !existingSuperAdmin,
+      needsSetup: needsSetup === true,
     })
   } catch (error) {
     console.error('Error verificando setup:', error)

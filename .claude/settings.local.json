@@ -8,7 +8,8 @@
       "WebSearch",
       "WebFetch(domain:finkok.com)",
       "WebFetch(domain:github.com)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "mcp__supabase__get_logs"
     ]
   },
   "enableAllProjectMcpServers": true,
