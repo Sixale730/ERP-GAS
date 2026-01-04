@@ -30,7 +30,11 @@ type MenuItem = Required<MenuProps>['items'][number]
 // Roles que pueden ver cada item
 type RoleAccess = UserRole[] | 'all'
 
-interface MenuItemWithRoles extends Omit<MenuItem, 'children'> {
+interface MenuItemWithRoles {
+  key?: string
+  icon?: React.ReactNode
+  label?: React.ReactNode
+  type?: 'divider' | 'group'
   roles?: RoleAccess
   children?: MenuItemWithRoles[]
 }

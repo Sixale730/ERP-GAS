@@ -32,7 +32,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear el super admin usando la funcion de la base de datos
-    const { data, error } = await supabase.rpc('crear_super_admin_inicial', {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)('crear_super_admin_inicial', {
       p_auth_user_id: user.id,
       p_email: user.email,
       p_nombre: user.user_metadata?.full_name || user.email,
