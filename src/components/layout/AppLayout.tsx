@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import Sidebar from './Sidebar'
+import GlobalSearch from './GlobalSearch'
 
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
@@ -142,6 +143,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
               height: 48,
             }}
           />
+
+          {/* Barra de busqueda global */}
+          <div style={{ flex: 1, maxWidth: isMobile ? 200 : 400, margin: '0 12px' }}>
+            <GlobalSearch />
+          </div>
+
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <Space style={{ cursor: 'pointer' }}>
               <Avatar icon={<UserOutlined />} />

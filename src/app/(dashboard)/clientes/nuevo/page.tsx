@@ -8,6 +8,7 @@ import {
 import { ArrowLeftOutlined, SaveOutlined, ExperimentOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
+import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
 import {
   CLIENTES_PRUEBA_SAT,
   getClientesPruebaAgrupados,
@@ -285,14 +286,17 @@ export default function NuevoClientePage() {
                 <TextArea rows={2} placeholder="Dirección completa para envío (si es diferente a la fiscal)" />
               </Form.Item>
             </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="ciudad_envio" label="Ciudad">
-                <Input placeholder="Ciudad" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="estado_envio" label="Estado">
-                <Input placeholder="Estado" />
+            <Col xs={24} md={16}>
+              <Form.Item label="Estado y Ciudad">
+                <EstadoCiudadSelect
+                  estadoValue={form.getFieldValue('estado_envio')}
+                  ciudadValue={form.getFieldValue('ciudad_envio')}
+                  onEstadoChange={(value) => form.setFieldValue('estado_envio', value)}
+                  onCiudadChange={(value) => form.setFieldValue('ciudad_envio', value)}
+                />
+                {/* Campos ocultos para el formulario */}
+                <Form.Item name="estado_envio" hidden><Input /></Form.Item>
+                <Form.Item name="ciudad_envio" hidden><Input /></Form.Item>
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>

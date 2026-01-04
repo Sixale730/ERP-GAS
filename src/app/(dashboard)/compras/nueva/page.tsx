@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Card,
   Form,
@@ -20,6 +20,7 @@ import {
   AutoComplete,
   Statistic,
   Popconfirm,
+  Alert,
 } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined, SendOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -52,6 +53,8 @@ interface ProductoOption {
 
 export default function NuevaOrdenCompraPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const cargarStockBajo = searchParams.get('stock_bajo') === 'true'
   const [form] = Form.useForm()
   const { getMargenParaCategoria, loading: loadingMargenes } = useMargenesCategoria()
   const { tipoCambio } = useConfiguracion()
@@ -67,6 +70,7 @@ export default function NuevaOrdenCompraPage() {
   const [loadingData, setLoadingData] = useState(true)
   const [monedaSeleccionada, setMonedaSeleccionada] = useState<'USD' | 'MXN'>('USD')
   const [tipoCambioLocal, setTipoCambioLocal] = useState<number>(tipoCambio)
+  const [stockBajoCargado, setStockBajoCargado] = useState(false)
 
   useEffect(() => {
     loadInitialData()
@@ -78,6 +82,51 @@ export default function NuevaOrdenCompraPage() {
       setTipoCambioLocal(tipoCambio)
     }
   }, [tipoCambio])
+
+  // Cargar productos de stock bajo si viene de Dashboard
+  useEffect(() => {
+    if (cargarStockBajo && productos.length > 0 && preciosMap.size > 0 && !stockBajoCargado && !loadingMargenes) {
+      cargarProductosStockBajo()
+    }
+  }, [cargarStockBajo, productos, preciosMap, stockBajoCargado, loadingMargenes])
+
+  const cargarProductosStockBajo = async () => {
+    const supabase = getSupabaseClient()
+    try {
+      const { data } = await supabase
+        .schema('erp')
+        .from('v_productos_stock')
+        .select('*')
+        .lt('stock_total', 10)
+
+      if (data && data.length > 0) {
+        const itemsOC: ItemOrden[] = data.map(p => {
+          const producto = productos.find(prod => prod.id === p.id)
+          const margen = getMargenParaCategoria(producto?.categoria_id || null)
+          const precioBase = preciosMap.get(p.id) || producto?.costo_promedio || 0
+          const precioConMargen = precioBase * (1 - margen / 100)
+          const cantidadSugerida = Math.max(20 - (p.stock_total || 0), 10)
+          const subtotalItem = Math.round(cantidadSugerida * precioConMargen * 100) / 100
+
+          return {
+            key: p.id,
+            producto_id: p.id,
+            sku: p.sku,
+            nombre: p.nombre,
+            categoria_id: producto?.categoria_id || null,
+            cantidad: cantidadSugerida,
+            precio_unitario: Math.round(precioConMargen * 100) / 100,
+            descuento_porcentaje: margen,
+            subtotal: subtotalItem,
+          }
+        })
+        setItems(itemsOC)
+        setStockBajoCargado(true)
+      }
+    } catch (error) {
+      console.error('Error loading stock bajo products:', error)
+    }
+  }
 
   const loadInitialData = async () => {
     const supabase = getSupabaseClient()
@@ -385,6 +434,17 @@ export default function NuevaOrdenCompraPage() {
           <Title level={2} style={{ margin: 0 }}>Nueva Orden de Compra</Title>
         </Space>
       </div>
+
+      {stockBajoCargado && (
+        <Alert
+          type="info"
+          message="Productos con stock bajo pre-cargados"
+          description={`Se agregaron ${items.length} productos con stock bajo. La cantidad sugerida repone hasta 20 unidades. Selecciona proveedor y almacen para continuar.`}
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       <Row gutter={16}>
         <Col xs={24} lg={16}>

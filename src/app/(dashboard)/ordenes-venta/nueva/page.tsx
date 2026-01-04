@@ -1,122 +1,123 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import {
-  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin, Alert, Collapse
+  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Alert, Collapse
 } from 'antd'
-import { DeleteOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
-import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoneyMXN, calcularTotal } from '@/lib/utils/format'
-import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
+import { DeleteOutlined, SaveOutlined, InfoCircleOutlined, DollarOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
+import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
+import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
+import type { CodigoMoneda } from '@/lib/config/moneda'
 
 const { Title, Text } = Typography
 
-interface CotizacionItem {
+interface OrdenVentaItem {
   key: string
-  id?: string // ID del item existente
   producto_id: string
   producto_nombre: string
   sku: string
   precio_lista_usd: number
   margen_porcentaje: number
   cantidad: number
-  cantidad_original?: number // Para comparar cambios en orden_venta
-  precio_unitario_mxn: number
+  precio_unitario: number
   subtotal: number
 }
 
-interface CotizacionData {
-  id: string
-  folio: string
-  status: string
-  cliente_id: string
-  almacen_id: string
-  lista_precio_id: string | null
-  tipo_cambio: number | null
-  descuento_porcentaje: number
-  notas: string | null
-  // CFDI
-  cfdi_rfc: string | null
-  cfdi_razon_social: string | null
-  cfdi_regimen_fiscal: string | null
-  cfdi_uso_cfdi: string | null
-  cfdi_codigo_postal: string | null
-  // Envío
-  envio_direccion: string | null
-  envio_ciudad: string | null
-  envio_estado: string | null
-  envio_codigo_postal: string | null
-  envio_contacto: string | null
-  envio_telefono: string | null
-  // Pago
-  forma_pago: string | null
-  metodo_pago: string | null
-  condiciones_pago: string | null
-}
-
-export default function EditarCotizacionPage() {
+export default function NuevaOrdenVentaPage() {
   const router = useRouter()
-  const params = useParams()
-  const cotizacionId = params.id as string
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(true)
 
-  // Datos de la cotizacion original
-  const [cotizacion, setCotizacion] = useState<CotizacionData | null>(null)
-  const [itemsOriginales, setItemsOriginales] = useState<CotizacionItem[]>([])
-
-  // Configuracion global
   const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
-
-  // Tipo de cambio para esta cotizacion (editable)
   const [tipoCambio, setTipoCambio] = useState(17.50)
+  const [moneda, setMoneda] = useState<CodigoMoneda>('MXN')
 
-  // Data
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const [productos, setProductos] = useState<any[]>([])
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
   const [preciosMap, setPreciosMap] = useState<Map<string, number>>(new Map())
 
-  // Selected
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [almacenId, setAlmacenId] = useState<string | null>(null)
   const [listaPrecioId, setListaPrecioId] = useState<string | null>(null)
 
-  // Items
-  const [items, setItems] = useState<CotizacionItem[]>([])
+  const [items, setItems] = useState<OrdenVentaItem[]>([])
   const [descuentoGlobal, setDescuentoGlobal] = useState(0)
 
-  // Inventario del almacén para alertas de stock
   const [inventarioMap, setInventarioMap] = useState<Map<string, number>>(new Map())
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(true)
 
-  // Product search
   const [productSearch, setProductSearch] = useState('')
   const [productOptions, setProductOptions] = useState<any[]>([])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (cotizacionId) {
-      loadCotizacionData()
+    if (!loadingConfig) {
+      setTipoCambio(tcGlobal)
     }
-  }, [cotizacionId])
+  }, [loadingConfig, tcGlobal])
 
-  // Cuando cambia la lista de precios, cargar precios
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useEffect(() => {
+    if (clienteId) {
+      const cliente = clientes.find(c => c.id === clienteId)
+      if (!cliente) return
+
+      if (cliente.lista_precio_id) {
+        setListaPrecioId(cliente.lista_precio_id)
+        form.setFieldValue('lista_precio_id', cliente.lista_precio_id)
+      }
+      if (cliente.moneda) {
+        handleMonedaChange(cliente.moneda)
+      }
+
+      form.setFieldsValue({
+        cfdi_rfc: cliente.rfc,
+        cfdi_razon_social: cliente.razon_social,
+        cfdi_regimen_fiscal: cliente.regimen_fiscal,
+        cfdi_uso_cfdi: cliente.uso_cfdi,
+        cfdi_codigo_postal: cliente.codigo_postal_fiscal,
+      })
+
+      if (cliente.direccion_envio) {
+        form.setFieldsValue({
+          envio_direccion: cliente.direccion_envio,
+          envio_ciudad: cliente.ciudad_envio,
+          envio_estado: cliente.estado_envio,
+          envio_codigo_postal: cliente.codigo_postal_envio,
+          envio_contacto: cliente.contacto_envio,
+          envio_telefono: cliente.telefono_envio,
+        })
+      } else {
+        form.setFieldsValue({
+          envio_direccion: cliente.direccion,
+          envio_contacto: cliente.contacto_nombre,
+          envio_telefono: cliente.telefono,
+        })
+      }
+
+      form.setFieldsValue({
+        forma_pago: cliente.forma_pago,
+        metodo_pago: cliente.metodo_pago,
+        condiciones_pago: cliente.dias_credito ? `${cliente.dias_credito} dias de credito` : null,
+      })
+    }
+  }, [clienteId, clientes])
+
   useEffect(() => {
     if (listaPrecioId) {
       loadProductosConPrecios()
     }
   }, [listaPrecioId])
 
-  // Cuando cambia el almacén, cargar inventario para alertas
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (almacenId) {
       loadInventarioAlmacen(almacenId)
@@ -139,68 +140,10 @@ export default function EditarCotizacionPage() {
     }
   }
 
-  const loadCotizacionData = async () => {
+  const loadData = async () => {
     const supabase = getSupabaseClient()
-    setLoading(true)
 
     try {
-      // Cargar cotizacion existente
-      const { data: cotData, error: cotError } = await supabase
-        .schema('erp')
-        .from('cotizaciones')
-        .select('*')
-        .eq('id', cotizacionId)
-        .single()
-
-      if (cotError) throw cotError
-
-      // Solo se puede editar en propuesta u orden_venta
-      if (!['propuesta', 'orden_venta'].includes(cotData.status)) {
-        message.error('Esta cotización no se puede editar')
-        router.push(`/cotizaciones/${cotizacionId}`)
-        return
-      }
-
-      setCotizacion(cotData)
-      setClienteId(cotData.cliente_id)
-      setAlmacenId(cotData.almacen_id)
-      setListaPrecioId(cotData.lista_precio_id)
-      setDescuentoGlobal(cotData.descuento_porcentaje || 0)
-      setTipoCambio(cotData.tipo_cambio || tcGlobal)
-      form.setFieldsValue({
-        notas: cotData.notas,
-        lista_precio_id: cotData.lista_precio_id,
-        // CFDI
-        cfdi_rfc: cotData.cfdi_rfc,
-        cfdi_razon_social: cotData.cfdi_razon_social,
-        cfdi_regimen_fiscal: cotData.cfdi_regimen_fiscal,
-        cfdi_uso_cfdi: cotData.cfdi_uso_cfdi,
-        cfdi_codigo_postal: cotData.cfdi_codigo_postal,
-        // Envío
-        envio_direccion: cotData.envio_direccion,
-        envio_ciudad: cotData.envio_ciudad,
-        envio_estado: cotData.envio_estado,
-        envio_codigo_postal: cotData.envio_codigo_postal,
-        envio_contacto: cotData.envio_contacto,
-        envio_telefono: cotData.envio_telefono,
-        // Pago
-        forma_pago: cotData.forma_pago,
-        metodo_pago: cotData.metodo_pago,
-        condiciones_pago: cotData.condiciones_pago,
-      })
-
-      // Cargar items de la cotizacion
-      const { data: itemsData } = await supabase
-        .schema('erp')
-        .from('cotizacion_items')
-        .select(`
-          *,
-          productos:producto_id (id, sku, nombre, categoria_id)
-        `)
-        .eq('cotizacion_id', cotizacionId)
-        .order('created_at')
-
-      // Cargar catalogos
       const [clientesRes, almacenesRes, listasRes, productosRes] = await Promise.all([
         supabase.schema('erp').from('clientes').select('*').eq('is_active', true).order('nombre_comercial'),
         supabase.schema('erp').from('almacenes').select('*').eq('is_active', true).order('nombre'),
@@ -213,39 +156,14 @@ export default function EditarCotizacionPage() {
       setListasPrecios(listasRes.data || [])
       setProductos(productosRes.data || [])
 
-      // Pre-llenar items
-      if (itemsData) {
-        const loadedItems: CotizacionItem[] = itemsData.map(item => {
-          // Calcular precio USD base desde el precio MXN guardado
-          const precioMXN = Number(item.precio_unitario)
-          const tc = cotData.tipo_cambio || tcGlobal
-          // Asumir margen 0 si no podemos calcularlo
-          const precioUSD = precioMXN / tc
-
-          return {
-            key: item.producto_id,
-            id: item.id,
-            producto_id: item.producto_id,
-            producto_nombre: item.descripcion,
-            sku: item.productos?.sku || '-',
-            precio_lista_usd: precioUSD,
-            margen_porcentaje: 0,
-            cantidad: Number(item.cantidad),
-            cantidad_original: Number(item.cantidad),
-            precio_unitario_mxn: precioMXN,
-            subtotal: Number(item.subtotal),
-          }
-        })
-
-        setItems(loadedItems)
-        setItemsOriginales(loadedItems.map(i => ({ ...i })))
+      const defaultLista = listasRes.data?.find(l => l.is_default)
+      if (defaultLista) {
+        setListaPrecioId(defaultLista.id)
+        form.setFieldValue('lista_precio_id', defaultLista.id)
       }
     } catch (error) {
-      console.error('Error loading cotizacion:', error)
-      message.error('Error al cargar cotización')
-      router.push('/cotizaciones')
-    } finally {
-      setLoading(false)
+      console.error('Error loading data:', error)
+      message.error('Error al cargar datos')
     }
   }
 
@@ -262,15 +180,19 @@ export default function EditarCotizacionPage() {
         .eq('lista_precio_id', listaPrecioId)
 
       if (error) throw error
-
       setPreciosMap(new Map(data?.map(p => [p.producto_id, Number(p.precio)]) || []))
     } catch (error) {
       console.error('Error loading precios:', error)
     }
   }
 
-  const calcularPrecioMXN = (precioUSD: number, margenPct: number) => {
-    return precioUSD * (1 + margenPct / 100) * tipoCambio
+  const calcularPrecioFinal = (precioUSD: number, margenPct: number, monedaDestino: CodigoMoneda = moneda) => {
+    const precioConMargen = precioUSD * (1 + margenPct / 100)
+    return monedaDestino === 'USD' ? precioConMargen : precioConMargen * tipoCambio
+  }
+
+  const formatMoney = (amount: number) => {
+    return moneda === 'USD' ? formatMoneyUSD(amount) : formatMoneyMXN(amount)
   }
 
   const handleProductSearch = (value: string) => {
@@ -307,9 +229,9 @@ export default function EditarCotizacionPage() {
 
     const precioUSD = producto.precio
     const margen = 0
-    const precioMXN = calcularPrecioMXN(precioUSD, margen)
+    const precioFinal = calcularPrecioFinal(precioUSD, margen)
 
-    const newItem: CotizacionItem = {
+    const newItem: OrdenVentaItem = {
       key: producto.id,
       producto_id: producto.id,
       producto_nombre: producto.nombre,
@@ -317,8 +239,8 @@ export default function EditarCotizacionPage() {
       precio_lista_usd: precioUSD,
       margen_porcentaje: margen,
       cantidad: 1,
-      precio_unitario_mxn: precioMXN,
-      subtotal: precioMXN,
+      precio_unitario: precioFinal,
+      subtotal: precioFinal,
     }
 
     setItems([...items, newItem])
@@ -332,10 +254,10 @@ export default function EditarCotizacionPage() {
         const updated = { ...item, [field]: value }
 
         if (field === 'margen_porcentaje') {
-          updated.precio_unitario_mxn = calcularPrecioMXN(updated.precio_lista_usd, value)
+          updated.precio_unitario = calcularPrecioFinal(updated.precio_lista_usd, value)
         }
 
-        updated.subtotal = updated.cantidad * updated.precio_unitario_mxn
+        updated.subtotal = updated.cantidad * updated.precio_unitario
         return updated
       }
       return item
@@ -350,17 +272,31 @@ export default function EditarCotizacionPage() {
     const newTC = value || tcGlobal
     setTipoCambio(newTC)
 
-    setItems(items.map(item => {
-      const nuevoPrecio = item.precio_lista_usd * (1 + item.margen_porcentaje / 100) * newTC
+    if (moneda === 'MXN') {
+      setItems(items.map(item => {
+        const nuevoPrecio = item.precio_lista_usd * (1 + item.margen_porcentaje / 100) * newTC
+        return {
+          ...item,
+          precio_unitario: nuevoPrecio,
+          subtotal: item.cantidad * nuevoPrecio
+        }
+      }))
+    }
+  }
+
+  const handleMonedaChange = (nuevaMoneda: CodigoMoneda) => {
+    setMoneda(nuevaMoneda)
+
+    setItems(prevItems => prevItems.map(item => {
+      const nuevoPrecio = calcularPrecioFinal(item.precio_lista_usd, item.margen_porcentaje, nuevaMoneda)
       return {
         ...item,
-        precio_unitario_mxn: nuevoPrecio,
+        precio_unitario: nuevoPrecio,
         subtotal: item.cantidad * nuevoPrecio
       }
     }))
   }
 
-  // Totals
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0)
   const descuentoMonto = subtotal * (descuentoGlobal / 100)
   const { iva, total } = calcularTotal(subtotal, descuentoMonto)
@@ -371,104 +307,62 @@ export default function EditarCotizacionPage() {
       return
     }
 
-    if (!cotizacion) return
-
     setSaving(true)
     const supabase = getSupabaseClient()
 
     try {
-      const esOrdenVenta = cotizacion.status === 'orden_venta'
+      // 1. Generar folio
+      const { data: folioData } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'cotizacion' })
+      const folio = folioData as string
 
-      // Si es orden_venta, manejar cambios de inventario
-      if (esOrdenVenta) {
-        // Restaurar inventario de items originales
-        for (const itemViejo of itemsOriginales) {
-          // Obtener cantidad actual y actualizar
-          const { data: invData } = await supabase
-            .schema('erp')
-            .from('inventario')
-            .select('cantidad')
-            .eq('producto_id', itemViejo.producto_id)
-            .eq('almacen_id', almacenId)
-            .single()
-
-          if (invData) {
-            await supabase
-              .schema('erp')
-              .from('inventario')
-              .update({ cantidad: Number(invData.cantidad) + itemViejo.cantidad })
-              .eq('producto_id', itemViejo.producto_id)
-              .eq('almacen_id', almacenId)
-          }
-
-          // Registrar movimiento de entrada (restauración)
-          await supabase
-            .schema('erp')
-            .from('movimientos_inventario')
-            .insert({
-              producto_id: itemViejo.producto_id,
-              almacen_destino_id: almacenId,
-              tipo: 'entrada',
-              cantidad: itemViejo.cantidad,
-              referencia_tipo: 'cotizacion',
-              referencia_id: cotizacionId,
-              notas: `Restauración por edición OV ${cotizacion.folio}`
-            })
-        }
-      }
-
-      // Actualizar cotización
       const formValues = form.getFieldsValue()
-      const { error: cotError } = await supabase
+
+      // 2. Crear cotizacion con status 'propuesta' primero
+      const { data: cotizacion, error: cotError } = await supabase
         .schema('erp')
         .from('cotizaciones')
-        .update({
+        .insert({
+          folio,
           cliente_id: clienteId,
           almacen_id: almacenId,
           lista_precio_id: listaPrecioId,
+          status: 'propuesta', // Crear como propuesta primero
           subtotal,
           descuento_porcentaje: descuentoGlobal,
           descuento_monto: descuentoMonto,
           iva,
           total,
-          tipo_cambio: tipoCambio,
+          moneda,
+          tipo_cambio: moneda === 'MXN' ? tipoCambio : null,
+          vigencia_dias: 30,
           notas: formValues.notas,
-          // CFDI
           cfdi_rfc: formValues.cfdi_rfc || null,
           cfdi_razon_social: formValues.cfdi_razon_social || null,
           cfdi_regimen_fiscal: formValues.cfdi_regimen_fiscal || null,
           cfdi_uso_cfdi: formValues.cfdi_uso_cfdi || null,
           cfdi_codigo_postal: formValues.cfdi_codigo_postal || null,
-          // Envío
           envio_direccion: formValues.envio_direccion || null,
           envio_ciudad: formValues.envio_ciudad || null,
           envio_estado: formValues.envio_estado || null,
           envio_codigo_postal: formValues.envio_codigo_postal || null,
           envio_contacto: formValues.envio_contacto || null,
           envio_telefono: formValues.envio_telefono || null,
-          // Pago
           forma_pago: formValues.forma_pago || null,
           metodo_pago: formValues.metodo_pago || null,
           condiciones_pago: formValues.condiciones_pago || null,
         })
-        .eq('id', cotizacionId)
+        .select()
+        .single()
 
       if (cotError) throw cotError
 
-      // Eliminar items viejos
-      await supabase
-        .schema('erp')
-        .from('cotizacion_items')
-        .delete()
-        .eq('cotizacion_id', cotizacionId)
-
-      // Insertar nuevos items
+      // 3. Insertar items
       const itemsToInsert = items.map(i => ({
-        cotizacion_id: cotizacionId,
+        cotizacion_id: cotizacion.id,
         producto_id: i.producto_id,
         descripcion: i.producto_nombre,
         cantidad: i.cantidad,
-        precio_unitario: i.precio_unitario_mxn,
+        precio_unitario: i.precio_unitario,
         descuento_porcentaje: 0,
         subtotal: i.subtotal,
       }))
@@ -480,47 +374,18 @@ export default function EditarCotizacionPage() {
 
       if (itemsError) throw itemsError
 
-      // Si es orden_venta, descontar nuevo inventario
-      if (esOrdenVenta) {
-        for (const item of items) {
-          const { data: invData } = await supabase
-            .schema('erp')
-            .from('inventario')
-            .select('cantidad')
-            .eq('producto_id', item.producto_id)
-            .eq('almacen_id', almacenId)
-            .single()
+      // 4. Convertir a Orden de Venta (descuenta inventario)
+      const { error: ovError } = await supabase
+        .schema('erp')
+        .rpc('cotizacion_a_orden_venta', { p_cotizacion_id: cotizacion.id })
 
-          if (invData) {
-            await supabase
-              .schema('erp')
-              .from('inventario')
-              .update({ cantidad: Number(invData.cantidad) - item.cantidad })
-              .eq('producto_id', item.producto_id)
-              .eq('almacen_id', almacenId)
-          }
+      if (ovError) throw ovError
 
-          // Registrar movimiento de salida
-          await supabase
-            .schema('erp')
-            .from('movimientos_inventario')
-            .insert({
-              producto_id: item.producto_id,
-              almacen_origen_id: almacenId,
-              tipo: 'salida',
-              cantidad: item.cantidad,
-              referencia_tipo: 'cotizacion',
-              referencia_id: cotizacionId,
-              notas: `Orden de Venta ${cotizacion.folio} (editada)`
-            })
-        }
-      }
-
-      message.success('Cotización actualizada')
-      router.push(`/cotizaciones/${cotizacionId}`)
+      message.success(`Orden de Venta ${folio} creada`)
+      router.push('/ordenes-venta')
     } catch (error: any) {
-      console.error('Error saving cotizacion:', error)
-      message.error(error.message || 'Error al guardar cotización')
+      console.error('Error saving orden de venta:', error)
+      message.error(error.message || 'Error al guardar orden de venta')
     } finally {
       setSaving(false)
     }
@@ -545,13 +410,13 @@ export default function EditarCotizacionPage() {
     },
     {
       title: (
-        <Tooltip title="Margen adicional. Positivo = ganancia extra. Negativo = descuento/regalo.">
+        <Tooltip title="Margen adicional. Positivo = ganancia extra. Negativo = descuento.">
           Margen % <InfoCircleOutlined style={{ fontSize: 12 }} />
         </Tooltip>
       ),
       dataIndex: 'margen_porcentaje',
       width: 90,
-      render: (val: number, record: CotizacionItem) => (
+      render: (val: number, record: OrdenVentaItem) => (
         <InputNumber
           value={val}
           onChange={(v) => handleUpdateItem(record.key, 'margen_porcentaje', v || 0)}
@@ -566,7 +431,7 @@ export default function EditarCotizacionPage() {
       title: 'Cant.',
       dataIndex: 'cantidad',
       width: 70,
-      render: (val: number, record: CotizacionItem) => (
+      render: (val: number, record: OrdenVentaItem) => (
         <InputNumber
           min={1}
           value={val}
@@ -578,17 +443,17 @@ export default function EditarCotizacionPage() {
     },
     {
       title: (
-        <Tooltip title="Precio en MXN. Puedes editarlo manualmente.">
-          Precio MXN <InfoCircleOutlined style={{ fontSize: 12 }} />
+        <Tooltip title={`Precio en ${moneda}. Puedes editarlo manualmente.`}>
+          Precio {moneda} <InfoCircleOutlined style={{ fontSize: 12 }} />
         </Tooltip>
       ),
-      dataIndex: 'precio_unitario_mxn',
+      dataIndex: 'precio_unitario',
       width: 120,
-      render: (val: number, record: CotizacionItem) => (
+      render: (val: number, record: OrdenVentaItem) => (
         <InputNumber
           min={0}
           value={val}
-          onChange={(v) => handleUpdateItem(record.key, 'precio_unitario_mxn', v || 0)}
+          onChange={(v) => handleUpdateItem(record.key, 'precio_unitario', v || 0)}
           formatter={(value) => `$ ${Number(value).toFixed(2)}`}
           parser={(value) => parseFloat(value?.replace(/\$\s?/g, '') || '0') as any}
           style={{ width: '100%' }}
@@ -600,66 +465,58 @@ export default function EditarCotizacionPage() {
       title: 'Subtotal',
       dataIndex: 'subtotal',
       width: 110,
-      render: (val: number) => formatMoneyMXN(val),
+      render: (val: number) => formatMoney(val),
     },
     {
       title: '',
       width: 40,
-      render: (_: any, record: CotizacionItem) => (
+      render: (_: any, record: OrdenVentaItem) => (
         <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleRemoveItem(record.key)} size="small" />
       ),
     },
   ]
 
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: 50 }}>
-        <Spin size="large" />
-      </div>
-    )
-  }
-
   return (
     <div>
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(`/cotizaciones/${cotizacionId}`)}>
-          Volver
-        </Button>
-        <Title level={2} style={{ margin: 0 }}>Editar Cotización {cotizacion?.folio}</Title>
-        {cotizacion?.status === 'orden_venta' && (
-          <Text type="warning" strong>(Orden de Venta - El inventario será recalculado)</Text>
-        )}
-      </Space>
+      <Title level={2}>Nueva Orden de Venta</Title>
+
+      <Alert
+        type="info"
+        message="Al guardar, el inventario se descontara automaticamente del almacen seleccionado."
+        showIcon
+        style={{ marginBottom: 16 }}
+      />
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={16}>
-          {/* Card de Tipo de Cambio */}
-          <Card size="small" style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}>
-            <Row gutter={16} align="middle">
-              <Col>
-                <Text strong>Tipo de Cambio:</Text>
-              </Col>
-              <Col>
-                <InputNumber
-                  value={tipoCambio}
-                  onChange={handleTipoCambioChange}
-                  min={1}
-                  max={100}
-                  step={0.0001}
-                  precision={4}
-                  addonAfter="MXN/USD"
-                  style={{ width: 180 }}
-                />
-              </Col>
-              <Col>
-                <Text type="secondary">
-                  (Al cambiar se recalculan todos los precios)
-                </Text>
-              </Col>
-            </Row>
-          </Card>
+          {moneda === 'MXN' && (
+            <Card size="small" style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}>
+              <Row gutter={16} align="middle">
+                <Col>
+                  <Text strong>Tipo de Cambio:</Text>
+                </Col>
+                <Col>
+                  <InputNumber
+                    value={tipoCambio}
+                    onChange={handleTipoCambioChange}
+                    min={1}
+                    max={100}
+                    step={0.0001}
+                    precision={4}
+                    addonAfter="MXN/USD"
+                    style={{ width: 180 }}
+                  />
+                </Col>
+                <Col>
+                  <Text type="secondary">
+                    (Al cambiar se recalculan todos los precios)
+                  </Text>
+                </Col>
+              </Row>
+            </Card>
+          )}
 
-          <Card title="Datos de la Cotización" style={{ marginBottom: 16 }}>
+          <Card title="Datos de la Orden de Venta" style={{ marginBottom: 16 }}>
             <Form form={form} layout="vertical">
               <Row gutter={16}>
                 <Col xs={24} md={12}>
@@ -677,13 +534,24 @@ export default function EditarCotizacionPage() {
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Form.Item label="Almacén" required>
+                  <Form.Item label="Moneda" required>
                     <Select
-                      placeholder="Seleccionar almacén"
+                      value={moneda}
+                      onChange={handleMonedaChange}
+                      options={[
+                        { value: 'MXN', label: 'Peso Mexicano (MXN)' },
+                        { value: 'USD', label: 'Dolar Americano (USD)' },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Almacen" required>
+                    <Select
+                      placeholder="Seleccionar almacen"
                       value={almacenId}
                       onChange={setAlmacenId}
                       options={almacenes.map(a => ({ value: a.id, label: a.nombre }))}
-                      disabled={cotizacion?.status === 'orden_venta'}
                     />
                   </Form.Item>
                 </Col>
@@ -724,7 +592,6 @@ export default function EditarCotizacionPage() {
                 disabled={!listaPrecioId || !almacenId}
               />
 
-              {/* Alerta de productos sin stock */}
               {mostrarAlertaStock && almacenId && items.length > 0 && (() => {
                 const productosSinStock = items.filter(item => {
                   const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
@@ -760,14 +627,14 @@ export default function EditarCotizacionPage() {
                 pagination={false}
                 size="small"
                 scroll={{ x: 800 }}
-                locale={{ emptyText: 'Agrega productos a la cotización' }}
+                locale={{ emptyText: 'Agrega productos a la orden' }}
               />
             </Space>
           </Card>
 
           <Form form={form} layout="vertical">
             <Collapse
-              defaultActiveKey={cotizacion?.status === 'orden_venta' ? ['envio', 'cfdi', 'pago'] : []}
+              defaultActiveKey={[]}
               style={{ marginBottom: 16 }}
               items={[
                 {
@@ -775,14 +642,14 @@ export default function EditarCotizacionPage() {
                   label: (
                     <Space>
                       <EnvironmentOutlined />
-                      <span>Datos de Envío</span>
+                      <span>Datos de Envio</span>
                     </Space>
                   ),
                   children: (
                     <Row gutter={16}>
                       <Col xs={24}>
-                        <Form.Item name="envio_direccion" label="Dirección">
-                          <Input.TextArea rows={2} placeholder="Dirección de envío" />
+                        <Form.Item name="envio_direccion" label="Direccion">
+                          <Input.TextArea rows={2} placeholder="Direccion de envio" />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={16}>
@@ -799,7 +666,7 @@ export default function EditarCotizacionPage() {
                       </Col>
                       <Col xs={24} md={8}>
                         <Form.Item name="envio_codigo_postal" label="C.P.">
-                          <Input placeholder="Código postal" maxLength={10} />
+                          <Input placeholder="Codigo postal" maxLength={10} />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={12}>
@@ -808,8 +675,8 @@ export default function EditarCotizacionPage() {
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={12}>
-                        <Form.Item name="envio_telefono" label="Teléfono">
-                          <Input placeholder="Teléfono de contacto" />
+                        <Form.Item name="envio_telefono" label="Telefono">
+                          <Input placeholder="Telefono de contacto" />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -820,7 +687,7 @@ export default function EditarCotizacionPage() {
                   label: (
                     <Space>
                       <BankOutlined />
-                      <span>Datos de Facturación (CFDI)</span>
+                      <span>Datos de Facturacion (CFDI)</span>
                     </Space>
                   ),
                   children: (
@@ -831,12 +698,12 @@ export default function EditarCotizacionPage() {
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={12}>
-                        <Form.Item name="cfdi_razon_social" label="Razón Social">
-                          <Input placeholder="Razón social" />
+                        <Form.Item name="cfdi_razon_social" label="Razon Social">
+                          <Input placeholder="Razon social" />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={8}>
-                        <Form.Item name="cfdi_regimen_fiscal" label="Régimen Fiscal">
+                        <Form.Item name="cfdi_regimen_fiscal" label="Regimen Fiscal">
                           <Select placeholder="Seleccionar" allowClear options={REGIMENES_FISCALES_SAT} />
                         </Form.Item>
                       </Col>
@@ -847,7 +714,7 @@ export default function EditarCotizacionPage() {
                       </Col>
                       <Col xs={24} md={8}>
                         <Form.Item name="cfdi_codigo_postal" label="C.P. Fiscal">
-                          <Input placeholder="Código postal" maxLength={5} />
+                          <Input placeholder="Codigo postal" maxLength={5} />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -869,7 +736,7 @@ export default function EditarCotizacionPage() {
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={12}>
-                        <Form.Item name="metodo_pago" label="Método de Pago">
+                        <Form.Item name="metodo_pago" label="Metodo de Pago">
                           <Select placeholder="Seleccionar" allowClear options={METODOS_PAGO_SAT} />
                         </Form.Item>
                       </Col>
@@ -894,28 +761,36 @@ export default function EditarCotizacionPage() {
           <Card title="Resumen" style={{ position: 'sticky', top: 88 }}>
             <Space direction="vertical" style={{ width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text type="secondary">T/C:</Text>
-                <Text>{tipoCambio} MXN/USD</Text>
+                <Text type="secondary">Moneda:</Text>
+                <Text strong style={{ color: moneda === 'USD' ? '#52c41a' : '#1890ff' }}>
+                  <DollarOutlined /> {moneda}
+                </Text>
               </div>
+              {moneda === 'MXN' && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text type="secondary">T/C:</Text>
+                  <Text>{tipoCambio} MXN/USD</Text>
+                </div>
+              )}
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>Subtotal:</Text>
-                <Text strong>{formatMoneyMXN(subtotal)}</Text>
+                <Text strong>{formatMoney(subtotal)}</Text>
               </div>
               {descuentoGlobal > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#52c41a' }}>
                   <Text>Descuento ({descuentoGlobal}%):</Text>
-                  <Text>-{formatMoneyMXN(descuentoMonto)}</Text>
+                  <Text>-{formatMoney(descuentoMonto)}</Text>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>IVA (16%):</Text>
-                <Text>{formatMoneyMXN(iva)}</Text>
+                <Text>{formatMoney(iva)}</Text>
               </div>
               <Divider style={{ margin: '12px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Title level={4} style={{ margin: 0 }}>Total:</Title>
-                <Title level={4} style={{ margin: 0, color: '#1890ff' }}>{formatMoneyMXN(total)}</Title>
+                <Title level={4} style={{ margin: 0, color: '#1890ff' }}>{formatMoney(total)}</Title>
               </div>
 
               <Divider />
@@ -930,21 +805,12 @@ export default function EditarCotizacionPage() {
                   disabled={items.length === 0}
                   size="large"
                 >
-                  Guardar Cambios
+                  Crear Orden de Venta
                 </Button>
-                <Button block onClick={() => router.push(`/cotizaciones/${cotizacionId}`)}>
+                <Button block onClick={() => router.back()}>
                   Cancelar
                 </Button>
               </Space>
-
-              {cotizacion?.status === 'orden_venta' && (
-                <>
-                  <Divider style={{ margin: '12px 0' }} />
-                  <Text type="warning" style={{ fontSize: 12 }}>
-                    Esta cotización está en Orden de Venta. Al guardar, el inventario será restaurado y vuelto a descontar con las nuevas cantidades.
-                  </Text>
-                </>
-              )}
             </Space>
           </Card>
         </Col>

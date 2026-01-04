@@ -8,6 +8,7 @@ import {
 import { DeleteOutlined, SaveOutlined, InfoCircleOutlined, DollarOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
 import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
@@ -675,14 +676,16 @@ export default function NuevaCotizacionPage() {
                           <Input.TextArea rows={2} placeholder="Dirección de envío" />
                         </Form.Item>
                       </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="envio_ciudad" label="Ciudad">
-                          <Input placeholder="Ciudad" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="envio_estado" label="Estado">
-                          <Input placeholder="Estado" />
+                      <Col xs={24} md={16}>
+                        <Form.Item label="Estado y Ciudad">
+                          <EstadoCiudadSelect
+                            estadoValue={form.getFieldValue('envio_estado')}
+                            ciudadValue={form.getFieldValue('envio_ciudad')}
+                            onEstadoChange={(value) => form.setFieldValue('envio_estado', value)}
+                            onCiudadChange={(value) => form.setFieldValue('envio_ciudad', value)}
+                          />
+                          <Form.Item name="envio_estado" hidden><Input /></Form.Item>
+                          <Form.Item name="envio_ciudad" hidden><Input /></Form.Item>
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={8}>

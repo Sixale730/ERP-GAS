@@ -19,6 +19,8 @@ import {
   ShoppingCartOutlined,
   SwapOutlined,
   SafetyCertificateOutlined,
+  WarningOutlined,
+  ContainerOutlined,
 } from '@ant-design/icons'
 
 type MenuItem = Required<MenuProps>['items'][number]
@@ -53,6 +55,11 @@ const menuItems: MenuItem[] = [
     key: '/cotizaciones',
     icon: <FileTextOutlined />,
     label: 'Cotizaciones',
+  },
+  {
+    key: '/ordenes-venta',
+    icon: <ContainerOutlined />,
+    label: 'Ordenes de Venta',
   },
   {
     key: '/facturas',
@@ -108,6 +115,11 @@ const menuItems: MenuItem[] = [
         key: '/configuracion/cfdi',
         icon: <SafetyCertificateOutlined />,
         label: 'CFDI / Timbrado',
+      },
+      {
+        key: '/configuracion/admin',
+        icon: <WarningOutlined />,
+        label: 'Administracion',
       },
     ],
   },

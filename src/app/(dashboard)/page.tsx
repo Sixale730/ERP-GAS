@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin } from 'antd'
+import { useRouter } from 'next/navigation'
+import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin, Button, Space } from 'antd'
 import {
   ShoppingOutlined,
   DollarOutlined,
   FileTextOutlined,
   WarningOutlined,
+  ShoppingCartOutlined,
 } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney } from '@/lib/utils/format'
@@ -22,6 +24,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats>({
     totalProductos: 0,
@@ -218,7 +221,23 @@ export default function DashboardPage() {
 
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col xs={24} lg={12}>
-          <Card title="Productos con Stock Bajo" extra={<WarningOutlined style={{ color: '#faad14' }} />}>
+          <Card
+            title="Productos con Stock Bajo"
+            extra={
+              <Space>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<ShoppingCartOutlined />}
+                  onClick={() => router.push('/compras/nueva?stock_bajo=true')}
+                  disabled={productosStockBajo.length === 0}
+                >
+                  Generar OC
+                </Button>
+                <WarningOutlined style={{ color: '#faad14' }} />
+              </Space>
+            }
+          >
             <Table
               dataSource={productosStockBajo}
               columns={productosColumns}
