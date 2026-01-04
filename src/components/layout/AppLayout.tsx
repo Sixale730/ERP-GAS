@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid } from 'antd'
+import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid, Tag, Spin } from 'antd'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -9,10 +9,13 @@ import {
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
+import { useRouter } from 'next/navigation'
 import Sidebar from './Sidebar'
 import GlobalSearch from './GlobalSearch'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
@@ -21,36 +24,95 @@ interface AppLayoutProps {
   children: React.ReactNode
 }
 
+const roleLabels: Record<string, { label: string; color: string }> = {
+  super_admin: { label: 'Super Admin', color: 'purple' },
+  admin_cliente: { label: 'Admin', color: 'blue' },
+  vendedor: { label: 'Vendedor', color: 'green' },
+}
+
 export default function AppLayout({ children }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const screens = useBreakpoint()
   const isMobile = !screens.md // true si < 768px
+  const router = useRouter()
+  const { loading, displayName, avatarUrl, role, signOut, isAdmin, organizacion } = useAuth()
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
 
+  const handleMenuClick: MenuProps['onClick'] = async ({ key }) => {
+    if (key === 'logout') {
+      await signOut()
+    } else if (key === 'settings') {
+      router.push('/configuracion')
+    } else if (key === 'usuarios' && isAdmin) {
+      router.push('/configuracion/usuarios')
+    }
+  }
+
   const userMenuItems: MenuProps['items'] = [
     {
-      key: 'profile',
-      icon: <UserOutlined />,
-      label: 'Mi Perfil',
+      key: 'user-info',
+      label: (
+        <div style={{ padding: '4px 0' }}>
+          <div style={{ fontWeight: 500 }}>{displayName}</div>
+          {role && (
+            <Tag color={roleLabels[role]?.color || 'default'} style={{ marginTop: 4 }}>
+              {roleLabels[role]?.label || role}
+            </Tag>
+          )}
+          {organizacion && !organizacion.is_sistema && (
+            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+              {organizacion.nombre}
+            </div>
+          )}
+        </div>
+      ),
+      disabled: true,
+    },
+    {
+      type: 'divider',
     },
     {
       key: 'settings',
       icon: <SettingOutlined />,
-      label: 'Configuración',
+      label: 'Configuracion',
     },
+    ...(isAdmin
+      ? [
+          {
+            key: 'usuarios',
+            icon: <TeamOutlined />,
+            label: 'Gestionar Usuarios',
+          },
+        ]
+      : []),
     {
       type: 'divider',
     },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: 'Cerrar Sesión',
+      label: 'Cerrar Sesion',
       danger: true,
     },
   ]
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Spin size="large" tip="Cargando..." />
+      </div>
+    )
+  }
 
   // Contenido del sidebar (reutilizable)
   const sidebarContent = (
@@ -76,7 +138,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           {isMobile ? 'ERP Nesui' : (collapsed ? 'ERP' : 'ERP Nesui')}
         </h1>
       </div>
-      <Sidebar onNavigate={() => isMobile && setDrawerOpen(false)} />
+      <Sidebar onNavigate={() => isMobile && setDrawerOpen(false)} userRole={role} />
     </>
   )
 
@@ -149,10 +211,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <GlobalSearch />
           </div>
 
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+          <Dropdown menu={{ items: userMenuItems, onClick: handleMenuClick }} placement="bottomRight">
             <Space style={{ cursor: 'pointer' }}>
-              <Avatar icon={<UserOutlined />} />
-              {!isMobile && <span>Admin</span>}
+              <Avatar src={avatarUrl} icon={!avatarUrl && <UserOutlined />} />
+              {!isMobile && <span>{displayName}</span>}
             </Space>
           </Dropdown>
         </Header>

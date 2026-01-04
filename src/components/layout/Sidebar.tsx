@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Menu, type MenuProps } from 'antd'
 import {
@@ -21,11 +21,21 @@ import {
   SafetyCertificateOutlined,
   WarningOutlined,
   ContainerOutlined,
+  UserSwitchOutlined,
 } from '@ant-design/icons'
+import { UserRole } from '@/lib/hooks/useAuth'
 
 type MenuItem = Required<MenuProps>['items'][number]
 
-const menuItems: MenuItem[] = [
+// Roles que pueden ver cada item
+type RoleAccess = UserRole[] | 'all'
+
+interface MenuItemWithRoles extends Omit<MenuItem, 'children'> {
+  roles?: RoleAccess
+  children?: MenuItemWithRoles[]
+}
+
+const allMenuItems: MenuItemWithRoles[] = [
   {
     key: '/',
     icon: <DashboardOutlined />,
@@ -35,16 +45,19 @@ const menuItems: MenuItem[] = [
     key: '/productos',
     icon: <ShoppingOutlined />,
     label: 'Productos',
+    roles: ['super_admin'], // Solo super admin puede ver productos (catalogo global)
   },
   {
     key: '/inventario',
     icon: <InboxOutlined />,
     label: 'Inventario',
+    roles: ['super_admin'], // Solo super admin
   },
   {
     key: '/movimientos',
     icon: <SwapOutlined />,
     label: 'Movimientos',
+    roles: ['super_admin'], // Solo super admin
   },
   {
     key: '/clientes',
@@ -70,6 +83,7 @@ const menuItems: MenuItem[] = [
     key: '/compras',
     icon: <ShoppingCartOutlined />,
     label: 'Compras',
+    roles: ['super_admin'], // Solo super admin
   },
   {
     type: 'divider',
@@ -77,7 +91,8 @@ const menuItems: MenuItem[] = [
   {
     key: 'catalogos',
     icon: <SettingOutlined />,
-    label: 'Catálogos',
+    label: 'Catalogos',
+    roles: ['super_admin'], // Solo super admin puede modificar catalogos
     children: [
       {
         key: '/catalogos/almacenes',
@@ -87,7 +102,7 @@ const menuItems: MenuItem[] = [
       {
         key: '/catalogos/categorias',
         icon: <TagsOutlined />,
-        label: 'Categorías',
+        label: 'Categorias',
       },
       {
         key: '/catalogos/proveedores',
@@ -105,33 +120,83 @@ const menuItems: MenuItem[] = [
     key: 'configuracion',
     icon: <ToolOutlined />,
     label: 'Configuracion',
+    roles: ['super_admin', 'admin_cliente'], // Admins pueden ver configuracion
     children: [
       {
         key: '/configuracion',
         icon: <SettingOutlined />,
         label: 'General',
+        roles: ['super_admin'],
       },
       {
         key: '/configuracion/cfdi',
         icon: <SafetyCertificateOutlined />,
         label: 'CFDI / Timbrado',
+        roles: ['super_admin'],
+      },
+      {
+        key: '/configuracion/usuarios',
+        icon: <UserSwitchOutlined />,
+        label: 'Usuarios',
+        roles: ['super_admin', 'admin_cliente'],
       },
       {
         key: '/configuracion/admin',
         icon: <WarningOutlined />,
         label: 'Administracion',
+        roles: ['super_admin'],
       },
     ],
   },
 ]
 
-interface SidebarProps {
-  onNavigate?: () => void
+// Filtra items de menu segun el rol del usuario
+function filterMenuByRole(
+  items: MenuItemWithRoles[],
+  userRole: UserRole | null
+): MenuItem[] {
+  if (!userRole) return []
+
+  return items
+    .filter((item) => {
+      if (!item) return false
+      // Si no tiene roles definidos, es visible para todos
+      if (!('roles' in item) || !item.roles) return true
+      // Si roles es 'all', es visible para todos
+      if (item.roles === 'all') return true
+      // Si es un array, verificar si el rol esta incluido
+      return item.roles.includes(userRole)
+    })
+    .map((item) => {
+      // Si tiene children, filtrarlos tambien
+      if ('children' in item && item.children) {
+        const filteredChildren = filterMenuByRole(item.children, userRole)
+        // Si no quedan children despues de filtrar, no mostrar el submenu
+        if (filteredChildren.length === 0) return null
+        return {
+          ...item,
+          children: filteredChildren,
+        } as MenuItem
+      }
+      return item as MenuItem
+    })
+    .filter((item): item is MenuItem => item !== null)
 }
 
-export default function Sidebar({ onNavigate }: SidebarProps) {
+interface SidebarProps {
+  onNavigate?: () => void
+  userRole?: UserRole | null
+}
+
+export default function Sidebar({ onNavigate, userRole }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+
+  // Filtrar menu segun rol
+  const menuItems = useMemo(
+    () => filterMenuByRole(allMenuItems, userRole || null),
+    [userRole]
+  )
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
     router.push(e.key)
