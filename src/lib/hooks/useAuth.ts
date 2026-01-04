@@ -46,34 +46,45 @@ export function useAuth() {
   })
 
   const fetchERPUser = useCallback(async (authUserId: string) => {
+    console.log('[useAuth] fetchERPUser called with authUserId:', authUserId)
     const supabase = getSupabaseClient()
 
-    const { data: erpUser } = await supabase
+    console.log('[useAuth] Querying erp.usuarios...')
+    const { data: erpUser, error: userError } = await supabase
       .schema('erp')
       .from('usuarios')
       .select('*')
       .eq('auth_user_id', authUserId)
       .single()
 
+    console.log('[useAuth] erp.usuarios result:', { erpUser, userError })
+
     if (erpUser) {
-      const { data: org } = await supabase
+      console.log('[useAuth] Querying erp.organizaciones for org_id:', erpUser.organizacion_id)
+      const { data: org, error: orgError } = await supabase
         .schema('erp')
         .from('organizaciones')
         .select('id, nombre, codigo, is_sistema')
         .eq('id', erpUser.organizacion_id)
         .single()
 
+      console.log('[useAuth] erp.organizaciones result:', { org, orgError })
+
       return { erpUser: erpUser as ERPUser, organizacion: org as Organizacion | null }
     }
 
+    console.log('[useAuth] No erpUser found, returning nulls')
     return { erpUser: null, organizacion: null }
   }, [])
 
   useEffect(() => {
+    console.log('[useAuth] useEffect started')
     const supabase = getSupabaseClient()
 
     // Obtener sesion inicial
+    console.log('[useAuth] Calling getSession...')
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('[useAuth] getSession result:', { hasSession: !!session, userId: session?.user?.id })
       if (session) {
         // Decodificar JWT para obtener claims
         let role: UserRole | null = null
@@ -83,13 +94,17 @@ export function useAuth() {
           const payload = JSON.parse(atob(session.access_token.split('.')[1]))
           role = payload.app_role || null
           orgId = payload.org_id || null
-        } catch {
-          // Error al decodificar JWT
+          console.log('[useAuth] JWT claims:', { app_role: role, org_id: orgId })
+        } catch (e) {
+          console.log('[useAuth] Error decoding JWT:', e)
         }
 
         // Obtener datos del usuario ERP
+        console.log('[useAuth] Calling fetchERPUser...')
         const { erpUser, organizacion } = await fetchERPUser(session.user.id)
+        console.log('[useAuth] fetchERPUser returned:', { hasErpUser: !!erpUser, hasOrg: !!organizacion })
 
+        console.log('[useAuth] Setting state with loading: false')
         setState({
           user: session.user,
           erpUser,
@@ -100,8 +115,12 @@ export function useAuth() {
           orgId: erpUser?.organizacion_id || orgId,
         })
       } else {
+        console.log('[useAuth] No session, setting loading: false')
         setState((prev) => ({ ...prev, loading: false }))
       }
+    }).catch((err) => {
+      console.error('[useAuth] getSession error:', err)
+      setState((prev) => ({ ...prev, loading: false }))
     })
 
     // Escuchar cambios de auth
