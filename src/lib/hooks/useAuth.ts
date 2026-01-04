@@ -45,35 +45,45 @@ export function useAuth() {
     orgId: null,
   })
 
-  const fetchERPUser = useCallback(async (authUserId: string) => {
-    console.log('[useAuth] fetchERPUser called with authUserId:', authUserId)
+  const fetchERPUser = useCallback(async () => {
+    console.log('[useAuth] fetchERPUser called - using RPC')
     const supabase = getSupabaseClient()
 
-    console.log('[useAuth] Querying erp.usuarios...')
-    const { data: erpUser, error: userError } = await supabase
-      .schema('erp')
-      .from('usuarios')
-      .select('*')
-      .eq('auth_user_id', authUserId)
-      .single()
+    console.log('[useAuth] Calling erp.obtener_usuario_actual()...')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)('obtener_usuario_actual')
 
-    console.log('[useAuth] erp.usuarios result:', { erpUser, userError })
+    console.log('[useAuth] RPC result:', { data, error })
 
-    if (erpUser) {
-      console.log('[useAuth] Querying erp.organizaciones for org_id:', erpUser.organizacion_id)
-      const { data: org, error: orgError } = await supabase
-        .schema('erp')
-        .from('organizaciones')
-        .select('id, nombre, codigo, is_sistema')
-        .eq('id', erpUser.organizacion_id)
-        .single()
-
-      console.log('[useAuth] erp.organizaciones result:', { org, orgError })
-
-      return { erpUser: erpUser as ERPUser, organizacion: org as Organizacion | null }
+    if (error) {
+      console.error('[useAuth] RPC error:', error)
+      return { erpUser: null, organizacion: null }
     }
 
-    console.log('[useAuth] No erpUser found, returning nulls')
+    if (data && data.length > 0) {
+      const row = data[0]
+      const erpUser: ERPUser = {
+        id: row.id,
+        auth_user_id: row.auth_user_id,
+        organizacion_id: row.organizacion_id,
+        email: row.email,
+        nombre: row.nombre,
+        avatar_url: row.avatar_url,
+        rol: row.rol as UserRole,
+        is_active: row.is_active,
+      }
+      const organizacion: Organizacion | null = row.org_nombre ? {
+        id: row.organizacion_id,
+        nombre: row.org_nombre,
+        codigo: row.org_codigo,
+        is_sistema: row.org_is_sistema,
+      } : null
+
+      console.log('[useAuth] Parsed user:', { erpUser, organizacion })
+      return { erpUser, organizacion }
+    }
+
+    console.log('[useAuth] No user found, returning nulls')
     return { erpUser: null, organizacion: null }
   }, [])
 
@@ -101,7 +111,7 @@ export function useAuth() {
 
         // Obtener datos del usuario ERP
         console.log('[useAuth] Calling fetchERPUser...')
-        const { erpUser, organizacion } = await fetchERPUser(session.user.id)
+        const { erpUser, organizacion } = await fetchERPUser()
         console.log('[useAuth] fetchERPUser returned:', { hasErpUser: !!erpUser, hasOrg: !!organizacion })
 
         console.log('[useAuth] Setting state with loading: false')
@@ -152,7 +162,7 @@ export function useAuth() {
           // Error al decodificar JWT
         }
 
-        const { erpUser, organizacion } = await fetchERPUser(session.user.id)
+        const { erpUser, organizacion } = await fetchERPUser()
 
         setState({
           user: session.user,
@@ -177,7 +187,7 @@ export function useAuth() {
 
   const refreshUser = useCallback(async () => {
     if (state.user) {
-      const { erpUser, organizacion } = await fetchERPUser(state.user.id)
+      const { erpUser, organizacion } = await fetchERPUser()
       setState((prev) => ({
         ...prev,
         erpUser,
