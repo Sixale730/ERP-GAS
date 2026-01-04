@@ -16,6 +16,9 @@ import {
   Typography,
   Alert,
   Divider,
+  Badge,
+  Avatar,
+  Tabs,
 } from 'antd'
 import {
   UserAddOutlined,
@@ -25,6 +28,9 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
+  CheckOutlined,
+  StopOutlined,
+  UserOutlined,
 } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAuth, UserRole } from '@/lib/hooks/useAuth'
@@ -41,12 +47,24 @@ interface Usuario {
   ultimo_acceso: string | null
 }
 
-interface Invitacion {
+interface UsuarioAutorizado {
   id: string
   email: string
   rol: UserRole
-  expira_at: string
+  nombre: string | null
+  estado: string
   created_at: string
+}
+
+interface SolicitudAcceso {
+  id: string
+  email: string
+  nombre: string | null
+  avatar_url: string | null
+  estado: string
+  created_at: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  organizaciones: any
 }
 
 const roleOptions = [
@@ -63,10 +81,11 @@ const roleLabels: Record<UserRole, { label: string; color: string }> = {
 export default function UsuariosPage() {
   const { isSuperAdmin, orgId, organizacion } = useAuth()
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [invitaciones, setInvitaciones] = useState<Invitacion[]>([])
+  const [autorizados, setAutorizados] = useState<UsuarioAutorizado[]>([])
+  const [solicitudes, setSolicitudes] = useState<SolicitudAcceso[]>([])
   const [loading, setLoading] = useState(true)
-  const [inviteModalOpen, setInviteModalOpen] = useState(false)
-  const [inviting, setInviting] = useState(false)
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [adding, setAdding] = useState(false)
   const [form] = Form.useForm()
 
   const fetchData = async () => {
@@ -74,27 +93,47 @@ export default function UsuariosPage() {
     const supabase = getSupabaseClient()
 
     // Obtener usuarios de la organizacion
-    const { data: usuariosData } = await supabase
+    let usuariosQuery = supabase
       .schema('erp')
       .from('usuarios')
       .select('id, email, nombre, rol, is_active, created_at, ultimo_acceso')
       .order('created_at', { ascending: false })
 
+    if (!isSuperAdmin && orgId) {
+      usuariosQuery = usuariosQuery.eq('organizacion_id', orgId)
+    }
+
+    const { data: usuariosData } = await usuariosQuery
     if (usuariosData) {
       setUsuarios(usuariosData as Usuario[])
     }
 
-    // Obtener invitaciones pendientes
-    const { data: invitacionesData } = await supabase
+    // Obtener emails autorizados (pendientes de registro)
+    let autorizadosQuery = supabase
       .schema('erp')
-      .from('invitaciones')
-      .select('id, email, rol, expira_at, created_at')
-      .is('usado_at', null)
-      .gt('expira_at', new Date().toISOString())
+      .from('usuarios_autorizados')
+      .select('id, email, rol, nombre, estado, created_at')
+      .eq('estado', 'pendiente_registro')
       .order('created_at', { ascending: false })
 
-    if (invitacionesData) {
-      setInvitaciones(invitacionesData as Invitacion[])
+    if (!isSuperAdmin && orgId) {
+      autorizadosQuery = autorizadosQuery.eq('organizacion_id', orgId)
+    }
+
+    const { data: autorizadosData } = await autorizadosQuery
+    if (autorizadosData) {
+      setAutorizados(autorizadosData as UsuarioAutorizado[])
+    }
+
+    // Obtener solicitudes de acceso
+    try {
+      const response = await fetch('/api/solicitudes-acceso')
+      const data = await response.json()
+      if (data.solicitudes) {
+        setSolicitudes(data.solicitudes.filter((s: SolicitudAcceso) => s.estado === 'pendiente'))
+      }
+    } catch (err) {
+      console.error('Error al obtener solicitudes:', err)
     }
 
     setLoading(false)
@@ -102,32 +141,73 @@ export default function UsuariosPage() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuperAdmin, orgId])
 
-  const handleInvite = async (values: { email: string; rol: UserRole }) => {
-    setInviting(true)
+  const handleAddAuthorized = async (values: { email: string; rol: UserRole; nombre?: string }) => {
+    setAdding(true)
+    const supabase = getSupabaseClient()
 
     try {
-      const response = await fetch('/api/invitaciones', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      })
+      // Verificar que el email no exista ya
+      const { data: existingUser } = await supabase
+        .schema('erp')
+        .from('usuarios')
+        .select('id')
+        .eq('email', values.email)
+        .single()
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Error al enviar invitacion')
+      if (existingUser) {
+        message.error('Este email ya tiene una cuenta')
+        return
       }
 
-      message.success(`Invitacion enviada a ${values.email}`)
-      setInviteModalOpen(false)
+      // Agregar a usuarios_autorizados
+      const { error } = await supabase
+        .schema('erp')
+        .from('usuarios_autorizados')
+        .insert({
+          email: values.email,
+          rol: values.rol,
+          nombre: values.nombre || null,
+          organizacion_id: orgId,
+          estado: 'pendiente_registro',
+        })
+
+      if (error) {
+        if (error.code === '23505') {
+          message.error('Este email ya esta autorizado')
+        } else {
+          throw error
+        }
+        return
+      }
+
+      message.success(`Email ${values.email} autorizado`)
+      setAddModalOpen(false)
       form.resetFields()
       fetchData()
     } catch (error) {
-      message.error(error instanceof Error ? error.message : 'Error al enviar invitacion')
+      message.error(error instanceof Error ? error.message : 'Error al autorizar email')
     } finally {
-      setInviting(false)
+      setAdding(false)
+    }
+  }
+
+  const handleDeleteAutorizado = async (id: string) => {
+    const supabase = getSupabaseClient()
+
+    const { error } = await supabase
+      .schema('erp')
+      .from('usuarios_autorizados')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      message.error('Error al eliminar')
+    } else {
+      message.success('Autorizacion eliminada')
+      fetchData()
     }
   }
 
@@ -150,20 +230,24 @@ export default function UsuariosPage() {
     }
   }
 
-  const handleDeleteInvitation = async (id: string) => {
-    const supabase = getSupabaseClient()
+  const handleSolicitud = async (solicitudId: string, accion: 'aprobar' | 'rechazar', rol?: string) => {
+    try {
+      const response = await fetch('/api/solicitudes-acceso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ solicitudId, accion, rol }),
+      })
 
-    const { error } = await supabase
-      .schema('erp')
-      .from('invitaciones')
-      .delete()
-      .eq('id', id)
+      const data = await response.json()
 
-    if (error) {
-      message.error('Error al eliminar invitacion')
-    } else {
-      message.success('Invitacion eliminada')
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al procesar solicitud')
+      }
+
+      message.success(accion === 'aprobar' ? 'Usuario aprobado' : 'Solicitud rechazada')
       fetchData()
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Error')
     }
   }
 
@@ -238,14 +322,20 @@ export default function UsuariosPage() {
     },
   ]
 
-  const invitacionesColumns = [
+  const autorizadosColumns = [
     {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
     },
     {
-      title: 'Rol',
+      title: 'Nombre',
+      dataIndex: 'nombre',
+      key: 'nombre',
+      render: (nombre: string | null) => nombre || '-',
+    },
+    {
+      title: 'Rol Asignado',
       dataIndex: 'rol',
       key: 'rol',
       render: (rol: UserRole) => (
@@ -255,33 +345,149 @@ export default function UsuariosPage() {
       ),
     },
     {
-      title: 'Expira',
-      dataIndex: 'expira_at',
-      key: 'expira_at',
-      render: (fecha: string) => {
-        const expira = new Date(fecha)
-        const ahora = new Date()
-        const diasRestantes = Math.ceil(
-          (expira.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24)
-        )
-        return (
-          <Space>
-            <ClockCircleOutlined />
-            {diasRestantes} dias
-          </Space>
-        )
-      },
+      title: 'Estado',
+      key: 'estado',
+      render: () => (
+        <Tag icon={<ClockCircleOutlined />} color="processing">
+          Pendiente de registro
+        </Tag>
+      ),
     },
     {
       title: 'Acciones',
       key: 'acciones',
-      render: (_: unknown, record: Invitacion) => (
+      render: (_: unknown, record: UsuarioAutorizado) => (
         <Popconfirm
-          title="Eliminar invitacion?"
-          onConfirm={() => handleDeleteInvitation(record.id)}
+          title="Eliminar autorizacion?"
+          description="El usuario ya no podra registrarse"
+          onConfirm={() => handleDeleteAutorizado(record.id)}
         >
           <Button size="small" danger icon={<DeleteOutlined />} />
         </Popconfirm>
+      ),
+    },
+  ]
+
+  const solicitudesColumns = [
+    {
+      title: 'Usuario',
+      key: 'usuario',
+      render: (_: unknown, record: SolicitudAcceso) => (
+        <Space>
+          <Avatar src={record.avatar_url} icon={<UserOutlined />} />
+          <div>
+            <div>{record.nombre || record.email}</div>
+            {record.nombre && <Text type="secondary" style={{ fontSize: 12 }}>{record.email}</Text>}
+          </div>
+        </Space>
+      ),
+    },
+    {
+      title: 'Organizacion',
+      key: 'organizacion',
+      render: (_: unknown, record: SolicitudAcceso) => (
+        record.organizaciones?.nombre || '-'
+      ),
+    },
+    {
+      title: 'Fecha',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (fecha: string) => new Date(fecha).toLocaleDateString('es-MX'),
+    },
+    {
+      title: 'Acciones',
+      key: 'acciones',
+      render: (_: unknown, record: SolicitudAcceso) => (
+        <Space>
+          <Popconfirm
+            title="Aprobar solicitud?"
+            description="El usuario sera creado como Vendedor"
+            onConfirm={() => handleSolicitud(record.id, 'aprobar', 'vendedor')}
+          >
+            <Button size="small" type="primary" icon={<CheckOutlined />}>
+              Aprobar
+            </Button>
+          </Popconfirm>
+          <Popconfirm
+            title="Rechazar solicitud?"
+            onConfirm={() => handleSolicitud(record.id, 'rechazar')}
+          >
+            <Button size="small" danger icon={<StopOutlined />}>
+              Rechazar
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  const tabItems = [
+    {
+      key: 'usuarios',
+      label: 'Usuarios Activos',
+      children: (
+        <Table
+          dataSource={usuarios}
+          columns={usuariosColumns}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
+      ),
+    },
+    {
+      key: 'autorizados',
+      label: (
+        <Badge count={autorizados.length} offset={[10, 0]}>
+          Emails Autorizados
+        </Badge>
+      ),
+      children: (
+        <>
+          <Alert
+            message="Usuarios pre-autorizados"
+            description="Estos emails pueden registrarse directamente. Cuando inicien sesion con Google, se les creara su cuenta automaticamente."
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+          <Table
+            dataSource={autorizados}
+            columns={autorizadosColumns}
+            rowKey="id"
+            loading={loading}
+            pagination={false}
+            locale={{ emptyText: 'No hay emails autorizados pendientes' }}
+          />
+        </>
+      ),
+    },
+    {
+      key: 'solicitudes',
+      label: (
+        <Badge count={solicitudes.length} offset={[10, 0]}>
+          Solicitudes de Acceso
+        </Badge>
+      ),
+      children: (
+        <>
+          <Alert
+            message="Solicitudes pendientes"
+            description="Usuarios que intentaron acceder sin estar autorizados. Puedes aprobar o rechazar su acceso."
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+          <Table
+            dataSource={solicitudes}
+            columns={solicitudesColumns}
+            rowKey="id"
+            loading={loading}
+            pagination={false}
+            locale={{ emptyText: 'No hay solicitudes pendientes' }}
+          />
+        </>
       ),
     },
   ]
@@ -311,9 +517,9 @@ export default function UsuariosPage() {
           <Button
             type="primary"
             icon={<UserAddOutlined />}
-            onClick={() => setInviteModalOpen(true)}
+            onClick={() => setAddModalOpen(true)}
           >
-            Invitar Usuario
+            Agregar Usuario
           </Button>
         </Space>
       </div>
@@ -328,38 +534,20 @@ export default function UsuariosPage() {
         />
       )}
 
-      <Card title="Usuarios Activos" style={{ marginBottom: 24 }}>
-        <Table
-          dataSource={usuarios}
-          columns={usuariosColumns}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-        />
+      <Card>
+        <Tabs items={tabItems} />
       </Card>
 
-      {invitaciones.length > 0 && (
-        <Card title="Invitaciones Pendientes">
-          <Table
-            dataSource={invitaciones}
-            columns={invitacionesColumns}
-            rowKey="id"
-            loading={loading}
-            pagination={false}
-          />
-        </Card>
-      )}
-
       <Modal
-        title="Invitar Usuario"
-        open={inviteModalOpen}
+        title="Agregar Usuario Autorizado"
+        open={addModalOpen}
         onCancel={() => {
-          setInviteModalOpen(false)
+          setAddModalOpen(false)
           form.resetFields()
         }}
         footer={null}
       >
-        <Form form={form} layout="vertical" onFinish={handleInvite}>
+        <Form form={form} layout="vertical" onFinish={handleAddAuthorized}>
           <Form.Item
             name="email"
             label="Email"
@@ -375,6 +563,16 @@ export default function UsuariosPage() {
           </Form.Item>
 
           <Form.Item
+            name="nombre"
+            label="Nombre (opcional)"
+          >
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="Nombre del usuario"
+            />
+          </Form.Item>
+
+          <Form.Item
             name="rol"
             label="Rol"
             rules={[{ required: true, message: 'Selecciona un rol' }]}
@@ -384,7 +582,7 @@ export default function UsuariosPage() {
           </Form.Item>
 
           <Alert
-            message="El usuario recibira un email con instrucciones para acceder al sistema usando su cuenta de Google."
+            message="El usuario podra iniciar sesion con Google usando este email. Su cuenta se creara automaticamente."
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
@@ -394,11 +592,11 @@ export default function UsuariosPage() {
 
           <Form.Item style={{ marginBottom: 0 }}>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => setInviteModalOpen(false)}>
+              <Button onClick={() => setAddModalOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="primary" htmlType="submit" loading={inviting}>
-                Enviar Invitacion
+              <Button type="primary" htmlType="submit" loading={adding}>
+                Agregar
               </Button>
             </Space>
           </Form.Item>
