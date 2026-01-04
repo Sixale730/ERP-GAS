@@ -7,7 +7,8 @@
       "Bash(ls:*)",
       "WebSearch",
       "WebFetch(domain:finkok.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(cat:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
