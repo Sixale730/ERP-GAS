@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { getSupabaseClient } from '@/lib/supabase/client'
 
@@ -45,46 +45,98 @@ export function useAuth() {
     orgId: null,
   })
 
+  // Ref to deduplicate concurrent fetch requests
+  const fetchInProgressRef = useRef<Promise<{erpUser: ERPUser | null, organizacion: Organizacion | null}> | null>(null)
+  // Ref to track if initial fetch is done (to skip redundant onAuthStateChange events)
+  const initialFetchDoneRef = useRef(false)
+
   const fetchERPUser = useCallback(async () => {
-    console.log('[useAuth] fetchERPUser called - using RPC')
-    const supabase = getSupabaseClient()
-
-    console.log('[useAuth] Calling erp.obtener_usuario_actual()...')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase.rpc as any)('obtener_usuario_actual')
-
-    console.log('[useAuth] RPC result:', { data, error })
-
-    if (error) {
-      console.error('[useAuth] RPC error:', error)
-      return { erpUser: null, organizacion: null }
+    // Deduplicate: return existing promise if fetch is in progress
+    if (fetchInProgressRef.current) {
+      console.log('[useAuth] fetchERPUser - returning existing promise')
+      return fetchInProgressRef.current
     }
 
-    if (data && data.length > 0) {
-      const row = data[0]
-      const erpUser: ERPUser = {
-        id: row.id,
-        auth_user_id: row.auth_user_id,
-        organizacion_id: row.organizacion_id,
-        email: row.email,
-        nombre: row.nombre,
-        avatar_url: row.avatar_url,
-        rol: row.rol as UserRole,
-        is_active: row.is_active,
+    const fetchPromise = (async () => {
+      console.log('[useAuth] fetchERPUser called - using RPC')
+      const supabase = getSupabaseClient()
+
+      // Retry logic with exponential backoff
+      const maxRetries = 3
+      const initialDelay = 1000
+      const timeoutMs = 15000
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          console.log(`[useAuth] RPC attempt ${attempt + 1}/${maxRetries}...`)
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const rpcPromise = (supabase.rpc as any)('obtener_usuario_actual')
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`RPC timeout after ${timeoutMs}ms`)), timeoutMs)
+          )
+          const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as { data: unknown; error: unknown }
+
+          if (error) {
+            console.error(`[useAuth] RPC error (attempt ${attempt + 1}):`, error)
+            if (attempt < maxRetries - 1) {
+              const delay = initialDelay * Math.pow(2, attempt)
+              console.log(`[useAuth] Retrying in ${delay}ms...`)
+              await new Promise(r => setTimeout(r, delay))
+              continue
+            }
+            return { erpUser: null, organizacion: null }
+          }
+
+          console.log('[useAuth] RPC result:', { data, error })
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (data && (data as any).length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const row = (data as any)[0]
+            const erpUser: ERPUser = {
+              id: row.id,
+              auth_user_id: row.auth_user_id,
+              organizacion_id: row.organizacion_id,
+              email: row.email,
+              nombre: row.nombre,
+              avatar_url: row.avatar_url,
+              rol: row.rol as UserRole,
+              is_active: row.is_active,
+            }
+            const organizacion: Organizacion | null = row.org_nombre ? {
+              id: row.organizacion_id,
+              nombre: row.org_nombre,
+              codigo: row.org_codigo,
+              is_sistema: row.org_is_sistema,
+            } : null
+
+            console.log('[useAuth] Parsed user:', { erpUser, organizacion })
+            return { erpUser, organizacion }
+          }
+
+          console.log('[useAuth] No user found, returning nulls')
+          return { erpUser: null, organizacion: null }
+
+        } catch (err) {
+          console.error(`[useAuth] RPC exception (attempt ${attempt + 1}):`, err)
+          if (attempt < maxRetries - 1) {
+            const delay = initialDelay * Math.pow(2, attempt)
+            console.log(`[useAuth] Retrying in ${delay}ms...`)
+            await new Promise(r => setTimeout(r, delay))
+            continue
+          }
+          return { erpUser: null, organizacion: null }
+        }
       }
-      const organizacion: Organizacion | null = row.org_nombre ? {
-        id: row.organizacion_id,
-        nombre: row.org_nombre,
-        codigo: row.org_codigo,
-        is_sistema: row.org_is_sistema,
-      } : null
 
-      console.log('[useAuth] Parsed user:', { erpUser, organizacion })
-      return { erpUser, organizacion }
-    }
+      return { erpUser: null, organizacion: null }
+    })()
 
-    console.log('[useAuth] No user found, returning nulls')
-    return { erpUser: null, organizacion: null }
+    fetchInProgressRef.current = fetchPromise
+    const result = await fetchPromise
+    fetchInProgressRef.current = null
+    return result
   }, [])
 
   useEffect(() => {
@@ -111,6 +163,7 @@ export function useAuth() {
 
         // Obtener datos del usuario ERP
         console.log('[useAuth] Calling fetchERPUser...')
+        initialFetchDoneRef.current = true // Mark that we're handling initial fetch
         const { erpUser, organizacion } = await fetchERPUser()
         console.log('[useAuth] fetchERPUser returned:', { hasErpUser: !!erpUser, hasOrg: !!organizacion })
 
@@ -137,6 +190,14 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[useAuth] onAuthStateChange:', event)
+
+      // Skip initial auth events - we handle this via getSession()
+      if (event === 'INITIAL_SESSION' || (event === 'SIGNED_IN' && !initialFetchDoneRef.current)) {
+        console.log(`[useAuth] Skipping ${event} (handled by getSession)`)
+        return
+      }
+
       if (event === 'SIGNED_OUT') {
         setState({
           user: null,
