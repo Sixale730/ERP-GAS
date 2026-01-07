@@ -6,7 +6,7 @@ export const EMPRESA = {
   telefono: '(55) 1234-5678',
   email: 'ventas@gascompany.com',
   // Logo en base64 o ruta pública (opcional)
-  logo: null as string | null,
+  logo: '/solac.png',
   // Datos fiscales para CFDI
   regimenFiscal: '601', // General de Ley Personas Morales
   codigoPostal: '06000', // CP del lugar de expedicion
@@ -21,7 +21,7 @@ export const EMPRESA_PRUEBAS = {
   direccion: 'Calle de Prueba #123, Col. Centro, Tijuana, BC, CP 21000',
   telefono: '(664) 123-4567',
   email: 'pruebas@eku.com',
-  logo: null as string | null,
+  logo: '/solac.png',
   regimenFiscal: '601',
   codigoPostal: '21000',
 }
