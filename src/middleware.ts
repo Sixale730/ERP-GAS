@@ -55,6 +55,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
+  // Si hay usuario pero no tiene rol en el ERP, redirigir a solicitar acceso
+  if (user && !isPublicRoute) {
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (session?.access_token) {
+      try {
+        const payload = JSON.parse(atob(session.access_token.split('.')[1]))
+        const role = payload?.app_role
+
+        // Si no tiene rol, no está registrado en el ERP
+        if (!role) {
+          return NextResponse.redirect(new URL('/solicitar-acceso', request.url))
+        }
+      } catch {
+        // Error al decodificar, redirigir por seguridad
+        return NextResponse.redirect(new URL('/solicitar-acceso', request.url))
+      }
+    }
+  }
+
   // Proteger rutas de admin - verificar rol en el JWT
   if (user && request.nextUrl.pathname.startsWith('/configuracion/admin')) {
     const { data: { session } } = await supabase.auth.getSession()
