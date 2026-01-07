@@ -314,7 +314,7 @@ export default function EditarOrdenCompraPage() {
       await registrarHistorial({
         documentoTipo: 'orden_compra',
         documentoId: ordenId,
-        documentoFolio: orden.folio,
+        documentoFolio: orden?.folio || '',
         usuarioId: erpUser?.id,
         usuarioNombre: erpUser?.nombre || erpUser?.email,
         accion: 'editado',
