@@ -49,19 +49,19 @@ const allMenuItems: MenuItemWithRoles[] = [
     key: '/productos',
     icon: <ShoppingOutlined />,
     label: 'Productos',
-    roles: ['super_admin'], // Solo super admin puede ver productos (catalogo global)
+    roles: ['super_admin', 'admin_cliente'],
   },
   {
     key: '/inventario',
     icon: <InboxOutlined />,
     label: 'Inventario',
-    roles: ['super_admin'], // Solo super admin
+    roles: ['super_admin', 'admin_cliente'],
   },
   {
     key: '/movimientos',
     icon: <SwapOutlined />,
     label: 'Movimientos',
-    roles: ['super_admin'], // Solo super admin
+    roles: ['super_admin', 'admin_cliente'],
   },
   {
     key: '/clientes',
@@ -87,7 +87,7 @@ const allMenuItems: MenuItemWithRoles[] = [
     key: '/compras',
     icon: <ShoppingCartOutlined />,
     label: 'Compras',
-    roles: ['super_admin'], // Solo super admin
+    roles: ['super_admin', 'admin_cliente'],
   },
   {
     type: 'divider',
@@ -96,7 +96,7 @@ const allMenuItems: MenuItemWithRoles[] = [
     key: 'catalogos',
     icon: <SettingOutlined />,
     label: 'Catalogos',
-    roles: ['super_admin'], // Solo super admin puede modificar catalogos
+    roles: ['super_admin', 'admin_cliente'],
     children: [
       {
         key: '/catalogos/almacenes',
