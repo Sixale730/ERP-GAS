@@ -107,7 +107,11 @@ export default function UsuariosPage() {
 
     const { data: usuariosData } = await usuariosQuery
     if (usuariosData) {
-      setUsuarios(usuariosData as Usuario[])
+      // Si no es super_admin, filtrar usuarios super_admin (doble protección con RLS)
+      const filteredUsuarios = isSuperAdmin
+        ? usuariosData
+        : usuariosData.filter((u: Usuario) => u.rol !== 'super_admin')
+      setUsuarios(filteredUsuarios as Usuario[])
     }
 
     // Obtener emails autorizados (pendientes de registro)
@@ -317,38 +321,44 @@ export default function UsuariosPage() {
     {
       title: 'Acciones',
       key: 'acciones',
-      render: (_: unknown, record: Usuario) => (
-        <Space>
-          <Popconfirm
-            title={record.is_active ? 'Desactivar usuario?' : 'Activar usuario?'}
-            description={
-              record.is_active
-                ? 'El usuario no podra acceder al sistema'
-                : 'El usuario podra acceder nuevamente'
-            }
-            onConfirm={() => handleToggleActive(record)}
-          >
-            <Button
-              size="small"
-              danger={record.is_active}
-              type={record.is_active ? 'default' : 'primary'}
-            >
-              {record.is_active ? 'Desactivar' : 'Activar'}
-            </Button>
-          </Popconfirm>
-          {isSuperAdmin && (
+      render: (_: unknown, record: Usuario) => {
+        // No mostrar acciones para super_admin si no eres super_admin
+        if (record.rol === 'super_admin' && !isSuperAdmin) {
+          return <Text type="secondary">-</Text>
+        }
+        return (
+          <Space>
             <Popconfirm
-              title="Eliminar usuario permanentemente?"
-              description="Esta accion no se puede deshacer. Se eliminara el usuario de la base de datos."
-              onConfirm={() => handleDeleteUsuario(record.id)}
-              okText="Eliminar"
-              okButtonProps={{ danger: true }}
+              title={record.is_active ? 'Desactivar usuario?' : 'Activar usuario?'}
+              description={
+                record.is_active
+                  ? 'El usuario no podra acceder al sistema'
+                  : 'El usuario podra acceder nuevamente'
+              }
+              onConfirm={() => handleToggleActive(record)}
             >
-              <Button size="small" danger icon={<DeleteOutlined />} />
+              <Button
+                size="small"
+                danger={record.is_active}
+                type={record.is_active ? 'default' : 'primary'}
+              >
+                {record.is_active ? 'Desactivar' : 'Activar'}
+              </Button>
             </Popconfirm>
-          )}
-        </Space>
-      ),
+            {isSuperAdmin && (
+              <Popconfirm
+                title="Eliminar usuario permanentemente?"
+                description="Esta accion no se puede deshacer. Se eliminara el usuario de la base de datos."
+                onConfirm={() => handleDeleteUsuario(record.id)}
+                okText="Eliminar"
+                okButtonProps={{ danger: true }}
+              >
+                <Button size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            )}
+          </Space>
+        )
+      },
     },
   ]
 
