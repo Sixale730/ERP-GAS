@@ -1,6 +1,6 @@
 import { getSupabaseClient } from '@/lib/supabase/client'
 
-export type DocumentoTipo = 'cotizacion' | 'orden_compra' | 'orden_venta'
+export type DocumentoTipo = 'cotizacion' | 'orden_compra' | 'orden_venta' | 'factura'
 export type AccionTipo = 'creado' | 'editado' | 'status_cambiado' | 'cancelado' | 'convertido'
 
 interface RegistrarHistorialParams {
