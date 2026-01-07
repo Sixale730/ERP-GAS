@@ -11,6 +11,7 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
 import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
+import { useAuth } from '@/lib/hooks/useAuth'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
 import type { CodigoMoneda } from '@/lib/config/moneda'
 
@@ -32,6 +33,7 @@ export default function NuevaCotizacionPage() {
   const router = useRouter()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const { orgId } = useAuth()
 
   // Configuracion global
   const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
@@ -387,6 +389,8 @@ export default function NuevaCotizacionPage() {
           forma_pago: formValues.forma_pago || null,
           metodo_pago: formValues.metodo_pago || null,
           condiciones_pago: formValues.condiciones_pago || null,
+          // Organizacion (requerido por RLS)
+          organizacion_id: orgId,
         })
         .select()
         .single()

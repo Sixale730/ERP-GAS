@@ -55,8 +55,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar rol permitido
-    if (!['admin_cliente', 'vendedor'].includes(rol)) {
+    if (!['super_admin', 'admin_cliente', 'vendedor'].includes(rol)) {
       return NextResponse.json({ error: 'Rol no valido' }, { status: 400 })
+    }
+
+    // Solo super_admin puede crear super_admins
+    if (rol === 'super_admin' && erpUser.rol !== 'super_admin') {
+      return NextResponse.json(
+        { error: 'Solo super_admin puede crear otros super_admin' },
+        { status: 403 }
+      )
     }
 
     // admin_cliente solo puede invitar vendedores

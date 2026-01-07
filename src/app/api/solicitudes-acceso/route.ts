@@ -111,6 +111,16 @@ export async function POST(request: NextRequest) {
       // Determinar rol a asignar
       const rolAsignado = rol || 'vendedor'
 
+      // Validar rol permitido
+      if (!['super_admin', 'admin_cliente', 'vendedor'].includes(rolAsignado)) {
+        return NextResponse.json({ error: 'Rol no válido' }, { status: 400 })
+      }
+
+      // Solo super_admin puede asignar super_admin
+      if (rolAsignado === 'super_admin' && erpUser.rol !== 'super_admin') {
+        return NextResponse.json({ error: 'Solo super_admin puede crear otros super_admin' }, { status: 403 })
+      }
+
       // admin_cliente solo puede asignar vendedor
       if (erpUser.rol === 'admin_cliente' && rolAsignado !== 'vendedor') {
         return NextResponse.json({ error: 'Solo puedes asignar rol vendedor' }, { status: 403 })

@@ -11,6 +11,7 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
 import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
+import { useAuth } from '@/lib/hooks/useAuth'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
 import type { CodigoMoneda } from '@/lib/config/moneda'
 
@@ -32,6 +33,7 @@ export default function NuevaOrdenVentaPage() {
   const router = useRouter()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const { orgId } = useAuth()
 
   const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
   const [tipoCambio, setTipoCambio] = useState(17.50)
@@ -42,6 +44,8 @@ export default function NuevaOrdenVentaPage() {
   const [productos, setProductos] = useState<any[]>([])
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
   const [preciosMap, setPreciosMap] = useState<Map<string, number>>(new Map())
+  const [loadingPrecios, setLoadingPrecios] = useState(false)
+  const [preciosCargados, setPreciosCargados] = useState(false)
 
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [almacenId, setAlmacenId] = useState<string | null>(null)
@@ -170,6 +174,8 @@ export default function NuevaOrdenVentaPage() {
   const loadProductosConPrecios = async () => {
     if (!listaPrecioId) return
 
+    setLoadingPrecios(true)
+    setPreciosCargados(false)
     const supabase = getSupabaseClient()
 
     try {
@@ -180,9 +186,18 @@ export default function NuevaOrdenVentaPage() {
         .eq('lista_precio_id', listaPrecioId)
 
       if (error) throw error
+
       setPreciosMap(new Map(data?.map(p => [p.producto_id, Number(p.precio)]) || []))
+      setPreciosCargados(true)
+
+      if (!data || data.length === 0) {
+        message.warning('No hay precios configurados para esta lista')
+      }
     } catch (error) {
       console.error('Error loading precios:', error)
+      message.error('Error al cargar precios de productos')
+    } finally {
+      setLoadingPrecios(false)
     }
   }
 
@@ -198,6 +213,10 @@ export default function NuevaOrdenVentaPage() {
   const handleProductSearch = (value: string) => {
     setProductSearch(value)
     if (value.length >= 2) {
+      if (preciosMap.size === 0) {
+        message.warning('Esperando carga de precios...')
+        return
+      }
       const filtered = productos
         .filter(p =>
           p.nombre.toLowerCase().includes(value.toLowerCase()) ||
@@ -350,6 +369,7 @@ export default function NuevaOrdenVentaPage() {
           forma_pago: formValues.forma_pago || null,
           metodo_pago: formValues.metodo_pago || null,
           condiciones_pago: formValues.condiciones_pago || null,
+          organizacion_id: orgId,
         })
         .select()
         .single()
@@ -588,9 +608,17 @@ export default function NuevaOrdenVentaPage() {
                 onSearch={handleProductSearch}
                 onSelect={handleAddProduct}
                 value={productSearch}
-                placeholder="Buscar producto por SKU o nombre..."
-                disabled={!listaPrecioId || !almacenId}
+                placeholder={loadingPrecios ? "Cargando precios..." : "Buscar producto por SKU o nombre..."}
+                disabled={!listaPrecioId || !almacenId || loadingPrecios || !preciosCargados}
               />
+
+              {!preciosCargados && listaPrecioId && !loadingPrecios && (
+                <Alert
+                  type="warning"
+                  message="Los precios no se han cargado. Verifica la lista de precios seleccionada."
+                  style={{ marginTop: 8 }}
+                />
+              )}
 
               {mostrarAlertaStock && almacenId && items.length > 0 && (() => {
                 const productosSinStock = items.filter(item => {

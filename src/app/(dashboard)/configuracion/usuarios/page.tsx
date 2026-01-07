@@ -67,11 +67,6 @@ interface SolicitudAcceso {
   organizaciones: any
 }
 
-const roleOptions = [
-  { value: 'admin_cliente', label: 'Administrador' },
-  { value: 'vendedor', label: 'Vendedor' },
-]
-
 const roleLabels: Record<UserRole, { label: string; color: string }> = {
   super_admin: { label: 'Super Admin', color: 'purple' },
   admin_cliente: { label: 'Administrador', color: 'blue' },
@@ -87,6 +82,13 @@ export default function UsuariosPage() {
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [form] = Form.useForm()
+
+  // Opciones de rol - super_admin solo puede ser asignado por super_admin
+  const roleOptions = [
+    ...(isSuperAdmin ? [{ value: 'super_admin', label: 'Super Admin' }] : []),
+    { value: 'admin_cliente', label: 'Administrador' },
+    { value: 'vendedor', label: 'Vendedor' },
+  ]
 
   const fetchData = async () => {
     setLoading(true)
@@ -230,6 +232,23 @@ export default function UsuariosPage() {
     }
   }
 
+  const handleDeleteUsuario = async (id: string) => {
+    const supabase = getSupabaseClient()
+
+    const { error } = await supabase
+      .schema('erp')
+      .from('usuarios')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      message.error('Error al eliminar usuario')
+    } else {
+      message.success('Usuario eliminado permanentemente')
+      fetchData()
+    }
+  }
+
   const handleSolicitud = async (solicitudId: string, accion: 'aprobar' | 'rechazar', rol?: string) => {
     try {
       const response = await fetch('/api/solicitudes-acceso', {
@@ -317,6 +336,17 @@ export default function UsuariosPage() {
               {record.is_active ? 'Desactivar' : 'Activar'}
             </Button>
           </Popconfirm>
+          {isSuperAdmin && (
+            <Popconfirm
+              title="Eliminar usuario permanentemente?"
+              description="Esta accion no se puede deshacer. Se eliminara el usuario de la base de datos."
+              onConfirm={() => handleDeleteUsuario(record.id)}
+              okText="Eliminar"
+              okButtonProps={{ danger: true }}
+            >
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          )}
         </Space>
       ),
     },

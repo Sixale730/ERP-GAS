@@ -577,9 +577,9 @@ export default function NuevaOrdenCompraPage() {
           </Card>
 
           <Card title="Productos" style={{ marginBottom: 16 }}>
-            <Space style={{ marginBottom: 16, width: '100%' }}>
+            <Space direction="vertical" style={{ marginBottom: 16, width: '100%' }}>
               <AutoComplete
-                style={{ width: 400 }}
+                style={{ width: '100%' }}
                 placeholder="Buscar producto por SKU o nombre..."
                 value={searchValue}
                 options={productosOptions}
