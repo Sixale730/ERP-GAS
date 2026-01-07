@@ -332,7 +332,8 @@ export default function NuevaOrdenCompraPage() {
       if (itemsError) throw itemsError
 
       // Registrar en historial
-      const proveedorNombre = proveedores.find(p => p.id === values.proveedor_id)?.nombre || 'proveedor'
+      const proveedor = proveedores.find(p => p.id === values.proveedor_id)
+      const proveedorNombre = proveedor?.nombre_comercial || proveedor?.razon_social || 'proveedor'
       await registrarHistorial({
         documentoTipo: 'orden_compra',
         documentoId: orden.id,
