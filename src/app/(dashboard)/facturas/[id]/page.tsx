@@ -248,15 +248,25 @@ export default function FacturaDetallePage() {
 
   // === FUNCION CAMBIAR ESTADO ===
 
-  const handleCambiarEstado = async (nuevoEstado: 'pendiente' | 'pagada') => {
+  const handleCambiarEstado = async (nuevoEstado: 'pendiente' | 'pagada' | 'cancelada') => {
     if (!factura) return
 
     setCambioEstadoLoading(true)
     const supabase = getSupabaseClient()
 
     try {
-      const nuevoSaldo = nuevoEstado === 'pagada' ? 0 : factura.total
-      const montoPagado = nuevoEstado === 'pagada' ? factura.total : 0
+      // Calcular nuevo saldo segun estado
+      let nuevoSaldo = factura.total
+      let montoPagado = 0
+
+      if (nuevoEstado === 'pagada') {
+        nuevoSaldo = 0
+        montoPagado = factura.total
+      } else if (nuevoEstado === 'cancelada') {
+        nuevoSaldo = 0
+        montoPagado = 0
+      }
+
       const diferenciaSaldo = factura.saldo - nuevoSaldo
 
       // Actualizar factura
@@ -292,7 +302,12 @@ export default function FacturaDetallePage() {
         }
       }
 
-      message.success(nuevoEstado === 'pagada' ? 'Factura marcada como pagada' : 'Factura reabierta')
+      const mensajes: Record<string, string> = {
+        pagada: 'Factura marcada como pagada',
+        pendiente: 'Factura reabierta',
+        cancelada: 'Factura cancelada',
+      }
+      message.success(mensajes[nuevoEstado])
       loadFactura()
     } catch (error) {
       console.error('Error al cambiar estado:', error)
@@ -765,6 +780,29 @@ export default function FacturaDetallePage() {
                     onClick={() => handleCambiarEstado('pendiente')}
                   >
                     Reabrir Factura
+                  </Button>
+                </>
+              )}
+
+              {factura.status === 'cancelada' && (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <CloseCircleOutlined style={{ fontSize: 48, color: '#cf1322' }} />
+                  <div style={{ marginTop: 8 }}>
+                    <Text type="danger" strong>Factura Cancelada</Text>
+                  </div>
+                </div>
+              )}
+
+              {factura.status !== 'cancelada' && factura.status_sat !== 'timbrado' && (
+                <>
+                  <Divider />
+                  <Button
+                    danger
+                    block
+                    loading={cambioEstadoLoading}
+                    onClick={() => handleCambiarEstado('cancelada')}
+                  >
+                    Cancelar Factura
                   </Button>
                 </>
               )}

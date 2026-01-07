@@ -442,7 +442,7 @@ export default function CotizacionDetallePage() {
             Volver
           </Button>
           <Title level={2} style={{ margin: 0 }}>
-            Cotización {cotizacion.folio}
+            {cotizacion.folio.startsWith('OV-') ? 'Orden de Venta' : 'Cotización'} {cotizacion.folio}
           </Title>
           <Tag color={statusColors[cotizacion.status]} style={{ fontSize: 14, padding: '4px 12px' }}>
             {statusLabels[cotizacion.status] || cotizacion.status}
@@ -540,7 +540,7 @@ export default function CotizacionDetallePage() {
 
       <Row gutter={16}>
         <Col xs={24} lg={16}>
-          <Card title="Datos de la Cotización" style={{ marginBottom: 16 }}>
+          <Card title={`Datos de la ${cotizacion.folio.startsWith('OV-') ? 'Orden de Venta' : 'Cotización'}`} style={{ marginBottom: 16 }}>
             <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
               <Descriptions.Item label="Folio">{cotizacion.folio}</Descriptions.Item>
               <Descriptions.Item label="Fecha">{formatDate(cotizacion.fecha)}</Descriptions.Item>
