@@ -736,22 +736,37 @@ export default function FacturaDetallePage() {
                 </Title>
               </div>
 
-              {factura.saldo > 0 && factura.status !== 'cancelada' && (
+              {factura.saldo > 0 && factura.status !== 'cancelada' && factura.status !== 'pagada' && (
                 <>
                   <Divider />
-                  <Button type="primary" block size="large" disabled>
-                    Registrar Pago (Proximamente)
+                  <Button
+                    type="primary"
+                    block
+                    size="large"
+                    loading={cambioEstadoLoading}
+                    onClick={() => handleCambiarEstado('pagada')}
+                  >
+                    Marcar como Pagada
                   </Button>
                 </>
               )}
 
               {factura.status === 'pagada' && (
-                <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
-                  <div style={{ marginTop: 8 }}>
-                    <Text type="success" strong>Factura Pagada</Text>
+                <>
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+                    <div style={{ marginTop: 8 }}>
+                      <Text type="success" strong>Factura Pagada</Text>
+                    </div>
                   </div>
-                </div>
+                  <Button
+                    block
+                    loading={cambioEstadoLoading}
+                    onClick={() => handleCambiarEstado('pendiente')}
+                  >
+                    Reabrir Factura
+                  </Button>
+                </>
               )}
             </Space>
           </Card>
