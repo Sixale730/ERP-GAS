@@ -423,7 +423,7 @@ export default function NuevaCotizacionPage() {
         usuarioId: erpUser?.id,
         usuarioNombre: erpUser?.nombre || erpUser?.email,
         accion: 'creado',
-        descripcion: `Cotización creada para ${clientes.find(c => c.id === clienteId)?.nombre || 'cliente'}`,
+        descripcion: `Cotización creada para ${clientes.find(c => c.id === clienteId)?.nombre_comercial || 'cliente'}`,
       })
 
       message.success(`Cotizacion ${folio} creada`)

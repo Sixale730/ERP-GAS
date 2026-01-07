@@ -410,7 +410,7 @@ export default function NuevaOrdenVentaPage() {
         usuarioId: erpUser?.id,
         usuarioNombre: erpUser?.nombre || erpUser?.email,
         accion: 'creado',
-        descripcion: `Orden de Venta creada para ${clientes.find(c => c.id === clienteId)?.nombre || 'cliente'}`,
+        descripcion: `Orden de Venta creada para ${clientes.find(c => c.id === clienteId)?.nombre_comercial || 'cliente'}`,
       })
 
       message.success(`Orden de Venta ${folio} creada`)
