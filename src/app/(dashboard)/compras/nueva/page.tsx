@@ -27,6 +27,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyUSD } from '@/lib/utils/format'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import type { Proveedor, Almacen, Producto } from '@/types/database'
@@ -58,6 +59,7 @@ export default function NuevaOrdenCompraPage() {
   const [form] = Form.useForm()
   const { getMargenParaCategoria, loading: loadingMargenes } = useMargenesCategoria()
   const { tipoCambio } = useConfiguracion()
+  const { orgId } = useAuth()
 
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
@@ -291,6 +293,7 @@ export default function NuevaOrdenCompraPage() {
         folio,
         proveedor_id: values.proveedor_id,
         almacen_destino_id: values.almacen_id,
+        organizacion_id: orgId,
         fecha: values.fecha?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'),
         fecha_esperada: values.fecha_esperada?.format('YYYY-MM-DD') || null,
         status: enviar ? 'enviada' : 'borrador',
@@ -327,7 +330,7 @@ export default function NuevaOrdenCompraPage() {
 
       if (itemsError) throw itemsError
 
-      message.success(`Orden ${folio} ${enviar ? 'enviada' : 'guardada'} correctamente`)
+      message.success(`Orden ${folio} guardada correctamente`)
       router.push('/compras')
     } catch (error: any) {
       console.error('Error saving orden:', error)
@@ -641,7 +644,7 @@ export default function NuevaOrdenCompraPage() {
                 onClick={() => handleSave(false)}
                 loading={saving}
               >
-                Guardar Borrador
+                Borrador
               </Button>
               <Button
                 type="primary"
@@ -651,7 +654,7 @@ export default function NuevaOrdenCompraPage() {
                 onClick={() => handleSave(true)}
                 loading={saving}
               >
-                Enviar a Proveedor
+                Guardar
               </Button>
             </Space>
           </Card>

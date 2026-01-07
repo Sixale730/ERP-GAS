@@ -331,7 +331,7 @@ export default function NuevaOrdenVentaPage() {
 
     try {
       // 1. Generar folio
-      const { data: folioData } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'cotizacion' })
+      const { data: folioData } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'orden_venta' })
       const folio = folioData as string
 
       const formValues = form.getFieldsValue()
