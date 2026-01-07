@@ -43,7 +43,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const handleMenuClick: MenuProps['onClick'] = async ({ key }) => {
     if (key === 'logout') {
-      await signOut()
+      // Ejecutar signOut inmediatamente sin esperar
+      signOut()
     } else if (key === 'settings') {
       router.push('/configuracion')
     } else if (key === 'usuarios' && isAdmin) {

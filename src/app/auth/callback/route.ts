@@ -46,28 +46,20 @@ export async function GET(request: Request) {
           .single()
 
         if (autorizado) {
-          // Está autorizado, crear usuario automáticamente
-          const { error: createError } = await supabase
-            .schema('erp')
-            .from('usuarios')
-            .insert({
-              auth_user_id: user.id,
-              organizacion_id: autorizado.organizacion_id,
-              email: user.email!,
-              nombre: autorizado.nombre || user.user_metadata?.full_name || user.email,
-              avatar_url: user.user_metadata?.avatar_url || null,
-              rol: autorizado.rol,
-              is_active: true,
-            })
+          // Está autorizado, crear usuario automáticamente usando RPC
+          // (SECURITY DEFINER bypasea RLS para el auto-registro)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { error: createError } = await (supabase.rpc as any)(
+            'registrar_usuario_autorizado',
+            {
+              p_auth_user_id: user.id,
+              p_email: user.email!,
+              p_nombre: user.user_metadata?.full_name || autorizado.nombre || user.email,
+              p_avatar_url: user.user_metadata?.avatar_url || null,
+            }
+          )
 
           if (!createError) {
-            // Actualizar estado del registro autorizado
-            await supabase
-              .schema('erp')
-              .from('usuarios_autorizados')
-              .update({ estado: 'activo' })
-              .eq('id', autorizado.id)
-
             // Usuario creado, ir al dashboard
             return NextResponse.redirect(`${origin}${next}`)
           }

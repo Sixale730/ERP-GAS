@@ -139,6 +139,21 @@ export function useAuth() {
     return result
   }, [])
 
+  // Timeout de seguridad: si loading se queda en true por más de 10 segundos, forzar a false
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setState(prev => {
+        if (prev.loading) {
+          console.warn('[useAuth] Loading timeout - forcing loading=false after 10s')
+          return { ...prev, loading: false }
+        }
+        return prev
+      })
+    }, 10000)
+
+    return () => clearTimeout(timeout)
+  }, [])
+
   useEffect(() => {
     console.log('[useAuth] useEffect started')
     const supabase = getSupabaseClient()
@@ -241,8 +256,25 @@ export function useAuth() {
   }, [fetchERPUser])
 
   const signOut = useCallback(async () => {
-    const supabase = getSupabaseClient()
-    await supabase.auth.signOut()
+    // Limpiar estado inmediatamente para evitar re-renders y mostrar spinner
+    setState({
+      user: null,
+      erpUser: null,
+      organizacion: null,
+      session: null,
+      loading: true, // Mostrar loading mientras se cierra sesión
+      role: null,
+      orgId: null,
+    })
+
+    try {
+      const supabase = getSupabaseClient()
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.error('[useAuth] Error signing out:', error)
+    }
+
+    // Redirigir siempre, incluso si hay error
     window.location.href = '/login'
   }, [])
 
