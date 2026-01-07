@@ -27,6 +27,8 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney } from '@/lib/utils/format'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { registrarHistorial } from '@/lib/utils/historial'
 import { TIPO_CAMBIO_DEFAULT, type CodigoMoneda } from '@/lib/config/moneda'
 
 const { Title, Text } = Typography
@@ -76,6 +78,7 @@ export default function EditarFacturaPage() {
   const params = useParams()
   const id = params.id as string
   const [form] = Form.useForm()
+  const { erpUser } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -319,6 +322,17 @@ export default function EditarFacturaPage() {
         .insert(itemsData)
 
       if (itemsError) throw itemsError
+
+      // Registrar en historial
+      await registrarHistorial({
+        documentoTipo: 'factura',
+        documentoId: id,
+        documentoFolio: facturaOriginal.folio,
+        usuarioId: erpUser?.id,
+        usuarioNombre: erpUser?.nombre || erpUser?.email,
+        accion: 'editado',
+        descripcion: 'Factura editada',
+      })
 
       message.success('Factura actualizada correctamente')
       router.push(`/facturas/${id}`)

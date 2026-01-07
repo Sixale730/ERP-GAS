@@ -27,6 +27,8 @@ import dayjs from 'dayjs'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { registrarHistorial } from '@/lib/utils/historial'
 import type { Proveedor, Almacen, Producto, OrdenCompra } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -57,6 +59,7 @@ export default function EditarOrdenCompraPage() {
   const [form] = Form.useForm()
   const { getMargenParaCategoria } = useMargenesCategoria()
   const { tipoCambio } = useConfiguracion()
+  const { erpUser } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [orden, setOrden] = useState<OrdenCompra | null>(null)
@@ -306,6 +309,17 @@ export default function EditarOrdenCompraPage() {
         .insert(itemsData)
 
       if (itemsError) throw itemsError
+
+      // Registrar en historial
+      await registrarHistorial({
+        documentoTipo: 'orden_compra',
+        documentoId: ordenId,
+        documentoFolio: orden.folio,
+        usuarioId: erpUser?.id,
+        usuarioNombre: erpUser?.nombre || erpUser?.email,
+        accion: 'editado',
+        descripcion: 'Orden de Compra editada',
+      })
 
       message.success('Orden actualizada correctamente')
       router.push(`/compras/${ordenId}`)

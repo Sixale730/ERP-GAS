@@ -9,6 +9,8 @@ import { DeleteOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined, En
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyMXN, calcularTotal } from '@/lib/utils/format'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { registrarHistorial } from '@/lib/utils/historial'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
@@ -72,6 +74,7 @@ export default function EditarCotizacionPage() {
 
   // Configuracion global
   const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
+  const { erpUser } = useAuth()
 
   // Tipo de cambio para esta cotizacion (editable)
   const [tipoCambio, setTipoCambio] = useState(17.50)
@@ -515,6 +518,17 @@ export default function EditarCotizacionPage() {
             })
         }
       }
+
+      // Registrar en historial
+      await registrarHistorial({
+        documentoTipo: 'cotizacion',
+        documentoId: cotizacionId,
+        documentoFolio: cotizacion.folio,
+        usuarioId: erpUser?.id,
+        usuarioNombre: erpUser?.nombre || erpUser?.email,
+        accion: 'editado',
+        descripcion: 'Cotización editada',
+      })
 
       message.success('Cotización actualizada')
       router.push(`/cotizaciones/${cotizacionId}`)
