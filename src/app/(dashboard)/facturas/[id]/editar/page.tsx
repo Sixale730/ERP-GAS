@@ -27,6 +27,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney } from '@/lib/utils/format'
+import { TIPO_CAMBIO_DEFAULT, type CodigoMoneda } from '@/lib/config/moneda'
 
 const { Title, Text } = Typography
 
@@ -86,6 +87,8 @@ export default function EditarFacturaPage() {
   const [productosOptions, setProductosOptions] = useState<ProductoOption[]>([])
   const [searchValue, setSearchValue] = useState('')
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null)
+  const [moneda, setMoneda] = useState<CodigoMoneda>('USD')
+  const [tipoCambio, setTipoCambio] = useState<number | null>(null)
 
   useEffect(() => {
     if (id) {
@@ -161,6 +164,10 @@ export default function EditarFacturaPage() {
         notas: factura.notas,
         descuento_porcentaje: factura.descuento_monto > 0 ? Math.round((factura.descuento_monto / factura.subtotal) * 100) : 0,
       })
+
+      // Set moneda y tipo de cambio
+      setMoneda((factura.moneda as CodigoMoneda) || 'USD')
+      setTipoCambio(factura.tipo_cambio || null)
     } catch (error) {
       console.error('Error loading factura:', error)
       message.error('Error al cargar factura')
@@ -280,6 +287,8 @@ export default function EditarFacturaPage() {
           iva,
           total,
           saldo: total - (facturaOriginal.total - facturaOriginal.saldo), // Mantener pagos existentes
+          moneda,
+          tipo_cambio: tipoCambio,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -499,6 +508,39 @@ export default function EditarFacturaPage() {
                     />
                   </Form.Item>
                 </Col>
+                <Col xs={24} md={8}>
+                  <Form.Item label="Moneda">
+                    <Select
+                      value={moneda}
+                      onChange={(value) => {
+                        setMoneda(value)
+                        if (value === 'MXN' && !tipoCambio) {
+                          setTipoCambio(TIPO_CAMBIO_DEFAULT)
+                        }
+                      }}
+                      options={[
+                        { value: 'USD', label: 'USD - Dolar' },
+                        { value: 'MXN', label: 'MXN - Peso Mexicano' },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+                {moneda === 'MXN' && (
+                  <Col xs={24} md={8}>
+                    <Form.Item label="Tipo de Cambio">
+                      <InputNumber
+                        value={tipoCambio || TIPO_CAMBIO_DEFAULT}
+                        onChange={(value) => setTipoCambio(value)}
+                        min={1}
+                        max={100}
+                        step={0.01}
+                        precision={4}
+                        style={{ width: '100%' }}
+                        addonAfter="MXN/USD"
+                      />
+                    </Form.Item>
+                  </Col>
+                )}
                 <Col xs={24}>
                   <Form.Item name="notas" label="Notas">
                     <Input.TextArea rows={2} placeholder="Notas o instrucciones..." />

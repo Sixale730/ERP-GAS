@@ -12,7 +12,7 @@ import {
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura, type OpcionesMoneda } from '@/lib/utils/pdf'
-import { TIPO_CAMBIO_DEFAULT, type CodigoMoneda } from '@/lib/config/moneda'
+import { type CodigoMoneda } from '@/lib/config/moneda'
 
 const { Title, Text } = Typography
 
@@ -42,6 +42,9 @@ interface FacturaDetalle {
   status_sat: string | null
   fecha_timbrado: string | null
   xml_cfdi: string | null
+  // Campos moneda
+  moneda: CodigoMoneda
+  tipo_cambio: number | null
 }
 
 interface FacturaItem {
@@ -97,19 +100,14 @@ export default function FacturaDetallePage() {
   const [factura, setFactura] = useState<FacturaDetalle | null>(null)
   const [items, setItems] = useState<FacturaItem[]>([])
 
-  // Estado para modal de PDF
-  const [pdfModalOpen, setPdfModalOpen] = useState(false)
-  const [pdfMoneda, setPdfMoneda] = useState<CodigoMoneda>('USD')
-  const [pdfTipoCambio, setPdfTipoCambio] = useState(TIPO_CAMBIO_DEFAULT)
-
   // Estado para timbrado CFDI
   const [timbrandoLoading, setTimbrandoLoading] = useState(false)
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [cancelLoading, setCancelLoading] = useState(false)
   const [motivoCancelacion, setMotivoCancelacion] = useState<string>('02')
   const [uuidSustitucion, setUuidSustitucion] = useState<string>('')
+  const [cambioEstadoLoading, setCambioEstadoLoading] = useState(false)
 
-  
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (id) {
@@ -147,6 +145,8 @@ export default function FacturaDetallePage() {
           status_sat,
           fecha_timbrado,
           xml_cfdi,
+          moneda,
+          tipo_cambio,
           clientes:cliente_id (nombre_comercial, razon_social),
           almacenes:almacen_id (nombre),
           cotizaciones:cotizacion_id (folio)
@@ -192,6 +192,8 @@ export default function FacturaDetallePage() {
         status_sat: facData.status_sat || 'pendiente',
         fecha_timbrado: facData.fecha_timbrado,
         xml_cfdi: facData.xml_cfdi,
+        moneda: (facData.moneda as CodigoMoneda) || 'USD',
+        tipo_cambio: facData.tipo_cambio,
       }
 
       // Calculate dias_vencida
@@ -232,23 +234,72 @@ export default function FacturaDetallePage() {
     }
   }
 
-  const handleAbrirModalPDF = () => {
-    setPdfMoneda('USD')
-    setPdfTipoCambio(TIPO_CAMBIO_DEFAULT)
-    setPdfModalOpen(true)
-  }
-
   const handleDescargarPDF = () => {
     if (!factura) return
 
     const opciones: OpcionesMoneda = {
-      moneda: pdfMoneda,
-      tipoCambio: pdfMoneda === 'MXN' ? pdfTipoCambio : undefined
+      moneda: factura.moneda || 'USD',
+      tipoCambio: factura.moneda === 'MXN' ? (factura.tipo_cambio || undefined) : undefined
     }
 
     generarPDFFactura(factura, items, opciones)
     message.success('PDF descargado')
-    setPdfModalOpen(false)
+  }
+
+  // === FUNCION CAMBIAR ESTADO ===
+
+  const handleCambiarEstado = async (nuevoEstado: 'pendiente' | 'pagada') => {
+    if (!factura) return
+
+    setCambioEstadoLoading(true)
+    const supabase = getSupabaseClient()
+
+    try {
+      const nuevoSaldo = nuevoEstado === 'pagada' ? 0 : factura.total
+      const montoPagado = nuevoEstado === 'pagada' ? factura.total : 0
+      const diferenciaSaldo = factura.saldo - nuevoSaldo
+
+      // Actualizar factura
+      const { error: updateError } = await supabase
+        .schema('erp')
+        .from('facturas')
+        .update({
+          status: nuevoEstado,
+          saldo: nuevoSaldo,
+          monto_pagado: montoPagado,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', factura.id)
+
+      if (updateError) throw updateError
+
+      // Actualizar saldo del cliente
+      if (factura.cliente_id && diferenciaSaldo !== 0) {
+        const { data: clienteData } = await supabase
+          .schema('erp')
+          .from('clientes')
+          .select('saldo_pendiente')
+          .eq('id', factura.cliente_id)
+          .single()
+
+        if (clienteData) {
+          const nuevoSaldoCliente = Math.max(0, (clienteData.saldo_pendiente || 0) - diferenciaSaldo)
+          await supabase
+            .schema('erp')
+            .from('clientes')
+            .update({ saldo_pendiente: nuevoSaldoCliente })
+            .eq('id', factura.cliente_id)
+        }
+      }
+
+      message.success(nuevoEstado === 'pagada' ? 'Factura marcada como pagada' : 'Factura reabierta')
+      loadFactura()
+    } catch (error) {
+      console.error('Error al cambiar estado:', error)
+      message.error('Error al cambiar estado de la factura')
+    } finally {
+      setCambioEstadoLoading(false)
+    }
   }
 
   // === FUNCIONES CFDI ===
@@ -467,7 +518,7 @@ export default function FacturaDetallePage() {
         <Space wrap>
           <Button
             icon={<FilePdfOutlined />}
-            onClick={handleAbrirModalPDF}
+            onClick={handleDescargarPDF}
             size="large"
           >
             Descargar PDF
@@ -706,49 +757,6 @@ export default function FacturaDetallePage() {
           </Card>
         </Col>
       </Row>
-
-      {/* Modal para seleccionar moneda del PDF */}
-      <Modal
-        title="Opciones de PDF"
-        open={pdfModalOpen}
-        onCancel={() => setPdfModalOpen(false)}
-        onOk={handleDescargarPDF}
-        okText="Descargar"
-        cancelText="Cancelar"
-        destroyOnClose
-      >
-        <Form layout="vertical">
-          <Form.Item label="Moneda">
-            <Select
-              value={pdfMoneda}
-              onChange={(value) => setPdfMoneda(value)}
-              options={[
-                { value: 'USD', label: 'USD - Dolar Americano' },
-                { value: 'MXN', label: 'MXN - Peso Mexicano' },
-              ]}
-            />
-          </Form.Item>
-          {pdfMoneda === 'MXN' && (
-            <Form.Item label="Tipo de Cambio (MXN por 1 USD)">
-              <InputNumber
-                value={pdfTipoCambio}
-                onChange={(value) => setPdfTipoCambio(value || TIPO_CAMBIO_DEFAULT)}
-                min={1}
-                max={100}
-                step={0.01}
-                precision={2}
-                style={{ width: '100%' }}
-                addonAfter="MXN"
-              />
-            </Form.Item>
-          )}
-          {pdfMoneda === 'MXN' && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Los precios base estan en USD. Se convertiran a MXN usando el tipo de cambio indicado.
-            </Text>
-          )}
-        </Form>
-      </Modal>
 
       {/* Modal para cancelar CFDI */}
       <Modal
