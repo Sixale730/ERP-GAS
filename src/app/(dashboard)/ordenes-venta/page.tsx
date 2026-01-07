@@ -59,6 +59,7 @@ export default function OrdenesVentaPage() {
         .schema('erp')
         .from('v_cotizaciones')
         .select('*')
+        .like('folio', 'OV-%')
         .order('fecha', { ascending: false })
 
       // Filtrar por status segun el filtro seleccionado
