@@ -1,15 +1,15 @@
 // Configuración de la empresa para documentos PDF y CFDI
 export const EMPRESA = {
-  nombre: 'GAS Company',
-  rfc: 'GAS123456ABC',
-  direccion: 'Calle Principal #123, Col. Centro, CDMX, CP 06000',
-  telefono: '(55) 1234-5678',
-  email: 'ventas@gascompany.com',
+  nombre: 'SOLAC',
+  rfc: 'MOCD830414SL4',
+  direccion: 'Calle Magnolia #266, CP 45403, Jalisco',
+  telefono: '(33) 1013-1166',
+  email: 'solacgdl@gmail.com',
   // Logo en base64 o ruta pública (opcional)
   logo: '/solac.png',
   // Datos fiscales para CFDI
   regimenFiscal: '601', // General de Ley Personas Morales
-  codigoPostal: '06000', // CP del lugar de expedicion
+  codigoPostal: '45403', // CP del lugar de expedicion
 }
 
 // Datos de prueba para ambiente DEMO de Finkok
