@@ -10,6 +10,7 @@ import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SA
 import { getSupabaseClient } from '@/lib/supabase/client'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
 import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
+import { registrarHistorial } from '@/lib/utils/historial'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useAuth } from '@/lib/hooks/useAuth'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
@@ -33,7 +34,7 @@ export default function NuevaCotizacionPage() {
   const router = useRouter()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
-  const { orgId } = useAuth()
+  const { orgId, erpUser } = useAuth()
 
   // Configuracion global
   const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
@@ -413,6 +414,17 @@ export default function NuevaCotizacionPage() {
         .insert(itemsToInsert)
 
       if (itemsError) throw itemsError
+
+      // Registrar en historial
+      await registrarHistorial({
+        documentoTipo: 'cotizacion',
+        documentoId: cotizacion.id,
+        documentoFolio: folio,
+        usuarioId: erpUser?.id,
+        usuarioNombre: erpUser?.nombre || erpUser?.email,
+        accion: 'creado',
+        descripcion: `Cotización creada para ${clientes.find(c => c.id === clienteId)?.nombre || 'cliente'}`,
+      })
 
       message.success(`Cotizacion ${folio} creada`)
       router.push('/cotizaciones')

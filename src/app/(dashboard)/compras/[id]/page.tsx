@@ -27,11 +27,13 @@ import {
   CheckCircleOutlined,
   FilePdfOutlined,
   EditOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyUSD, formatMoneyMXN, formatDate } from '@/lib/utils/format'
 import { generarPDFOrdenCompra, type OpcionesMoneda } from '@/lib/utils/pdf'
+import HistorialTimeline from '@/components/common/HistorialTimeline'
 import type { OrdenCompra, OrdenCompraItem, Proveedor, Almacen, Producto, RecepcionOrden } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -549,6 +551,11 @@ export default function DetalleOrdenCompraPage() {
                 }))}
               />
             )}
+          </Card>
+
+          {/* Historial de movimientos */}
+          <Card title={<><HistoryOutlined /> Historial</>} style={{ marginTop: 16 }} size="small">
+            <HistorialTimeline documentoTipo="orden_compra" documentoId={orden.id} />
           </Card>
         </Col>
       </Row>

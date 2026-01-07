@@ -6,7 +6,7 @@ import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } f
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoney, formatDate } from '@/lib/utils/format'
+import { formatMoney, formatDate, formatDateTime } from '@/lib/utils/format'
 import { generarPDFCotizacion } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
@@ -22,6 +22,8 @@ interface CotizacionRow {
   cliente_nombre?: string
   cliente_rfc?: string
   almacen_nombre?: string
+  created_at?: string
+  updated_at?: string
 }
 
 // Helper para verificar si la cotización está caducada
@@ -173,6 +175,22 @@ export default function CotizacionesPage() {
           )}
         </Space>
       ),
+    },
+    {
+      title: 'Creado',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 140,
+      render: (date: string) => formatDateTime(date),
+      sorter: (a, b) => dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
+    },
+    {
+      title: 'Última edición',
+      dataIndex: 'updated_at',
+      key: 'updated_at',
+      width: 140,
+      render: (date: string) => formatDateTime(date),
+      sorter: (a, b) => dayjs(a.updated_at).unix() - dayjs(b.updated_at).unix(),
     },
     {
       title: 'Acciones',

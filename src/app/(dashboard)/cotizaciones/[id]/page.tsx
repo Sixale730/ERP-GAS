@@ -5,12 +5,13 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Alert, Collapse
 } from 'antd'
-import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, HistoryOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyMXN, formatMoneyUSD, formatDate } from '@/lib/utils/format'
 import { getFormaPagoLabel, getMetodoPagoLabel, getRegimenFiscalLabel, getUsoCfdiLabel } from '@/lib/config/sat'
 import dayjs from 'dayjs'
 import { generarPDFCotizacion, type OpcionesMoneda } from '@/lib/utils/pdf'
+import HistorialTimeline from '@/components/common/HistorialTimeline'
 import type { CodigoMoneda } from '@/lib/config/moneda'
 
 const { Title, Text } = Typography
@@ -790,6 +791,15 @@ export default function CotizacionDetallePage() {
                 </>
               )}
             </Space>
+          </Card>
+
+          {/* Historial de movimientos */}
+          <Card
+            title={<><HistoryOutlined /> Historial</>}
+            style={{ marginTop: 16 }}
+            size="small"
+          >
+            <HistorialTimeline documentoTipo="cotizacion" documentoId={cotizacion.id} />
           </Card>
         </Col>
       </Row>

@@ -27,6 +27,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyUSD } from '@/lib/utils/format'
+import { registrarHistorial } from '@/lib/utils/historial'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
@@ -59,7 +60,7 @@ export default function NuevaOrdenCompraPage() {
   const [form] = Form.useForm()
   const { getMargenParaCategoria, loading: loadingMargenes } = useMargenesCategoria()
   const { tipoCambio } = useConfiguracion()
-  const { orgId } = useAuth()
+  const { orgId, erpUser } = useAuth()
 
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
@@ -329,6 +330,18 @@ export default function NuevaOrdenCompraPage() {
         .insert(itemsData)
 
       if (itemsError) throw itemsError
+
+      // Registrar en historial
+      const proveedorNombre = proveedores.find(p => p.id === values.proveedor_id)?.nombre || 'proveedor'
+      await registrarHistorial({
+        documentoTipo: 'orden_compra',
+        documentoId: orden.id,
+        documentoFolio: folio,
+        usuarioId: erpUser?.id,
+        usuarioNombre: erpUser?.nombre || erpUser?.email,
+        accion: 'creado',
+        descripcion: `Orden de Compra creada para ${proveedorNombre}`,
+      })
 
       message.success(`Orden ${folio} guardada correctamente`)
       router.push('/compras')

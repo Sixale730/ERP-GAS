@@ -27,7 +27,8 @@ import {
 import { PlusOutlined, SearchOutlined, EyeOutlined, ThunderboltOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatDate } from '@/lib/utils/format'
+import { formatDate, formatDateTime } from '@/lib/utils/format'
+import dayjs from 'dayjs'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import type { OrdenCompraView, Proveedor, Almacen } from '@/types/database'
@@ -576,6 +577,22 @@ export default function ComprasPage() {
           />
         )
       },
+    },
+    {
+      title: 'Creado',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 140,
+      render: (date: string) => formatDateTime(date),
+      sorter: (a, b) => dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
+    },
+    {
+      title: 'Última edición',
+      dataIndex: 'updated_at',
+      key: 'updated_at',
+      width: 140,
+      render: (date: string) => formatDateTime(date),
+      sorter: (a, b) => dayjs(a.updated_at).unix() - dayjs(b.updated_at).unix(),
     },
     {
       title: 'Acciones',
