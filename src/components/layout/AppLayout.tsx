@@ -208,7 +208,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           />
 
           {/* Barra de busqueda global */}
-          <div style={{ flex: 1, maxWidth: isMobile ? 200 : 400, margin: '0 12px' }}>
+          <div style={{ width: isMobile ? 200 : 450, margin: '0 12px', height: 64, display: 'flex', alignItems: 'center', lineHeight: 'normal' }}>
             <GlobalSearch />
           </div>
 

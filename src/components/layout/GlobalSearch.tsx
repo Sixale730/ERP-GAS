@@ -246,7 +246,7 @@ export default function GlobalSearch() {
 
   return (
     <AutoComplete
-      style={{ width: '100%' }}
+      style={{ width: '100%', margin: 'auto 0' }}
       options={options}
       onSearch={handleSearch}
       onSelect={handleSelect}
@@ -257,7 +257,7 @@ export default function GlobalSearch() {
         placeholder="Buscar productos, clientes, facturas..."
         prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
         allowClear
-        style={{ borderRadius: 20 }}
+        style={{ borderRadius: 8, height: 36 }}
       />
     </AutoComplete>
   )
