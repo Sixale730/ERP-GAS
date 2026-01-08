@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Si hay usuario pero no tiene rol en el ERP, redirigir a solicitar acceso
+  // Si hay usuario pero no tiene rol en el ERP, verificar en BD antes de redirigir
   if (user && !isPublicRoute) {
     const { data: { session } } = await supabase.auth.getSession()
 
@@ -64,35 +64,71 @@ export async function middleware(request: NextRequest) {
         const payload = JSON.parse(atob(session.access_token.split('.')[1]))
         const role = payload?.app_role
 
-        // Si no tiene rol, no está registrado en el ERP
+        // Si no tiene rol en JWT, verificar directamente en la base de datos
         if (!role) {
+          // Consultar si el usuario existe en erp.usuarios
+          const { data: erpUser } = await supabase
+            .schema('erp' as 'public')
+            .from('usuarios')
+            .select('id, rol, is_active')
+            .eq('auth_user_id', user.id)
+            .single()
+
+          // Si existe y está activo, permitir acceso
+          if (erpUser && erpUser.is_active) {
+            return response
+          }
+
+          // No existe en la BD, redirigir a solicitar acceso
           return NextResponse.redirect(new URL('/solicitar-acceso', request.url))
         }
       } catch {
-        // Error al decodificar, redirigir por seguridad
+        // Error al decodificar, verificar en BD como fallback
+        const { data: erpUser } = await supabase
+          .schema('erp' as 'public')
+          .from('usuarios')
+          .select('id, rol, is_active')
+          .eq('auth_user_id', user.id)
+          .single()
+
+        if (erpUser && erpUser.is_active) {
+          return response
+        }
+
         return NextResponse.redirect(new URL('/solicitar-acceso', request.url))
       }
     }
   }
 
-  // Proteger rutas de admin - verificar rol en el JWT
+  // Proteger rutas de admin - verificar rol en el JWT o BD
   if (user && request.nextUrl.pathname.startsWith('/configuracion/admin')) {
     const { data: { session } } = await supabase.auth.getSession()
 
+    let role: string | null = null
+
     if (session?.access_token) {
       try {
-        // Decodificar JWT para obtener claims
         const payload = JSON.parse(atob(session.access_token.split('.')[1]))
-        const role = payload?.app_role
-
-        if (role !== 'super_admin') {
-          // No es super admin, redirigir al dashboard
-          return NextResponse.redirect(new URL('/', request.url))
-        }
+        role = payload?.app_role
       } catch {
-        // Error al decodificar, redirigir por seguridad
-        return NextResponse.redirect(new URL('/', request.url))
+        // Ignorar error de decodificación
       }
+    }
+
+    // Si no hay rol en JWT, verificar en BD
+    if (!role) {
+      const { data: erpUser } = await supabase
+        .schema('erp' as 'public')
+        .from('usuarios')
+        .select('rol')
+        .eq('auth_user_id', user.id)
+        .single()
+
+      role = erpUser?.rol || null
+    }
+
+    if (role !== 'super_admin') {
+      return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
