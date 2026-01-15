@@ -136,7 +136,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             transition: 'all 0.2s',
           }}
         >
-          {isMobile ? 'ERP Nesui' : (collapsed ? 'ERP' : 'ERP Nesui')}
+          {isMobile ? 'CUANTY' : (collapsed ? 'ERP' : 'CUANTY ERP')}
         </h1>
       </div>
       <Sidebar onNavigate={() => isMobile && setDrawerOpen(false)} userRole={role} />

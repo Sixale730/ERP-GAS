@@ -57,7 +57,7 @@ export default function LoginPage() {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div>
             <Title level={2} style={{ color: '#1890ff', margin: 0 }}>
-              ERP Nesui
+              CUANTY ERP
             </Title>
             <Text type="secondary">
               Sistema de Inventario, Ventas y Finanzas

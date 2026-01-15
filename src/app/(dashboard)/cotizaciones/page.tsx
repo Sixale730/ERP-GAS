@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
-import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
+import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate, formatDateTime } from '@/lib/utils/format'
@@ -120,6 +120,41 @@ export default function CotizacionesPage() {
     }
   }
 
+  const handleEliminar = async (cotizacion: CotizacionRow) => {
+    // Solo permitir eliminar cotizaciones en status 'propuesta'
+    if (cotizacion.status !== 'propuesta') {
+      message.error('Solo se pueden eliminar cotizaciones en status "Propuesta"')
+      return
+    }
+
+    const supabase = getSupabaseClient()
+    try {
+      // Primero eliminar los items de la cotización
+      const { error: itemsError } = await supabase
+        .schema('erp')
+        .from('cotizacion_items')
+        .delete()
+        .eq('cotizacion_id', cotizacion.id)
+
+      if (itemsError) throw itemsError
+
+      // Luego eliminar la cotización
+      const { error: cotError } = await supabase
+        .schema('erp')
+        .from('cotizaciones')
+        .delete()
+        .eq('id', cotizacion.id)
+
+      if (cotError) throw cotError
+
+      message.success(`Cotización ${cotizacion.folio} eliminada`)
+      loadCotizaciones() // Recargar la lista
+    } catch (error) {
+      console.error('Error eliminando cotización:', error)
+      message.error('Error al eliminar la cotización')
+    }
+  }
+
   const filteredCotizaciones = cotizaciones.filter(
     (c) =>
       c.folio.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -195,7 +230,7 @@ export default function CotizacionesPage() {
     {
       title: 'Acciones',
       key: 'acciones',
-      width: 100,
+      width: 140,
       render: (_, record) => (
         <Space>
           <Button
@@ -210,6 +245,23 @@ export default function CotizacionesPage() {
             onClick={() => handleDescargarPDF(record.id)}
             title="Descargar PDF"
           />
+          {record.status === 'propuesta' && (
+            <Popconfirm
+              title="Eliminar cotización"
+              description={`¿Está seguro de eliminar ${record.folio}?`}
+              onConfirm={() => handleEliminar(record)}
+              okText="Sí, eliminar"
+              cancelText="Cancelar"
+              okButtonProps={{ danger: true }}
+            >
+              <Button
+                type="link"
+                danger
+                icon={<DeleteOutlined />}
+                title="Eliminar"
+              />
+            </Popconfirm>
+          )}
         </Space>
       ),
     },

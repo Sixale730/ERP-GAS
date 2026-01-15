@@ -1,4 +1,4 @@
-# ERP Nesui - Sistema de Inventario, Ventas y Finanzas
+# CUANTY ERP - Sistema de Inventario, Ventas y Finanzas
 
 ## Descripcion del Proyecto
 

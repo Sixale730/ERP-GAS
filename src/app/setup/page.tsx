@@ -137,7 +137,7 @@ export default function SetupPage() {
             <Title level={2} style={{ margin: '16px 0 0' }}>
               Configuracion Inicial
             </Title>
-            <Text type="secondary">ERP Nesui</Text>
+            <Text type="secondary">CUANTY ERP</Text>
           </div>
 
           <Steps
@@ -156,7 +156,7 @@ export default function SetupPage() {
           {!isAuthenticated && (
             <div style={{ textAlign: 'center' }}>
               <Paragraph>
-                Bienvenido a ERP Nesui. Este es el primer acceso al sistema.
+                Bienvenido a CUANTY ERP. Este es el primer acceso al sistema.
                 <br />
                 Inicia sesion con Google para crear tu cuenta de Super Admin.
               </Paragraph>

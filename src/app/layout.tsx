@@ -5,13 +5,13 @@ import esES from 'antd/locale/es_ES'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'ERP Nesui',
+  title: 'CUANTY ERP',
   description: 'Sistema ERP de Inventario, Ventas y Finanzas',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'ERP Nesui',
+    title: 'CUANTY ERP',
   },
 }
 
