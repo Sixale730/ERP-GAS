@@ -315,6 +315,7 @@ export default function InventarioPage() {
           bajo: { color: 'red', label: 'Bajo' },
           normal: { color: 'green', label: 'Normal' },
           exceso: { color: 'orange', label: 'Exceso' },
+          sin_stock: { color: 'default', label: 'Sin Stock' },
         }
         const { color, label } = config[nivel] || { color: 'default', label: nivel }
         return <Tag color={color}>{label}</Tag>

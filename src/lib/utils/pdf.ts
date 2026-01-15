@@ -295,15 +295,6 @@ export function generarPDFCotizacion(
   let y = generarEncabezado(doc, 'COTIZACION', cotizacion.folio)
   y = generarDatosCliente(doc, y, cotizacion)
 
-  // Mostrar moneda y tipo de cambio si aplica
-  if (opciones.moneda === 'MXN' && opciones.tipoCambio) {
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'italic')
-    doc.setTextColor(...COLOR_GRIS)
-    doc.text(`Tipo de cambio: 1 USD = ${opciones.tipoCambio.toFixed(2)} MXN`, 14, y - 5)
-    y += 5
-  }
-
   y = generarTablaProductos(doc, y, items, opciones)
   y = generarTotales(doc, y, cotizacion, opciones)
   generarNotas(doc, y, cotizacion.notas)
@@ -336,15 +327,6 @@ export function generarPDFFactura(
     doc.setFont('helvetica', 'italic')
     doc.setTextColor(...COLOR_GRIS)
     doc.text(`Ref. Cotizacion: ${factura.cotizacion_folio}`, 14, y - 5)
-    y += 5
-  }
-
-  // Mostrar moneda y tipo de cambio si aplica
-  if (opciones.moneda === 'MXN' && opciones.tipoCambio) {
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'italic')
-    doc.setTextColor(...COLOR_GRIS)
-    doc.text(`Tipo de cambio: 1 USD = ${opciones.tipoCambio.toFixed(2)} MXN`, 14, y - 5)
     y += 5
   }
 
@@ -595,14 +577,8 @@ export function generarPDFOrdenCompra(
   let y = generarEncabezadoOC(doc, orden.folio)
   y = generarDatosProveedor(doc, y, orden)
 
-  // Mostrar moneda y tipo de cambio si aplica
-  if (opciones.moneda === 'MXN' && opciones.tipoCambio) {
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'italic')
-    doc.setTextColor(...COLOR_GRIS)
-    doc.text(`Tipo de cambio: 1 USD = ${opciones.tipoCambio.toFixed(2)} MXN`, 14, y - 5)
-    y += 5
-  } else if (orden.moneda) {
+  // Mostrar moneda
+  if (orden.moneda) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'italic')
     doc.setTextColor(...COLOR_GRIS)

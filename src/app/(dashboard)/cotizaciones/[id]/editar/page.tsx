@@ -7,7 +7,8 @@ import {
 } from 'antd'
 import { DeleteOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoneyMXN, calcularTotal } from '@/lib/utils/format'
+import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
+import type { CodigoMoneda } from '@/lib/config/moneda'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { registrarHistorial } from '@/lib/utils/historial'
@@ -38,6 +39,7 @@ interface CotizacionData {
   cliente_id: string
   almacen_id: string
   lista_precio_id: string | null
+  moneda: string | null
   tipo_cambio: number | null
   descuento_porcentaje: number
   notas: string | null
@@ -78,6 +80,9 @@ export default function EditarCotizacionPage() {
 
   // Tipo de cambio para esta cotizacion (editable)
   const [tipoCambio, setTipoCambio] = useState(17.50)
+
+  // Moneda de la cotizacion
+  const [moneda, setMoneda] = useState<CodigoMoneda>('MXN')
 
   // Data
   const [clientes, setClientes] = useState<Cliente[]>([])
@@ -170,6 +175,7 @@ export default function EditarCotizacionPage() {
       setListaPrecioId(cotData.lista_precio_id)
       setDescuentoGlobal(cotData.descuento_porcentaje || 0)
       setTipoCambio(cotData.tipo_cambio || tcGlobal)
+      setMoneda((cotData.moneda as CodigoMoneda) || 'MXN')
       form.setFieldsValue({
         notas: cotData.notas,
         lista_precio_id: cotData.lista_precio_id,
@@ -353,14 +359,43 @@ export default function EditarCotizacionPage() {
     const newTC = value || tcGlobal
     setTipoCambio(newTC)
 
-    setItems(items.map(item => {
-      const nuevoPrecio = item.precio_lista_usd * (1 + item.margen_porcentaje / 100) * newTC
+    // Solo recalcular si estamos en MXN
+    if (moneda === 'MXN') {
+      setItems(items.map(item => {
+        const nuevoPrecio = item.precio_lista_usd * (1 + item.margen_porcentaje / 100) * newTC
+        return {
+          ...item,
+          precio_unitario_mxn: nuevoPrecio,
+          subtotal: item.cantidad * nuevoPrecio
+        }
+      }))
+    }
+  }
+
+  // Calcular precio final segun moneda
+  const calcularPrecioFinal = (precioUSD: number, margenPct: number, monedaDestino: CodigoMoneda = moneda) => {
+    const precioConMargen = precioUSD * (1 + margenPct / 100)
+    return monedaDestino === 'USD' ? precioConMargen : precioConMargen * tipoCambio
+  }
+
+  // Cambiar moneda y recalcular todos los items
+  const handleMonedaChange = (nuevaMoneda: CodigoMoneda) => {
+    setMoneda(nuevaMoneda)
+
+    // Recalcular todos los items con la nueva moneda
+    setItems(prevItems => prevItems.map(item => {
+      const nuevoPrecio = calcularPrecioFinal(item.precio_lista_usd, item.margen_porcentaje, nuevaMoneda)
       return {
         ...item,
         precio_unitario_mxn: nuevoPrecio,
         subtotal: item.cantidad * nuevoPrecio
       }
     }))
+  }
+
+  // Formatear dinero segun moneda seleccionada
+  const formatMoney = (amount: number) => {
+    return moneda === 'USD' ? formatMoneyUSD(amount) : formatMoneyMXN(amount)
   }
 
   // Totals
@@ -434,7 +469,8 @@ export default function EditarCotizacionPage() {
           descuento_monto: descuentoMonto,
           iva,
           total,
-          tipo_cambio: tipoCambio,
+          moneda,
+          tipo_cambio: moneda === 'MXN' ? tipoCambio : null,
           notas: formValues.notas,
           // CFDI
           cfdi_rfc: formValues.cfdi_rfc || null,
@@ -614,7 +650,7 @@ export default function EditarCotizacionPage() {
       title: 'Subtotal',
       dataIndex: 'subtotal',
       width: 110,
-      render: (val: number) => formatMoneyMXN(val),
+      render: (val: number) => formatMoney(val),
     },
     {
       title: '',
@@ -647,24 +683,42 @@ export default function EditarCotizacionPage() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={16}>
-          {/* Card de Tipo de Cambio */}
+          {/* Card de Moneda y Tipo de Cambio */}
           <Card size="small" style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}>
             <Row gutter={16} align="middle">
               <Col>
-                <Text strong>Tipo de Cambio:</Text>
+                <Text strong>Moneda:</Text>
               </Col>
               <Col>
-                <InputNumber
-                  value={tipoCambio}
-                  onChange={handleTipoCambioChange}
-                  min={1}
-                  max={100}
-                  step={0.0001}
-                  precision={4}
-                  addonAfter="MXN/USD"
+                <Select
+                  value={moneda}
+                  onChange={handleMonedaChange}
                   style={{ width: 180 }}
+                  options={[
+                    { value: 'MXN', label: 'Peso Mexicano (MXN)' },
+                    { value: 'USD', label: 'Dólar (USD)' },
+                  ]}
                 />
               </Col>
+              {moneda === 'MXN' && (
+                <>
+                  <Col>
+                    <Text strong>Tipo de Cambio:</Text>
+                  </Col>
+                  <Col>
+                    <InputNumber
+                      value={tipoCambio}
+                      onChange={handleTipoCambioChange}
+                      min={1}
+                      max={100}
+                      step={0.0001}
+                      precision={4}
+                      addonAfter="MXN/USD"
+                      style={{ width: 180 }}
+                    />
+                  </Col>
+                </>
+              )}
               <Col>
                 <Text type="secondary">
                   (Al cambiar se recalculan todos los precios)
@@ -908,28 +962,34 @@ export default function EditarCotizacionPage() {
           <Card title="Resumen" style={{ position: 'sticky', top: 88 }}>
             <Space direction="vertical" style={{ width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text type="secondary">T/C:</Text>
-                <Text>{tipoCambio} MXN/USD</Text>
+                <Text type="secondary">Moneda:</Text>
+                <Text strong style={{ color: moneda === 'USD' ? '#52c41a' : '#1890ff' }}>{moneda}</Text>
               </div>
+              {moneda === 'MXN' && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text type="secondary">T/C:</Text>
+                  <Text>{tipoCambio} MXN/USD</Text>
+                </div>
+              )}
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>Subtotal:</Text>
-                <Text strong>{formatMoneyMXN(subtotal)}</Text>
+                <Text strong>{formatMoney(subtotal)}</Text>
               </div>
               {descuentoGlobal > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#52c41a' }}>
                   <Text>Descuento ({descuentoGlobal}%):</Text>
-                  <Text>-{formatMoneyMXN(descuentoMonto)}</Text>
+                  <Text>-{formatMoney(descuentoMonto)}</Text>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>IVA (16%):</Text>
-                <Text>{formatMoneyMXN(iva)}</Text>
+                <Text>{formatMoney(iva)}</Text>
               </div>
               <Divider style={{ margin: '12px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Title level={4} style={{ margin: 0 }}>Total:</Title>
-                <Title level={4} style={{ margin: 0, color: '#1890ff' }}>{formatMoneyMXN(total)}</Title>
+                <Title level={4} style={{ margin: 0, color: '#1890ff' }}>{formatMoney(total)}</Title>
               </div>
 
               <Divider />
