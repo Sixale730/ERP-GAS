@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { getSupabaseClient } from '@/lib/supabase/client'
+import { useCotizaciones, useCotizacion, useCotizacionItems, useDeleteCotizacion } from '@/lib/hooks/useQueries'
 import { formatMoney, formatDate, formatDateTime } from '@/lib/utils/format'
 import { generarPDFCotizacion } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
@@ -48,72 +48,36 @@ const statusLabels: Record<string, string> = {
 
 export default function CotizacionesPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [cotizaciones, setCotizaciones] = useState<CotizacionRow[]>([])
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [pdfCotizacionId, setPdfCotizacionId] = useState<string | null>(null)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    loadCotizaciones()
-  }, [statusFilter])
+  // React Query hooks
+  const { data: cotizaciones = [], isLoading: loading, error } = useCotizaciones(statusFilter)
+  const deleteCotizacion = useDeleteCotizacion()
 
-  const loadCotizaciones = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
+  // Hooks para PDF (solo se activan cuando hay un id seleccionado)
+  const { data: cotizacionPdf } = useCotizacion(pdfCotizacionId || '')
+  const { data: itemsPdf } = useCotizacionItems(pdfCotizacionId || '')
 
-    try {
-      let query = supabase
-        .schema('erp')
-        .from('v_cotizaciones')
-        .select('*')
-        .order('fecha', { ascending: false })
-
-      if (statusFilter) {
-        query = query.eq('status', statusFilter)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setCotizaciones(data || [])
-    } catch (error) {
-      console.error('Error loading cotizaciones:', error)
-      message.error('Error al cargar cotizaciones')
-    } finally {
-      setLoading(false)
-    }
+  // Mostrar error si hay
+  if (error) {
+    message.error('Error al cargar cotizaciones')
   }
 
   const handleDescargarPDF = async (cotizacionId: string) => {
-    const supabase = getSupabaseClient()
     try {
-      // Cargar cotización completa
-      const { data: cotData, error: cotError } = await supabase
-        .schema('erp')
-        .from('v_cotizaciones')
-        .select('*')
-        .eq('id', cotizacionId)
-        .single()
+      // Activar la carga de datos para el PDF
+      setPdfCotizacionId(cotizacionId)
 
-      if (cotError) throw cotError
-
-      // Cargar items
-      const { data: itemsData, error: itemsError } = await supabase
-        .schema('erp')
-        .from('cotizacion_items')
-        .select('*, productos:producto_id (sku)')
-        .eq('cotizacion_id', cotizacionId)
-
-      if (itemsError) throw itemsError
-
-      const items = itemsData?.map(item => ({
-        ...item,
-        sku: item.productos?.sku || '-'
-      })) || []
-
-      generarPDFCotizacion(cotData, items)
-      message.success('PDF descargado')
+      // Los datos ya están en caché o se cargarán, usar setTimeout para dar tiempo
+      setTimeout(() => {
+        if (cotizacionPdf && itemsPdf) {
+          generarPDFCotizacion(cotizacionPdf, itemsPdf)
+          message.success('PDF descargado')
+        }
+        setPdfCotizacionId(null)
+      }, 500)
     } catch (error) {
       console.error('Error generando PDF:', error)
       message.error('Error al generar PDF')
@@ -127,38 +91,23 @@ export default function CotizacionesPage() {
       return
     }
 
-    const supabase = getSupabaseClient()
     try {
-      // Primero eliminar los items de la cotización
-      const { error: itemsError } = await supabase
-        .schema('erp')
-        .from('cotizacion_items')
-        .delete()
-        .eq('cotizacion_id', cotizacion.id)
-
-      if (itemsError) throw itemsError
-
-      // Luego eliminar la cotización
-      const { error: cotError } = await supabase
-        .schema('erp')
-        .from('cotizaciones')
-        .delete()
-        .eq('id', cotizacion.id)
-
-      if (cotError) throw cotError
-
-      message.success(`Cotización ${cotizacion.folio} eliminada`)
-      loadCotizaciones() // Recargar la lista
+      await deleteCotizacion.mutateAsync(cotizacion.id)
+      message.success(`Cotizacion ${cotizacion.folio} eliminada`)
     } catch (error) {
-      console.error('Error eliminando cotización:', error)
-      message.error('Error al eliminar la cotización')
+      console.error('Error eliminando cotizacion:', error)
+      message.error('Error al eliminar la cotizacion')
     }
   }
 
-  const filteredCotizaciones = cotizaciones.filter(
-    (c) =>
-      c.folio.toLowerCase().includes(searchText.toLowerCase()) ||
-      (c.cliente_nombre && c.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
+  // Filtrar con useMemo
+  const filteredCotizaciones = useMemo(() =>
+    cotizaciones.filter(
+      (c) =>
+        c.folio.toLowerCase().includes(searchText.toLowerCase()) ||
+        (c.cliente_nombre && c.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
+    ),
+    [cotizaciones, searchText]
   )
 
   const columns: ColumnsType<CotizacionRow> = [

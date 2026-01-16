@@ -61,10 +61,10 @@ export function useAuth() {
       console.log('[useAuth] fetchERPUser called - using RPC')
       const supabase = getSupabaseClient()
 
-      // Retry logic with exponential backoff
-      const maxRetries = 3
-      const initialDelay = 1000
-      const timeoutMs = 15000
+      // Retry logic optimizado - timeouts más cortos
+      const maxRetries = 2
+      const initialDelay = 500
+      const timeoutMs = 5000
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -139,17 +139,17 @@ export function useAuth() {
     return result
   }, [])
 
-  // Timeout de seguridad: si loading se queda en true por más de 10 segundos, forzar a false
+  // Timeout de seguridad: si loading se queda en true por más de 6 segundos, forzar a false
   useEffect(() => {
     const timeout = setTimeout(() => {
       setState(prev => {
         if (prev.loading) {
-          console.warn('[useAuth] Loading timeout - forcing loading=false after 10s')
+          console.warn('[useAuth] Loading timeout - forcing loading=false after 6s')
           return { ...prev, loading: false }
         }
         return prev
       })
-    }, 10000)
+    }, 6000)
 
     return () => clearTimeout(timeout)
   }, [])

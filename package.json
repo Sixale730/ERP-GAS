@@ -14,6 +14,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.86.2",
     "@tanstack/react-query": "^5.90.12",
+    "@tanstack/react-query-devtools": "^5.90.12",
     "antd": "^6.0.1",
     "dayjs": "^1.11.19",
     "jspdf": "^3.0.4",
@@ -25,8 +26,7 @@
     "soap": "^1.6.1",
     "xml2js": "^0.6.2",
     "xmlbuilder2": "^4.0.3",
-    "xslt-processor": "^3.4.0",
-    "zustand": "^5.0.9"
+    "xslt-processor": "^3.4.0"
   },
   "devDependencies": {
     "@types/node": "^20",

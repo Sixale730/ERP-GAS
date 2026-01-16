@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin, Button, Space } from 'antd'
 import {
@@ -10,91 +9,26 @@ import {
   WarningOutlined,
   ShoppingCartOutlined,
 } from '@ant-design/icons'
-import { getSupabaseClient } from '@/lib/supabase/client'
+import { useDashboardData } from '@/lib/hooks/useQueries'
 import { formatMoney } from '@/lib/utils/format'
 
 const { Title } = Typography
 
-interface DashboardStats {
-  totalProductos: number
-  productosStockBajo: number
-  cotizacionesPendientes: number
-  facturasPorCobrar: number
-  totalPorCobrar: number
-}
-
 export default function DashboardPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState<DashboardStats>({
+
+  // React Query hook - una sola llamada con caché
+  const { data, isLoading: loading, error } = useDashboardData()
+
+  const stats = data?.stats || {
     totalProductos: 0,
     productosStockBajo: 0,
     cotizacionesPendientes: 0,
     facturasPorCobrar: 0,
     totalPorCobrar: 0,
-  })
-  const [productosStockBajo, setProductosStockBajo] = useState<any[]>([])
-  const [facturasRecientes, setFacturasRecientes] = useState<any[]>([])
-
-  useEffect(() => {
-    loadDashboardData()
-  }, [])
-
-  const loadDashboardData = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      // Total productos
-      const { count: totalProductos } = await supabase
-        .schema('erp')
-        .from('productos')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true)
-
-      // Productos con stock bajo
-      const { data: stockBajo } = await supabase
-        .schema('erp')
-        .from('v_productos_stock')
-        .select('*')
-        .lt('stock_total', 10)
-        .limit(5)
-
-      // Cotizaciones pendientes
-      const { count: cotizacionesPendientes } = await supabase
-        .schema('erp')
-        .from('cotizaciones')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['borrador', 'enviada', 'aceptada'])
-
-      // Facturas por cobrar
-      const { data: facturas, count: facturasPorCobrar } = await supabase
-        .schema('erp')
-        .from('v_facturas')
-        .select('*', { count: 'exact' })
-        .in('status', ['pendiente', 'parcial'])
-        .order('fecha', { ascending: false })
-        .limit(5)
-
-      // Total por cobrar
-      const totalPorCobrar = facturas?.reduce((sum, f) => sum + (f.saldo || 0), 0) || 0
-
-      setStats({
-        totalProductos: totalProductos || 0,
-        productosStockBajo: stockBajo?.length || 0,
-        cotizacionesPendientes: cotizacionesPendientes || 0,
-        facturasPorCobrar: facturasPorCobrar || 0,
-        totalPorCobrar,
-      })
-
-      setProductosStockBajo(stockBajo || [])
-      setFacturasRecientes(facturas || [])
-    } catch (error) {
-      console.error('Error loading dashboard:', error)
-    } finally {
-      setLoading(false)
-    }
   }
+  const productosStockBajo = data?.productosStockBajo || []
+  const facturasRecientes = data?.facturasRecientes || []
 
   const productosColumns = [
     {
@@ -166,6 +100,14 @@ export default function DashboardPage() {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
         <Spin size="large" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px', color: '#cf1322' }}>
+        Error al cargar el dashboard
       </div>
     )
   }

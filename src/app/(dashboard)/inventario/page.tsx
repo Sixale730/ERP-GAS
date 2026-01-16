@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Select, Input, Space, Tag, Card, Typography, message, Row, Col, Statistic, Button, Modal, InputNumber, Form } from 'antd'
 import { SearchOutlined, InboxOutlined, WarningOutlined, EditOutlined, SettingOutlined, SwapOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAlmacenes, useInventario, useMovimientos } from '@/lib/hooks/useQueries'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
-import type { Almacen, MovimientoView } from '@/types/database'
 
 const { Title, Text } = Typography
 
@@ -29,15 +30,16 @@ interface InventarioRow {
 
 export default function InventarioPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [inventario, setInventario] = useState<InventarioRow[]>([])
-  const [almacenes, setAlmacenes] = useState<Almacen[]>([])
-  const [almacenFilter, setAlmacenFilter] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const [almacenFilter, setAlmacenFilter] = useState<string | undefined>(undefined)
   const [searchText, setSearchText] = useState('')
 
-  // Estado para movimientos recientes
-  const [movimientos, setMovimientos] = useState<MovimientoView[]>([])
-  const [loadingMovimientos, setLoadingMovimientos] = useState(false)
+  // React Query hooks - cargan en paralelo, no en cascada
+  const { data: almacenes = [], isLoading: loadingAlmacenes } = useAlmacenes()
+  const { data: inventario = [], isLoading: loadingInventario } = useInventario(almacenFilter)
+  const { data: movimientos = [], isLoading: loadingMovimientos } = useMovimientos(almacenFilter, 10)
+
+  const loading = loadingAlmacenes || loadingInventario
 
   // Modal para editar cantidad
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -54,91 +56,10 @@ export default function InventarioPage() {
   const [nuevoMaximo, setNuevoMaximo] = useState<number>(0)
   const [savingMinMax, setSavingMinMax] = useState(false)
 
-  useEffect(() => {
-    loadAlmacenes()
-  }, [])
-
-  // Cargar inventario cuando tengamos los almacenes activos
-  useEffect(() => {
-    if (almacenes.length > 0) {
-      loadInventario()
-      loadMovimientos()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [almacenes, almacenFilter])
-
-  const loadAlmacenes = async () => {
-    const supabase = getSupabaseClient()
-
-    try {
-      const { data } = await supabase
-        .schema('erp')
-        .from('almacenes')
-        .select('*')
-        .eq('is_active', true)
-        .order('nombre')
-
-      setAlmacenes(data || [])
-    } catch (error) {
-      console.error('Error loading almacenes:', error)
-    }
-  }
-
-  const loadInventario = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      // Obtener IDs de almacenes activos
-      const idsActivos = almacenes.map(a => a.id)
-
-      let query = supabase
-        .schema('erp')
-        .from('v_inventario_detalle')
-        .select('*')
-        .in('almacen_id', idsActivos)
-        .order('producto_nombre')
-
-      if (almacenFilter) {
-        query = query.eq('almacen_id', almacenFilter)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setInventario(data || [])
-    } catch (error) {
-      console.error('Error loading inventario:', error)
-      message.error('Error al cargar inventario')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadMovimientos = async () => {
-    setLoadingMovimientos(true)
-    const supabase = getSupabaseClient()
-
-    try {
-      let query = supabase
-        .schema('erp')
-        .from('v_movimientos')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (almacenFilter) {
-        query = query.or(`almacen_origen_id.eq.${almacenFilter},almacen_destino_id.eq.${almacenFilter}`)
-      }
-
-      const { data, error } = await query
-      if (error) throw error
-      setMovimientos(data || [])
-    } catch (error) {
-      console.error('Error loading movimientos:', error)
-    } finally {
-      setLoadingMovimientos(false)
-    }
+  // Función para invalidar queries después de una actualización
+  const invalidateInventarioQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ['inventario'] })
+    queryClient.invalidateQueries({ queryKey: ['movimientos'] })
   }
 
   const handleOpenEditModal = (item: InventarioRow) => {
@@ -194,8 +115,7 @@ export default function InventarioPage() {
 
       message.success('Inventario actualizado')
       setEditModalOpen(false)
-      loadInventario()
-      loadMovimientos()
+      invalidateInventarioQueries()
     } catch (error: any) {
       console.error('Error updating inventory:', error)
       message.error(error.message || 'Error al actualizar inventario')
@@ -238,7 +158,7 @@ export default function InventarioPage() {
 
       message.success('Límites de stock actualizados')
       setMinMaxModalOpen(false)
-      loadInventario()
+      invalidateInventarioQueries()
     } catch (error: any) {
       console.error('Error updating min/max:', error)
       message.error(error.message || 'Error al actualizar límites')
@@ -247,16 +167,22 @@ export default function InventarioPage() {
     }
   }
 
-  const filteredInventario = inventario.filter(
-    (i) =>
-      i.producto_nombre.toLowerCase().includes(searchText.toLowerCase()) ||
-      i.sku.toLowerCase().includes(searchText.toLowerCase())
+  // Filtrar con useMemo para evitar recálculos
+  const filteredInventario = useMemo(() =>
+    (inventario as InventarioRow[]).filter(
+      (i) =>
+        i.producto_nombre?.toLowerCase().includes(searchText.toLowerCase()) ||
+        i.sku?.toLowerCase().includes(searchText.toLowerCase())
+    ),
+    [inventario, searchText]
   )
 
-  // Stats
-  const totalItems = filteredInventario.length
-  const stockBajo = filteredInventario.filter(i => i.nivel_stock === 'bajo').length
-  const stockExceso = filteredInventario.filter(i => i.nivel_stock === 'exceso').length
+  // Stats calculados con useMemo
+  const { totalItems, stockBajo, stockExceso } = useMemo(() => ({
+    totalItems: filteredInventario.length,
+    stockBajo: filteredInventario.filter(i => i.nivel_stock === 'bajo').length,
+    stockExceso: filteredInventario.filter(i => i.nivel_stock === 'exceso').length,
+  }), [filteredInventario])
 
   const columns: ColumnsType<InventarioRow> = [
     {
@@ -393,12 +319,12 @@ export default function InventarioPage() {
             allowClear
           />
           <Select
-            placeholder="Filtrar por almacén"
+            placeholder="Filtrar por almacen"
             value={almacenFilter}
-            onChange={setAlmacenFilter}
+            onChange={(val) => setAlmacenFilter(val || undefined)}
             style={{ width: '100%', maxWidth: 200 }}
             allowClear
-            options={almacenes.map(a => ({ value: a.id, label: a.nombre }))}
+            options={almacenes.map((a: { id: string; nombre: string }) => ({ value: a.id, label: a.nombre }))}
           />
         </Space>
 

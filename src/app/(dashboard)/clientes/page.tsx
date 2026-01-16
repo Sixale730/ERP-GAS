@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { getSupabaseClient } from '@/lib/supabase/client'
+import { useClientes, useDeleteCliente } from '@/lib/hooks/useQueries'
 import { formatMoney } from '@/lib/utils/format'
 import type { Cliente } from '@/types/database'
 
@@ -13,61 +13,36 @@ const { Title } = Typography
 
 export default function ClientesPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [clientes, setClientes] = useState<Cliente[]>([])
   const [searchText, setSearchText] = useState('')
 
-  useEffect(() => {
-    loadClientes()
-  }, [])
+  // React Query hooks
+  const { data: clientes = [], isLoading: loading, error } = useClientes()
+  const deleteCliente = useDeleteCliente()
 
-  const loadClientes = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      const { data, error } = await supabase
-        .schema('erp')
-        .from('clientes')
-        .select('*')
-        .eq('is_active', true)
-        .order('nombre_comercial')
-
-      if (error) throw error
-      setClientes(data || [])
-    } catch (error) {
-      console.error('Error loading clientes:', error)
-      message.error('Error al cargar clientes')
-    } finally {
-      setLoading(false)
-    }
+  // Mostrar error si hay
+  if (error) {
+    message.error('Error al cargar clientes')
   }
 
   const handleDelete = async (id: string) => {
-    const supabase = getSupabaseClient()
-
     try {
-      const { error } = await supabase
-        .schema('erp')
-        .from('clientes')
-        .update({ is_active: false })
-        .eq('id', id)
-
-      if (error) throw error
-
+      await deleteCliente.mutateAsync(id)
       message.success('Cliente eliminado')
-      loadClientes()
     } catch (error) {
       console.error('Error deleting cliente:', error)
       message.error('Error al eliminar cliente')
     }
   }
 
-  const filteredClientes = clientes.filter(
-    (c) =>
-      c.nombre_comercial.toLowerCase().includes(searchText.toLowerCase()) ||
-      c.codigo.toLowerCase().includes(searchText.toLowerCase()) ||
-      (c.rfc && c.rfc.toLowerCase().includes(searchText.toLowerCase()))
+  // Filtrar con useMemo para evitar recálculos innecesarios
+  const filteredClientes = useMemo(() =>
+    clientes.filter(
+      (c) =>
+        c.nombre_comercial.toLowerCase().includes(searchText.toLowerCase()) ||
+        c.codigo.toLowerCase().includes(searchText.toLowerCase()) ||
+        (c.rfc && c.rfc.toLowerCase().includes(searchText.toLowerCase()))
+    ),
+    [clientes, searchText]
   )
 
   const columns: ColumnsType<Cliente> = [

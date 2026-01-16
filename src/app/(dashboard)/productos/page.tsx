@@ -1,70 +1,46 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { getSupabaseClient } from '@/lib/supabase/client'
+import { useProductosStock, useDeleteProducto } from '@/lib/hooks/useQueries'
 import type { ProductoStock } from '@/types/database'
 
 const { Title } = Typography
 
 export default function ProductosPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [productos, setProductos] = useState<ProductoStock[]>([])
   const [searchText, setSearchText] = useState('')
 
-  useEffect(() => {
-    loadProductos()
-  }, [])
+  // React Query hooks
+  const { data: productos = [], isLoading: loading, error } = useProductosStock()
+  const deleteProducto = useDeleteProducto()
 
-  const loadProductos = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      const { data, error } = await supabase
-        .schema('erp')
-        .from('v_productos_stock')
-        .select('*')
-        .order('nombre')
-
-      if (error) throw error
-      setProductos(data || [])
-    } catch (error) {
-      console.error('Error loading productos:', error)
-      message.error('Error al cargar productos')
-    } finally {
-      setLoading(false)
-    }
+  // Mostrar error si hay
+  if (error) {
+    message.error('Error al cargar productos')
   }
 
   const handleDelete = async (id: string) => {
-    const supabase = getSupabaseClient()
-
     try {
-      const { error } = await supabase
-        .schema('erp')
-        .from('productos')
-        .update({ is_active: false })
-        .eq('id', id)
-
-      if (error) throw error
-
+      await deleteProducto.mutateAsync(id)
       message.success('Producto eliminado')
-      loadProductos()
     } catch (error) {
       console.error('Error deleting producto:', error)
       message.error('Error al eliminar producto')
     }
   }
 
-  const filteredProductos = productos.filter(
-    (p) =>
-      p.nombre.toLowerCase().includes(searchText.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchText.toLowerCase())
+  // Filtrar con useMemo para evitar recálculos innecesarios
+  const filteredProductos = useMemo(() =>
+    productos.filter(
+      (p) =>
+        p.nombre.toLowerCase().includes(searchText.toLowerCase()) ||
+        p.sku.toLowerCase().includes(searchText.toLowerCase())
+    ),
+    [productos, searchText]
   )
 
   const columns: ColumnsType<ProductoStock> = [

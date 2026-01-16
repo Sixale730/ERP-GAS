@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
 import { ConfigProvider } from 'antd'
 import esES from 'antd/locale/es_ES'
+import { QueryProvider } from '@/lib/providers/QueryProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -30,19 +31,21 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <AntdRegistry>
-          <ConfigProvider
-            locale={esES}
-            theme={{
-              token: {
-                colorPrimary: '#1890ff',
-                borderRadius: 6,
-              },
-            }}
-          >
-            {children}
-          </ConfigProvider>
-        </AntdRegistry>
+        <QueryProvider>
+          <AntdRegistry>
+            <ConfigProvider
+              locale={esES}
+              theme={{
+                token: {
+                  colorPrimary: '#1890ff',
+                  borderRadius: 6,
+                },
+              }}
+            >
+              {children}
+            </ConfigProvider>
+          </AntdRegistry>
+        </QueryProvider>
       </body>
     </html>
   )
