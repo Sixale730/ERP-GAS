@@ -112,3 +112,120 @@ body {
     padding: 0 !important;
   }
 }
+
+/* NProgress styles */
+#nprogress {
+  pointer-events: none;
+}
+
+#nprogress .bar {
+  background: #1890ff;
+  position: fixed;
+  z-index: 9999;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+}
+
+#nprogress .peg {
+  display: block;
+  position: absolute;
+  right: 0px;
+  width: 100px;
+  height: 100%;
+  box-shadow: 0 0 10px #1890ff, 0 0 5px #1890ff;
+  opacity: 1;
+  transform: rotate(3deg) translate(0px, -4px);
+}
+
+/* Animaciones y transiciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Aplicar animación al contenido */
+.ant-layout-content > div {
+  animation: fadeIn 0.25s ease-out;
+}
+
+/* Transiciones suaves en tablas */
+.ant-table-tbody > tr {
+  transition: background-color 0.2s ease;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background-color: #fafafa !important;
+}
+
+/* Transiciones en cards */
+.ant-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Transiciones en botones */
+.ant-btn {
+  transition: all 0.2s ease;
+}
+
+/* Transiciones en tags */
+.ant-tag {
+  transition: all 0.2s ease;
+}
+
+/* Skeleton loading animation */
+.table-skeleton,
+.dashboard-skeleton,
+.form-skeleton,
+.detail-skeleton {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Smooth skeleton pulse override */
+.ant-skeleton-input,
+.ant-skeleton-button,
+.ant-skeleton-avatar {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e6e6e6 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Transiciones en sidebar */
+.ant-layout-sider {
+  transition: all 0.2s ease !important;
+}
+
+.ant-menu-item {
+  transition: background-color 0.2s ease, color 0.2s ease !important;
+}

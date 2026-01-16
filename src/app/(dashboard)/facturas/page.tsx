@@ -1,28 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
 import { SearchOutlined, EyeOutlined, FilePdfOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useFacturas, type FacturaRow } from '@/lib/hooks/queries/useFacturas'
+import { TableSkeleton } from '@/components/common/Skeletons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
-
-interface FacturaRow {
-  id: string
-  folio: string
-  fecha: string
-  status: string
-  total: number
-  saldo: number
-  dias_vencida: number
-  cliente_nombre?: string
-  almacen_nombre?: string
-}
 
 const statusColors: Record<string, string> = {
   pendiente: 'orange',
@@ -40,42 +30,11 @@ const statusLabels: Record<string, string> = {
 
 export default function FacturasPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [facturas, setFacturas] = useState<FacturaRow[]>([])
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    loadFacturas()
-  }, [statusFilter])
-
-  const loadFacturas = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      let query = supabase
-        .schema('erp')
-        .from('v_facturas')
-        .select('*')
-        .order('fecha', { ascending: false })
-
-      if (statusFilter) {
-        query = query.eq('status', statusFilter)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setFacturas(data || [])
-    } catch (error) {
-      console.error('Error loading facturas:', error)
-      message.error('Error al cargar facturas')
-    } finally {
-      setLoading(false)
-    }
-  }
+  // React Query hooks
+  const { data: facturas = [], isLoading, isError, error } = useFacturas(statusFilter)
 
   const handleDescargarPDF = async (facturaId: string) => {
     const supabase = getSupabaseClient()
@@ -168,9 +127,9 @@ export default function FacturasPage() {
       render: (dias, record) => {
         if (record.status === 'pagada' || record.status === 'cancelada') return '-'
         if (dias > 0) {
-          return <Tag color="red">{dias} días vencida</Tag>
+          return <Tag color="red">{dias} dias vencida</Tag>
         }
-        return <Tag color="green">Al día</Tag>
+        return <Tag color="green">Al dia</Tag>
       },
     },
     {
@@ -213,6 +172,10 @@ export default function FacturasPage() {
     .reduce((sum, f) => sum + f.saldo, 0)
   const facturasVencidas = filteredFacturas.filter(f => f.dias_vencida > 0 && f.status !== 'pagada').length
 
+  if (isError) {
+    message.error(`Error al cargar facturas: ${error?.message}`)
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
@@ -254,18 +217,21 @@ export default function FacturasPage() {
           />
         </Space>
 
-        <Table
-          dataSource={filteredFacturas}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 900 }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `${total} facturas`,
-          }}
-        />
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={8} />
+        ) : (
+          <Table
+            dataSource={filteredFacturas}
+            columns={columns}
+            rowKey="id"
+            scroll={{ x: 900 }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `${total} facturas`,
+            }}
+          />
+        )}
       </Card>
     </div>
   )

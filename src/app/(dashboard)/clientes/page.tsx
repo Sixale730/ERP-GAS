@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { getSupabaseClient } from '@/lib/supabase/client'
+import { useClientes, useDeleteCliente } from '@/lib/hooks/queries/useClientes'
+import { TableSkeleton } from '@/components/common/Skeletons'
 import { formatMoney } from '@/lib/utils/format'
 import type { Cliente } from '@/types/database'
 
@@ -13,50 +14,16 @@ const { Title } = Typography
 
 export default function ClientesPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [clientes, setClientes] = useState<Cliente[]>([])
   const [searchText, setSearchText] = useState('')
 
-  useEffect(() => {
-    loadClientes()
-  }, [])
-
-  const loadClientes = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      const { data, error } = await supabase
-        .schema('erp')
-        .from('clientes')
-        .select('*')
-        .eq('is_active', true)
-        .order('nombre_comercial')
-
-      if (error) throw error
-      setClientes(data || [])
-    } catch (error) {
-      console.error('Error loading clientes:', error)
-      message.error('Error al cargar clientes')
-    } finally {
-      setLoading(false)
-    }
-  }
+  // React Query hooks
+  const { data: clientes = [], isLoading, isError, error } = useClientes()
+  const deleteCliente = useDeleteCliente()
 
   const handleDelete = async (id: string) => {
-    const supabase = getSupabaseClient()
-
     try {
-      const { error } = await supabase
-        .schema('erp')
-        .from('clientes')
-        .update({ is_active: false })
-        .eq('id', id)
-
-      if (error) throw error
-
+      await deleteCliente.mutateAsync(id)
       message.success('Cliente eliminado')
-      loadClientes()
     } catch (error) {
       console.error('Error deleting cliente:', error)
       message.error('Error al eliminar cliente')
@@ -72,7 +39,7 @@ export default function ClientesPage() {
 
   const columns: ColumnsType<Cliente> = [
     {
-      title: 'Código',
+      title: 'Codigo',
       dataIndex: 'codigo',
       key: 'codigo',
       width: 100,
@@ -91,7 +58,7 @@ export default function ClientesPage() {
       render: (rfc) => rfc || '-',
     },
     {
-      title: 'Teléfono',
+      title: 'Telefono',
       dataIndex: 'telefono',
       key: 'telefono',
       width: 130,
@@ -111,11 +78,11 @@ export default function ClientesPage() {
       ),
     },
     {
-      title: 'Crédito',
+      title: 'Credito',
       key: 'credito',
       width: 120,
       render: (_, record) => {
-        if (record.limite_credito === 0) return <Tag>Sin crédito</Tag>
+        if (record.limite_credito === 0) return <Tag>Sin credito</Tag>
         const porcentaje = (record.saldo_pendiente / record.limite_credito) * 100
         let color = 'green'
         if (porcentaje > 80) color = 'red'
@@ -135,17 +102,26 @@ export default function ClientesPage() {
             onClick={() => router.push(`/clientes/${record.id}`)}
           />
           <Popconfirm
-            title="¿Eliminar cliente?"
+            title="Eliminar cliente?"
             onConfirm={() => handleDelete(record.id)}
-            okText="Sí"
+            okText="Si"
             cancelText="No"
           >
-            <Button type="link" danger icon={<DeleteOutlined />} />
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              loading={deleteCliente.isPending}
+            />
           </Popconfirm>
         </Space>
       ),
     },
   ]
+
+  if (isError) {
+    message.error(`Error al cargar clientes: ${error?.message}`)
+  }
 
   return (
     <div>
@@ -163,7 +139,7 @@ export default function ClientesPage() {
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
           <Input
-            placeholder="Buscar por código, nombre o RFC..."
+            placeholder="Buscar por codigo, nombre o RFC..."
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -172,18 +148,21 @@ export default function ClientesPage() {
           />
         </Space>
 
-        <Table
-          dataSource={filteredClientes}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 900 }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `${total} clientes`,
-          }}
-        />
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={7} />
+        ) : (
+          <Table
+            dataSource={filteredClientes}
+            columns={columns}
+            rowKey="id"
+            scroll={{ x: 900 }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `${total} clientes`,
+            }}
+          />
+        )}
       </Card>
     </div>
   )

@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useCotizaciones, useDeleteCotizacion, type CotizacionRow } from '@/lib/hooks/queries/useCotizaciones'
+import { TableSkeleton } from '@/components/common/Skeletons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate, formatDateTime } from '@/lib/utils/format'
 import { generarPDFCotizacion } from '@/lib/utils/pdf'
@@ -12,21 +14,7 @@ import dayjs from 'dayjs'
 
 const { Title } = Typography
 
-interface CotizacionRow {
-  id: string
-  folio: string
-  fecha: string
-  vigencia_dias: number
-  status: string
-  total: number
-  cliente_nombre?: string
-  cliente_rfc?: string
-  almacen_nombre?: string
-  created_at?: string
-  updated_at?: string
-}
-
-// Helper para verificar si la cotización está caducada
+// Helper para verificar si la cotizacion esta caducada
 function esCaducada(fecha: string, vigenciaDias: number): boolean {
   const vencimiento = dayjs(fecha).add(vigenciaDias, 'day')
   return dayjs().isAfter(vencimiento)
@@ -48,47 +36,17 @@ const statusLabels: Record<string, string> = {
 
 export default function CotizacionesPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [cotizaciones, setCotizaciones] = useState<CotizacionRow[]>([])
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    loadCotizaciones()
-  }, [statusFilter])
-
-  const loadCotizaciones = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      let query = supabase
-        .schema('erp')
-        .from('v_cotizaciones')
-        .select('*')
-        .order('fecha', { ascending: false })
-
-      if (statusFilter) {
-        query = query.eq('status', statusFilter)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setCotizaciones(data || [])
-    } catch (error) {
-      console.error('Error loading cotizaciones:', error)
-      message.error('Error al cargar cotizaciones')
-    } finally {
-      setLoading(false)
-    }
-  }
+  // React Query hooks
+  const { data: cotizaciones = [], isLoading, isError, error } = useCotizaciones(statusFilter)
+  const deleteCotizacion = useDeleteCotizacion()
 
   const handleDescargarPDF = async (cotizacionId: string) => {
     const supabase = getSupabaseClient()
     try {
-      // Cargar cotización completa
+      // Cargar cotizacion completa
       const { data: cotData, error: cotError } = await supabase
         .schema('erp')
         .from('v_cotizaciones')
@@ -121,37 +79,17 @@ export default function CotizacionesPage() {
   }
 
   const handleEliminar = async (cotizacion: CotizacionRow) => {
-    // Solo permitir eliminar cotizaciones en status 'propuesta'
     if (cotizacion.status !== 'propuesta') {
       message.error('Solo se pueden eliminar cotizaciones en status "Propuesta"')
       return
     }
 
-    const supabase = getSupabaseClient()
     try {
-      // Primero eliminar los items de la cotización
-      const { error: itemsError } = await supabase
-        .schema('erp')
-        .from('cotizacion_items')
-        .delete()
-        .eq('cotizacion_id', cotizacion.id)
-
-      if (itemsError) throw itemsError
-
-      // Luego eliminar la cotización
-      const { error: cotError } = await supabase
-        .schema('erp')
-        .from('cotizaciones')
-        .delete()
-        .eq('id', cotizacion.id)
-
-      if (cotError) throw cotError
-
-      message.success(`Cotización ${cotizacion.folio} eliminada`)
-      loadCotizaciones() // Recargar la lista
+      await deleteCotizacion.mutateAsync(cotizacion)
+      message.success(`Cotizacion ${cotizacion.folio} eliminada`)
     } catch (error) {
-      console.error('Error eliminando cotización:', error)
-      message.error('Error al eliminar la cotización')
+      console.error('Error eliminando cotizacion:', error)
+      message.error('Error al eliminar la cotizacion')
     }
   }
 
@@ -220,7 +158,7 @@ export default function CotizacionesPage() {
       sorter: (a, b) => dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
     },
     {
-      title: 'Última edición',
+      title: 'Ultima edicion',
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 140,
@@ -247,10 +185,10 @@ export default function CotizacionesPage() {
           />
           {record.status === 'propuesta' && (
             <Popconfirm
-              title="Eliminar cotización"
-              description={`¿Está seguro de eliminar ${record.folio}?`}
+              title="Eliminar cotizacion"
+              description={`Esta seguro de eliminar ${record.folio}?`}
               onConfirm={() => handleEliminar(record)}
-              okText="Sí, eliminar"
+              okText="Si, eliminar"
               cancelText="Cancelar"
               okButtonProps={{ danger: true }}
             >
@@ -259,6 +197,7 @@ export default function CotizacionesPage() {
                 danger
                 icon={<DeleteOutlined />}
                 title="Eliminar"
+                loading={deleteCotizacion.isPending}
               />
             </Popconfirm>
           )}
@@ -266,6 +205,10 @@ export default function CotizacionesPage() {
       ),
     },
   ]
+
+  if (isError) {
+    message.error(`Error al cargar cotizaciones: ${error?.message}`)
+  }
 
   return (
     <div>
@@ -276,7 +219,7 @@ export default function CotizacionesPage() {
           icon={<PlusOutlined />}
           onClick={() => router.push('/cotizaciones/nueva')}
         >
-          Nueva Cotización
+          Nueva Cotizacion
         </Button>
       </div>
 
@@ -305,18 +248,21 @@ export default function CotizacionesPage() {
           />
         </Space>
 
-        <Table
-          dataSource={filteredCotizaciones}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 800 }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `${total} cotizaciones`,
-          }}
-        />
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={7} />
+        ) : (
+          <Table
+            dataSource={filteredCotizaciones}
+            columns={columns}
+            rowKey="id"
+            scroll={{ x: 800 }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `${total} cotizaciones`,
+            }}
+          />
+        )}
       </Card>
     </div>
   )

@@ -1,60 +1,28 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { getSupabaseClient } from '@/lib/supabase/client'
+import { useProductos, useDeleteProducto } from '@/lib/hooks/queries/useProductos'
+import { TableSkeleton } from '@/components/common/Skeletons'
 import type { ProductoStock } from '@/types/database'
 
 const { Title } = Typography
 
 export default function ProductosPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [productos, setProductos] = useState<ProductoStock[]>([])
   const [searchText, setSearchText] = useState('')
 
-  useEffect(() => {
-    loadProductos()
-  }, [])
-
-  const loadProductos = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      const { data, error } = await supabase
-        .schema('erp')
-        .from('v_productos_stock')
-        .select('*')
-        .order('nombre')
-
-      if (error) throw error
-      setProductos(data || [])
-    } catch (error) {
-      console.error('Error loading productos:', error)
-      message.error('Error al cargar productos')
-    } finally {
-      setLoading(false)
-    }
-  }
+  // React Query hooks
+  const { data: productos = [], isLoading, isError, error } = useProductos()
+  const deleteProducto = useDeleteProducto()
 
   const handleDelete = async (id: string) => {
-    const supabase = getSupabaseClient()
-
     try {
-      const { error } = await supabase
-        .schema('erp')
-        .from('productos')
-        .update({ is_active: false })
-        .eq('id', id)
-
-      if (error) throw error
-
+      await deleteProducto.mutateAsync(id)
       message.success('Producto eliminado')
-      loadProductos()
     } catch (error) {
       console.error('Error deleting producto:', error)
       message.error('Error al eliminar producto')
@@ -82,10 +50,10 @@ export default function ProductosPage() {
       sorter: (a, b) => a.nombre.localeCompare(b.nombre),
     },
     {
-      title: 'Categoría',
+      title: 'Categoria',
       dataIndex: 'categoria_nombre',
       key: 'categoria_nombre',
-      render: (cat) => cat || <span style={{ color: '#999' }}>Sin categoría</span>,
+      render: (cat) => cat || <span style={{ color: '#999' }}>Sin categoria</span>,
     },
     {
       title: 'Stock Total',
@@ -121,18 +89,27 @@ export default function ProductosPage() {
             onClick={() => router.push(`/productos/${record.id}`)}
           />
           <Popconfirm
-            title="¿Eliminar producto?"
-            description="El producto será desactivado"
+            title="Eliminar producto?"
+            description="El producto sera desactivado"
             onConfirm={() => handleDelete(record.id)}
-            okText="Sí"
+            okText="Si"
             cancelText="No"
           >
-            <Button type="link" danger icon={<DeleteOutlined />} />
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              loading={deleteProducto.isPending}
+            />
           </Popconfirm>
         </Space>
       ),
     },
   ]
+
+  if (isError) {
+    message.error(`Error al cargar productos: ${error?.message}`)
+  }
 
   return (
     <div>
@@ -159,18 +136,21 @@ export default function ProductosPage() {
           />
         </Space>
 
-        <Table
-          dataSource={filteredProductos}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 800 }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `${total} productos`,
-          }}
-        />
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={6} />
+        ) : (
+          <Table
+            dataSource={filteredProductos}
+            columns={columns}
+            rowKey="id"
+            scroll={{ x: 800 }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `${total} productos`,
+            }}
+          />
+        )}
       </Card>
     </div>
   )
