@@ -8,7 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useCotizaciones, useDeleteCotizacion, type CotizacionRow } from '@/lib/hooks/queries/useCotizaciones'
 import { TableSkeleton } from '@/components/common/Skeletons'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoney, formatDate, formatDateTime } from '@/lib/utils/format'
+import { formatMoneySimple, formatDate, formatDateTime } from '@/lib/utils/format'
 import { generarPDFCotizacion } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
@@ -22,15 +22,11 @@ function esCaducada(fecha: string, vigenciaDias: number): boolean {
 
 const statusColors: Record<string, string> = {
   propuesta: 'processing',
-  orden_venta: 'success',
-  factura: 'purple',
   cancelada: 'error',
 }
 
 const statusLabels: Record<string, string> = {
   propuesta: 'Propuesta',
-  orden_venta: 'Orden de Venta',
-  factura: 'Facturada',
   cancelada: 'Cancelada',
 }
 
@@ -126,7 +122,7 @@ export default function CotizacionesPage() {
       key: 'total',
       width: 130,
       align: 'right',
-      render: (total) => formatMoney(total),
+      render: (total) => formatMoneySimple(total),
       sorter: (a, b) => a.total - b.total,
     },
     {
@@ -140,7 +136,6 @@ export default function CotizacionesPage() {
             {statusLabels[status] || status}
           </Tag>
           {esCaducada(record.fecha, record.vigencia_dias || 30) &&
-           status !== 'factura' &&
            status !== 'cancelada' && (
             <Tag color="warning" icon={<ClockCircleOutlined />}>
               Caducada
@@ -241,8 +236,6 @@ export default function CotizacionesPage() {
             allowClear
             options={[
               { value: 'propuesta', label: 'Propuesta' },
-              { value: 'orden_venta', label: 'Orden de Venta' },
-              { value: 'factura', label: 'Facturada' },
               { value: 'cancelada', label: 'Cancelada' },
             ]}
           />
