@@ -8,6 +8,7 @@ export interface CotizacionRow {
   vigencia_dias: number
   status: string
   total: number
+  moneda: 'USD' | 'MXN'
   cliente_nombre?: string
   cliente_rfc?: string
   almacen_nombre?: string
@@ -31,6 +32,7 @@ async function fetchCotizaciones(statusFilter?: string | null): Promise<Cotizaci
     .schema('erp')
     .from('v_cotizaciones')
     .select('*')
+    .like('folio', 'COT-%')  // Solo cotizaciones, excluir ordenes de venta (OV-)
     .order('fecha', { ascending: false })
 
   if (statusFilter) {

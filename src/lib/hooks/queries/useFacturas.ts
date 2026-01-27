@@ -8,6 +8,7 @@ export interface FacturaRow {
   status: string
   total: number
   saldo: number
+  moneda: 'USD' | 'MXN'
   dias_vencida: number
   cliente_nombre?: string
   almacen_nombre?: string

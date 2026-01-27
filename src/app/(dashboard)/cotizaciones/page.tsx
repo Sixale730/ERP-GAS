@@ -8,7 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useCotizaciones, useDeleteCotizacion, type CotizacionRow } from '@/lib/hooks/queries/useCotizaciones'
 import { TableSkeleton } from '@/components/common/Skeletons'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoneySimple, formatDate, formatDateTime } from '@/lib/utils/format'
+import { formatDate, formatDateTime } from '@/lib/utils/format'
 import { generarPDFCotizacion } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
@@ -120,9 +120,16 @@ export default function CotizacionesPage() {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',
-      width: 130,
+      width: 150,
       align: 'right',
-      render: (total) => formatMoneySimple(total),
+      render: (total: number, record) => {
+        const moneda = record.moneda || 'MXN'
+        const formatted = new Intl.NumberFormat('es-MX', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(total || 0)
+        return `$${formatted} ${moneda}`
+      },
       sorter: (a, b) => a.total - b.total,
     },
     {

@@ -1,43 +1,36 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Select, Input, Space, Tag, Card, Typography, message, Row, Col, Statistic, Button, Modal, InputNumber, Form } from 'antd'
 import { SearchOutlined, InboxOutlined, WarningOutlined, EditOutlined, SettingOutlined, SwapOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { getSupabaseClient } from '@/lib/supabase/client'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
-import type { Almacen, MovimientoView } from '@/types/database'
+import { TableSkeleton } from '@/components/common/Skeletons'
+import {
+  useAlmacenes,
+  useInventario,
+  useMovimientos,
+  useAjustarInventario,
+  useActualizarMinMax,
+  type InventarioRow,
+} from '@/lib/hooks/queries/useInventario'
 
 const { Title, Text } = Typography
 
-interface InventarioRow {
-  id: string
-  producto_id: string
-  almacen_id: string
-  cantidad: number
-  cantidad_reservada: number
-  sku: string
-  producto_nombre: string
-  unidad_medida: string
-  stock_minimo: number
-  stock_maximo: number
-  almacen_codigo: string
-  almacen_nombre: string
-  nivel_stock: string
-}
-
 export default function InventarioPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [inventario, setInventario] = useState<InventarioRow[]>([])
-  const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const [almacenFilter, setAlmacenFilter] = useState<string | null>(null)
   const [searchText, setSearchText] = useState('')
 
-  // Estado para movimientos recientes
-  const [movimientos, setMovimientos] = useState<MovimientoView[]>([])
-  const [loadingMovimientos, setLoadingMovimientos] = useState(false)
+  // React Query hooks - datos cacheados automáticamente
+  const { data: almacenes = [] } = useAlmacenes()
+  const { data: inventario = [], isLoading } = useInventario(almacenFilter)
+  const { data: movimientos = [], isLoading: loadingMovimientos } = useMovimientos(almacenFilter)
+
+  // Mutations
+  const ajustarInventario = useAjustarInventario()
+  const actualizarMinMax = useActualizarMinMax()
 
   // Modal para editar cantidad
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -45,101 +38,12 @@ export default function InventarioPage() {
   const [nuevaCantidad, setNuevaCantidad] = useState<number>(0)
   const [tipoAjuste, setTipoAjuste] = useState<'set' | 'add' | 'subtract'>('set')
   const [notaAjuste, setNotaAjuste] = useState('')
-  const [saving, setSaving] = useState(false)
 
   // Modal para editar min/max
   const [minMaxModalOpen, setMinMaxModalOpen] = useState(false)
   const [editingMinMaxItem, setEditingMinMaxItem] = useState<InventarioRow | null>(null)
   const [nuevoMinimo, setNuevoMinimo] = useState<number>(0)
   const [nuevoMaximo, setNuevoMaximo] = useState<number>(0)
-  const [savingMinMax, setSavingMinMax] = useState(false)
-
-  useEffect(() => {
-    loadAlmacenes()
-  }, [])
-
-  // Cargar inventario cuando tengamos los almacenes activos
-  useEffect(() => {
-    if (almacenes.length > 0) {
-      loadInventario()
-      loadMovimientos()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [almacenes, almacenFilter])
-
-  const loadAlmacenes = async () => {
-    const supabase = getSupabaseClient()
-
-    try {
-      const { data } = await supabase
-        .schema('erp')
-        .from('almacenes')
-        .select('*')
-        .eq('is_active', true)
-        .order('nombre')
-
-      setAlmacenes(data || [])
-    } catch (error) {
-      console.error('Error loading almacenes:', error)
-    }
-  }
-
-  const loadInventario = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      // Obtener IDs de almacenes activos
-      const idsActivos = almacenes.map(a => a.id)
-
-      let query = supabase
-        .schema('erp')
-        .from('v_inventario_detalle')
-        .select('*')
-        .in('almacen_id', idsActivos)
-        .order('producto_nombre')
-
-      if (almacenFilter) {
-        query = query.eq('almacen_id', almacenFilter)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setInventario(data || [])
-    } catch (error) {
-      console.error('Error loading inventario:', error)
-      message.error('Error al cargar inventario')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadMovimientos = async () => {
-    setLoadingMovimientos(true)
-    const supabase = getSupabaseClient()
-
-    try {
-      let query = supabase
-        .schema('erp')
-        .from('v_movimientos')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (almacenFilter) {
-        query = query.or(`almacen_origen_id.eq.${almacenFilter},almacen_destino_id.eq.${almacenFilter}`)
-      }
-
-      const { data, error } = await query
-      if (error) throw error
-      setMovimientos(data || [])
-    } catch (error) {
-      console.error('Error loading movimientos:', error)
-    } finally {
-      setLoadingMovimientos(false)
-    }
-  }
 
   const handleOpenEditModal = (item: InventarioRow) => {
     setEditingItem(item)
@@ -152,55 +56,27 @@ export default function InventarioPage() {
   const handleSaveInventario = async () => {
     if (!editingItem) return
 
-    setSaving(true)
-    const supabase = getSupabaseClient()
+    let cantidadFinal: number
+
+    if (tipoAjuste === 'set') {
+      cantidadFinal = nuevaCantidad
+    } else if (tipoAjuste === 'add') {
+      cantidadFinal = editingItem.cantidad + nuevaCantidad
+    } else {
+      cantidadFinal = editingItem.cantidad - nuevaCantidad
+    }
 
     try {
-      let cantidadFinal: number
-
-      if (tipoAjuste === 'set') {
-        cantidadFinal = nuevaCantidad
-      } else if (tipoAjuste === 'add') {
-        cantidadFinal = editingItem.cantidad + nuevaCantidad
-      } else {
-        cantidadFinal = editingItem.cantidad - nuevaCantidad
-      }
-
-      // Actualizar inventario
-      const { error: invError } = await supabase
-        .schema('erp')
-        .from('inventario')
-        .update({ cantidad: cantidadFinal, updated_at: new Date().toISOString() })
-        .eq('id', editingItem.id)
-
-      if (invError) throw invError
-
-      // Registrar movimiento
-      const diferencia = cantidadFinal - editingItem.cantidad
-      if (diferencia !== 0) {
-        await supabase
-          .schema('erp')
-          .from('movimientos_inventario')
-          .insert({
-            producto_id: editingItem.producto_id,
-            almacen_origen_id: diferencia < 0 ? editingItem.almacen_id : null,
-            almacen_destino_id: diferencia > 0 ? editingItem.almacen_id : null,
-            tipo: diferencia > 0 ? 'entrada' : 'salida',
-            cantidad: Math.abs(diferencia),
-            referencia_tipo: 'ajuste',
-            notas: notaAjuste || `Ajuste manual de inventario: ${editingItem.cantidad} → ${cantidadFinal}`,
-          })
-      }
-
+      await ajustarInventario.mutateAsync({
+        item: editingItem,
+        cantidadFinal,
+        nota: notaAjuste,
+      })
       message.success('Inventario actualizado')
       setEditModalOpen(false)
-      loadInventario()
-      loadMovimientos()
     } catch (error: any) {
       console.error('Error updating inventory:', error)
       message.error(error.message || 'Error al actualizar inventario')
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -219,44 +95,37 @@ export default function InventarioPage() {
       return
     }
 
-    setSavingMinMax(true)
-    const supabase = getSupabaseClient()
-
     try {
-      // Actualizar stock_minimo y stock_maximo en la tabla productos
-      const { error } = await supabase
-        .schema('erp')
-        .from('productos')
-        .update({
-          stock_minimo: nuevoMinimo,
-          stock_maximo: nuevoMaximo,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', editingMinMaxItem.producto_id)
-
-      if (error) throw error
-
+      await actualizarMinMax.mutateAsync({
+        productoId: editingMinMaxItem.producto_id,
+        stockMinimo: nuevoMinimo,
+        stockMaximo: nuevoMaximo,
+      })
       message.success('Límites de stock actualizados')
       setMinMaxModalOpen(false)
-      loadInventario()
     } catch (error: any) {
       console.error('Error updating min/max:', error)
       message.error(error.message || 'Error al actualizar límites')
-    } finally {
-      setSavingMinMax(false)
     }
   }
 
-  const filteredInventario = inventario.filter(
-    (i) =>
-      i.producto_nombre.toLowerCase().includes(searchText.toLowerCase()) ||
-      i.sku.toLowerCase().includes(searchText.toLowerCase())
-  )
+  // Filtrar localmente por búsqueda
+  const filteredInventario = useMemo(() => {
+    if (!searchText) return inventario
+    const search = searchText.toLowerCase()
+    return inventario.filter(
+      (i) =>
+        i.producto_nombre.toLowerCase().includes(search) ||
+        i.sku.toLowerCase().includes(search)
+    )
+  }, [inventario, searchText])
 
-  // Stats
-  const totalItems = filteredInventario.length
-  const stockBajo = filteredInventario.filter(i => i.nivel_stock === 'bajo').length
-  const stockExceso = filteredInventario.filter(i => i.nivel_stock === 'exceso').length
+  // Stats calculados de datos cacheados
+  const stats = useMemo(() => ({
+    totalItems: filteredInventario.length,
+    stockBajo: filteredInventario.filter(i => i.nivel_stock === 'bajo').length,
+    stockExceso: filteredInventario.filter(i => i.nivel_stock === 'exceso').length,
+  }), [filteredInventario])
 
   const columns: ColumnsType<InventarioRow> = [
     {
@@ -355,7 +224,7 @@ export default function InventarioPage() {
           <Card>
             <Statistic
               title="Total Registros"
-              value={totalItems}
+              value={stats.totalItems}
               prefix={<InboxOutlined />}
             />
           </Card>
@@ -364,9 +233,9 @@ export default function InventarioPage() {
           <Card>
             <Statistic
               title="Stock Bajo"
-              value={stockBajo}
+              value={stats.stockBajo}
               prefix={<WarningOutlined />}
-              valueStyle={{ color: stockBajo > 0 ? '#cf1322' : '#3f8600' }}
+              valueStyle={{ color: stats.stockBajo > 0 ? '#cf1322' : '#3f8600' }}
             />
           </Card>
         </Col>
@@ -374,9 +243,9 @@ export default function InventarioPage() {
           <Card>
             <Statistic
               title="Stock en Exceso"
-              value={stockExceso}
+              value={stats.stockExceso}
               prefix={<WarningOutlined />}
-              valueStyle={{ color: stockExceso > 0 ? '#faad14' : '#3f8600' }}
+              valueStyle={{ color: stats.stockExceso > 0 ? '#faad14' : '#3f8600' }}
             />
           </Card>
         </Col>
@@ -402,22 +271,25 @@ export default function InventarioPage() {
           />
         </Space>
 
-        <Table
-          dataSource={filteredInventario}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 900 }}
-          pagination={{
-            pageSize: 15,
-            showSizeChanger: true,
-            showTotal: (total) => `${total} registros`,
-          }}
-          rowClassName={(record) => {
-            if (record.nivel_stock === 'bajo') return 'row-stock-bajo'
-            return ''
-          }}
-        />
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={9} />
+        ) : (
+          <Table
+            dataSource={filteredInventario}
+            columns={columns}
+            rowKey="id"
+            scroll={{ x: 900 }}
+            pagination={{
+              pageSize: 15,
+              showSizeChanger: true,
+              showTotal: (total) => `${total} registros`,
+            }}
+            rowClassName={(record) => {
+              if (record.nivel_stock === 'bajo') return 'row-stock-bajo'
+              return ''
+            }}
+          />
+        )}
       </Card>
 
       {/* Sección de últimos movimientos */}
@@ -456,7 +328,7 @@ export default function InventarioPage() {
         onOk={handleSaveInventario}
         okText="Guardar"
         cancelText="Cancelar"
-        confirmLoading={saving}
+        confirmLoading={ajustarInventario.isPending}
         destroyOnClose
       >
         {editingItem && (
@@ -537,7 +409,7 @@ export default function InventarioPage() {
         onOk={handleSaveMinMax}
         okText="Guardar"
         cancelText="Cancelar"
-        confirmLoading={savingMinMax}
+        confirmLoading={actualizarMinMax.isPending}
         destroyOnClose
       >
         {editingMinMaxItem && (
