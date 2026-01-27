@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Alert, Collapse
 } from 'antd'
-import { DeleteOutlined, SaveOutlined, InfoCircleOutlined, DollarOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
+import { DeleteOutlined, SaveOutlined, InfoCircleOutlined, DollarOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, UserOutlined } from '@ant-design/icons'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
@@ -58,6 +58,9 @@ export default function NuevaOrdenVentaPage() {
   const [inventarioMap, setInventarioMap] = useState<Map<string, number>>(new Map())
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(true)
 
+  // Vendedor
+  const [vendedorNombre, setVendedorNombre] = useState('')
+
   const [productSearch, setProductSearch] = useState('')
   const [productOptions, setProductOptions] = useState<any[]>([])
 
@@ -66,6 +69,13 @@ export default function NuevaOrdenVentaPage() {
       setTipoCambio(tcGlobal)
     }
   }, [loadingConfig, tcGlobal])
+
+  // Inicializar nombre del vendedor con el usuario actual
+  useEffect(() => {
+    if (erpUser?.nombre) {
+      setVendedorNombre(erpUser.nombre)
+    }
+  }, [erpUser])
 
   useEffect(() => {
     loadData()
@@ -346,7 +356,7 @@ export default function NuevaOrdenVentaPage() {
           cliente_id: clienteId,
           almacen_id: almacenId,
           lista_precio_id: listaPrecioId,
-          status: 'propuesta', // Crear como propuesta primero
+          status: 'orden_venta', // Crear directamente como orden de venta
           subtotal,
           descuento_porcentaje: descuentoGlobal,
           descuento_monto: descuentoMonto,
@@ -370,6 +380,9 @@ export default function NuevaOrdenVentaPage() {
           forma_pago: formValues.forma_pago || null,
           metodo_pago: formValues.metodo_pago || null,
           condiciones_pago: formValues.condiciones_pago || null,
+          // Vendedor
+          vendedor_id: erpUser?.id || null,
+          vendedor_nombre: vendedorNombre || null,
           organizacion_id: orgId,
         })
         .select()
@@ -414,7 +427,7 @@ export default function NuevaOrdenVentaPage() {
       })
 
       message.success(`Orden de Venta ${folio} creada`)
-      router.push('/ordenes-venta')
+      router.push(`/cotizaciones/${cotizacion.id}`)
     } catch (error: any) {
       console.error('Error saving orden de venta:', error)
       message.error(error.message || 'Error al guardar orden de venta')
@@ -605,6 +618,16 @@ export default function NuevaOrdenVentaPage() {
                       value={descuentoGlobal}
                       onChange={(v) => setDescuentoGlobal(v || 0)}
                       style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Vendedor">
+                    <Input
+                      prefix={<UserOutlined />}
+                      placeholder="Nombre del vendedor"
+                      value={vendedorNombre}
+                      onChange={(e) => setVendedorNombre(e.target.value)}
                     />
                   </Form.Item>
                 </Col>
@@ -842,7 +865,7 @@ export default function NuevaOrdenVentaPage() {
                   icon={<SaveOutlined />}
                   onClick={handleSave}
                   loading={saving}
-                  disabled={items.length === 0}
+                  disabled={saving || items.length === 0}
                   size="large"
                 >
                   Crear Orden de Venta

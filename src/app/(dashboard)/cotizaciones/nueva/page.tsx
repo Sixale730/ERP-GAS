@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Alert, Collapse
 } from 'antd'
-import { DeleteOutlined, SaveOutlined, InfoCircleOutlined, DollarOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
+import { DeleteOutlined, SaveOutlined, InfoCircleOutlined, DollarOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, UserOutlined } from '@ant-design/icons'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
@@ -65,6 +65,9 @@ export default function NuevaCotizacionPage() {
   const [inventarioMap, setInventarioMap] = useState<Map<string, number>>(new Map())
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(true)
 
+  // Vendedor
+  const [vendedorNombre, setVendedorNombre] = useState('')
+
   // Product search
   const [productSearch, setProductSearch] = useState('')
   const [productOptions, setProductOptions] = useState<any[]>([])
@@ -75,6 +78,13 @@ export default function NuevaCotizacionPage() {
       setTipoCambio(tcGlobal)
     }
   }, [loadingConfig, tcGlobal])
+
+  // Inicializar nombre del vendedor con el usuario actual
+  useEffect(() => {
+    if (erpUser?.nombre) {
+      setVendedorNombre(erpUser.nombre)
+    }
+  }, [erpUser])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -390,6 +400,9 @@ export default function NuevaCotizacionPage() {
           forma_pago: formValues.forma_pago || null,
           metodo_pago: formValues.metodo_pago || null,
           condiciones_pago: formValues.condiciones_pago || null,
+          // Vendedor
+          vendedor_id: erpUser?.id || null,
+          vendedor_nombre: vendedorNombre || null,
           // Organizacion (requerido por RLS)
           organizacion_id: orgId,
         })
@@ -427,7 +440,7 @@ export default function NuevaCotizacionPage() {
       })
 
       message.success(`Cotizacion ${folio} creada`)
-      router.push('/cotizaciones')
+      router.push(`/cotizaciones/${cotizacion.id}`)
     } catch (error: any) {
       console.error('Error saving cotizacion:', error)
       message.error(error.message || 'Error al guardar cotizacion')
@@ -612,6 +625,16 @@ export default function NuevaCotizacionPage() {
                       value={descuentoGlobal}
                       onChange={(v) => setDescuentoGlobal(v || 0)}
                       style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Vendedor">
+                    <Input
+                      prefix={<UserOutlined />}
+                      placeholder="Nombre del vendedor"
+                      value={vendedorNombre}
+                      onChange={(e) => setVendedorNombre(e.target.value)}
                     />
                   </Form.Item>
                 </Col>
@@ -842,7 +865,7 @@ export default function NuevaCotizacionPage() {
                   icon={<SaveOutlined />}
                   onClick={handleSave}
                   loading={saving}
-                  disabled={items.length === 0}
+                  disabled={saving || items.length === 0}
                   size="large"
                 >
                   Guardar Cotizacion

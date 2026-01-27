@@ -376,6 +376,7 @@ export type Database = {
           notas: string | null
           terminos_condiciones: string | null
           vendedor_id: string | null
+          vendedor_nombre: string | null
           factura_id: string | null
           tipo_cambio: number | null
           margen_aplicado: number | null
@@ -417,6 +418,7 @@ export type Database = {
           notas?: string | null
           terminos_condiciones?: string | null
           vendedor_id?: string | null
+          vendedor_nombre?: string | null
           factura_id?: string | null
           tipo_cambio?: number | null
           margen_aplicado?: number | null
@@ -458,6 +460,7 @@ export type Database = {
           notas?: string | null
           terminos_condiciones?: string | null
           vendedor_id?: string | null
+          vendedor_nombre?: string | null
           factura_id?: string | null
           tipo_cambio?: number | null
           margen_aplicado?: number | null
@@ -544,6 +547,7 @@ export type Database = {
           saldo: number
           notas: string | null
           vendedor_id: string | null
+          vendedor_nombre: string | null
           // Campos CFDI
           uuid_cfdi: string | null
           xml_cfdi: string | null
@@ -583,6 +587,7 @@ export type Database = {
           saldo?: number
           notas?: string | null
           vendedor_id?: string | null
+          vendedor_nombre?: string | null
           // Campos CFDI
           uuid_cfdi?: string | null
           xml_cfdi?: string | null
@@ -622,6 +627,7 @@ export type Database = {
           saldo?: number
           notas?: string | null
           vendedor_id?: string | null
+          vendedor_nombre?: string | null
           // Campos CFDI
           uuid_cfdi?: string | null
           xml_cfdi?: string | null
@@ -843,29 +849,61 @@ export type Database = {
         Row: {
           id: string
           folio: string
+          cliente_id: string
           cliente_codigo: string
           cliente_nombre: string
           cliente_rfc: string | null
+          almacen_id: string
           almacen_nombre: string
           fecha: string
           status: string
           status_actual: string
+          subtotal: number
+          descuento_monto: number
+          iva: number
           total: number
+          moneda: 'USD' | 'MXN'
+          tipo_cambio: number | null
+          vigencia_dias: number
+          notas: string | null
+          vendedor_id: string | null
+          vendedor_nombre: string | null
+          created_at: string
+          updated_at: string
+          organizacion_id: string | null
         }
       }
       v_facturas: {
         Row: {
           id: string
           folio: string
+          serie: string
+          cliente_id: string
           cliente_codigo: string
           cliente_nombre: string
+          cliente_rfc: string | null
+          almacen_id: string
           almacen_nombre: string
           fecha: string
+          fecha_vencimiento: string | null
           status: string
           status_actual: string
+          subtotal: number
+          descuento_monto: number
+          iva: number
           total: number
+          monto_pagado: number
           saldo: number
+          moneda: 'USD' | 'MXN' | null
+          tipo_cambio: number | null
+          notas: string | null
+          vendedor_id: string | null
+          vendedor_nombre: string | null
+          cotizacion_id: string | null
           dias_vencida: number
+          created_at: string
+          updated_at: string
+          organizacion_id: string | null
         }
       }
       v_ordenes_compra: {

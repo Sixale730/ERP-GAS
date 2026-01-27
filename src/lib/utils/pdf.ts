@@ -31,6 +31,7 @@ interface CotizacionPDF {
   iva: number
   total: number
   notas?: string | null
+  vendedor_nombre?: string | null
 }
 
 interface ItemPDF {
@@ -58,6 +59,7 @@ interface FacturaPDF {
   saldo?: number
   notas?: string | null
   cotizacion_folio?: string | null
+  vendedor_nombre?: string | null
 }
 
 // Colores
@@ -121,7 +123,7 @@ function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: st
 function generarDatosCliente(
   doc: jsPDF,
   y: number,
-  data: { cliente_nombre: string; cliente_rfc?: string | null; almacen_nombre: string; fecha: string; fecha_vencimiento?: string }
+  data: { cliente_nombre: string; cliente_rfc?: string | null; almacen_nombre: string; fecha: string; fecha_vencimiento?: string; vendedor_nombre?: string | null }
 ): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const colWidth = (pageWidth - 28) / 2
@@ -139,7 +141,7 @@ function generarDatosCliente(
   }
   doc.text(`Almacen: ${data.almacen_nombre}`, 14, y + (data.cliente_rfc ? 18 : 12))
 
-  // Columna derecha - fechas
+  // Columna derecha - fechas y vendedor
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(0, 0, 0)
   doc.text('FECHA', 14 + colWidth, y)
@@ -147,13 +149,26 @@ function generarDatosCliente(
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLOR_GRIS)
   doc.text(formatDate(data.fecha), 14 + colWidth, y + 6)
+
+  let yDerecha = y + 14
   if (data.fecha_vencimiento) {
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(0, 0, 0)
-    doc.text('VIGENCIA', 14 + colWidth, y + 14)
+    doc.text('VIGENCIA', 14 + colWidth, yDerecha)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...COLOR_GRIS)
-    doc.text(formatDate(data.fecha_vencimiento), 14 + colWidth, y + 20)
+    doc.text(formatDate(data.fecha_vencimiento), 14 + colWidth, yDerecha + 6)
+    yDerecha += 14
+  }
+
+  // Vendedor
+  if (data.vendedor_nombre) {
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(0, 0, 0)
+    doc.text('VENDEDOR', 14 + colWidth, yDerecha)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLOR_GRIS)
+    doc.text(data.vendedor_nombre, 14 + colWidth, yDerecha + 6)
   }
 
   return y + 30

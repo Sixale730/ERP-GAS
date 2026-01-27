@@ -45,6 +45,8 @@ interface FacturaDetalle {
   // Campos moneda
   moneda: CodigoMoneda
   tipo_cambio: number | null
+  // Vendedor
+  vendedor_nombre: string | null
 }
 
 interface FacturaItem {
@@ -147,6 +149,7 @@ export default function FacturaDetallePage() {
           xml_cfdi,
           moneda,
           tipo_cambio,
+          vendedor_nombre,
           clientes:cliente_id (nombre_comercial, razon_social),
           almacenes:almacen_id (nombre),
           cotizaciones:cotizacion_id (folio)
@@ -194,6 +197,7 @@ export default function FacturaDetallePage() {
         xml_cfdi: facData.xml_cfdi,
         moneda: (facData.moneda as CodigoMoneda) || 'USD',
         tipo_cambio: facData.tipo_cambio,
+        vendedor_nombre: facData.vendedor_nombre,
       }
 
       // Calculate dias_vencida
@@ -242,7 +246,13 @@ export default function FacturaDetallePage() {
       tipoCambio: factura.moneda === 'MXN' ? (factura.tipo_cambio || undefined) : undefined
     }
 
-    generarPDFFactura(factura, items, opciones)
+    // Incluir vendedor_nombre en los datos del PDF
+    const facturaConVendedor = {
+      ...factura,
+      vendedor_nombre: factura.vendedor_nombre
+    }
+
+    generarPDFFactura(facturaConVendedor, items, opciones)
     message.success('PDF descargado')
   }
 
@@ -570,8 +580,9 @@ export default function FacturaDetallePage() {
               <Descriptions.Item label="RFC">{factura.cliente_rfc || '-'}</Descriptions.Item>
               <Descriptions.Item label="Almacen">{factura.almacen_nombre}</Descriptions.Item>
               <Descriptions.Item label="Vencimiento">{formatDate(factura.fecha_vencimiento)}</Descriptions.Item>
+              <Descriptions.Item label="Vendedor">{factura.vendedor_nombre || '-'}</Descriptions.Item>
               {factura.cotizacion_folio && (
-                <Descriptions.Item label="Cotizacion origen" span={2}>
+                <Descriptions.Item label="Cotizacion origen">
                   {factura.cotizacion_folio}
                 </Descriptions.Item>
               )}
