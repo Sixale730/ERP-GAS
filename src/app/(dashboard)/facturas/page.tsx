@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
-import { SearchOutlined, EyeOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { SearchOutlined, EyeOutlined, FilePdfOutlined, LoadingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura } from '@/lib/utils/pdf'
+import { useFacturas } from '@/lib/hooks/useQueries'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
@@ -40,45 +41,21 @@ const statusLabels: Record<string, string> = {
 
 export default function FacturasPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [facturas, setFacturas] = useState<FacturaRow[]>([])
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    loadFacturas()
-  }, [statusFilter])
+  // React Query hook
+  const { data: facturas = [], isLoading: loading, error } = useFacturas(statusFilter)
 
-  const loadFacturas = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      let query = supabase
-        .schema('erp')
-        .from('v_facturas')
-        .select('*')
-        .order('fecha', { ascending: false })
-
-      if (statusFilter) {
-        query = query.eq('status', statusFilter)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setFacturas(data || [])
-    } catch (error) {
-      console.error('Error loading facturas:', error)
-      message.error('Error al cargar facturas')
-    } finally {
-      setLoading(false)
-    }
+  // Mostrar error si hay
+  if (error) {
+    message.error('Error al cargar facturas')
   }
 
   const handleDescargarPDF = async (facturaId: string) => {
     const supabase = getSupabaseClient()
+    setDownloadingPdf(facturaId)
     try {
       // Cargar factura completa
       const { data: facData, error: facError } = await supabase
@@ -109,13 +86,19 @@ export default function FacturasPage() {
     } catch (error) {
       console.error('Error generando PDF:', error)
       message.error('Error al generar PDF')
+    } finally {
+      setDownloadingPdf(null)
     }
   }
 
-  const filteredFacturas = facturas.filter(
-    (f) =>
-      f.folio.toLowerCase().includes(searchText.toLowerCase()) ||
-      (f.cliente_nombre && f.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
+  // Filtrar con useMemo
+  const filteredFacturas = useMemo(() =>
+    facturas.filter(
+      (f) =>
+        f.folio.toLowerCase().includes(searchText.toLowerCase()) ||
+        (f.cliente_nombre && f.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
+    ),
+    [facturas, searchText]
   )
 
   const columns: ColumnsType<FacturaRow> = [
@@ -198,9 +181,10 @@ export default function FacturasPage() {
           />
           <Button
             type="link"
-            icon={<FilePdfOutlined />}
+            icon={downloadingPdf === record.id ? <LoadingOutlined /> : <FilePdfOutlined />}
             onClick={() => handleDescargarPDF(record.id)}
             title="Descargar PDF"
+            disabled={downloadingPdf !== null}
           />
         </Space>
       ),

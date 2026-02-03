@@ -7,7 +7,7 @@ import { SearchOutlined, InboxOutlined, WarningOutlined, EditOutlined, SettingOu
 import type { ColumnsType } from 'antd/es/table'
 import { useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { useAlmacenes, useInventario, useMovimientos } from '@/lib/hooks/useQueries'
+import { useAlmacenes, useInventario, useMovimientos, queryKeys } from '@/lib/hooks/useQueries'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
 
 const { Title, Text } = Typography
@@ -23,6 +23,7 @@ interface InventarioRow {
   unidad_medida: string
   stock_minimo: number
   stock_maximo: number
+  es_servicio: boolean
   almacen_codigo: string
   almacen_nombre: string
   nivel_stock: string
@@ -58,8 +59,11 @@ export default function InventarioPage() {
 
   // Función para invalidar queries después de una actualización
   const invalidateInventarioQueries = () => {
-    queryClient.invalidateQueries({ queryKey: ['inventario'] })
-    queryClient.invalidateQueries({ queryKey: ['movimientos'] })
+    // Invalidar todas las queries de inventario (con y sin filtro de almacén)
+    queryClient.invalidateQueries({ queryKey: queryKeys.inventario(almacenFilter) })
+    queryClient.invalidateQueries({ queryKey: queryKeys.movimientos(almacenFilter) })
+    // También invalidar el dashboard ya que muestra stats de inventario
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
   }
 
   const handleOpenEditModal = (item: InventarioRow) => {
@@ -177,11 +181,12 @@ export default function InventarioPage() {
     [inventario, searchText]
   )
 
-  // Stats calculados con useMemo
-  const { totalItems, stockBajo, stockExceso } = useMemo(() => ({
+  // Stats calculados con useMemo (excluye servicios de alertas)
+  const { totalItems, stockBajo, stockExceso, totalServicios } = useMemo(() => ({
     totalItems: filteredInventario.length,
-    stockBajo: filteredInventario.filter(i => i.nivel_stock === 'bajo').length,
-    stockExceso: filteredInventario.filter(i => i.nivel_stock === 'exceso').length,
+    stockBajo: filteredInventario.filter(i => i.nivel_stock === 'bajo' && !i.es_servicio).length,
+    stockExceso: filteredInventario.filter(i => i.nivel_stock === 'exceso' && !i.es_servicio).length,
+    totalServicios: filteredInventario.filter(i => i.es_servicio).length,
   }), [filteredInventario])
 
   const columns: ColumnsType<InventarioRow> = [
@@ -229,19 +234,24 @@ export default function InventarioPage() {
       title: 'Min / Max',
       key: 'minmax',
       width: 100,
-      render: (_, record) => `${record.stock_minimo} / ${record.stock_maximo}`,
+      render: (_, record) => record.es_servicio ? <Text type="secondary">N/A</Text> : `${record.stock_minimo} / ${record.stock_maximo}`,
     },
     {
       title: 'Nivel',
       dataIndex: 'nivel_stock',
       key: 'nivel_stock',
       width: 100,
-      render: (nivel) => {
+      render: (nivel, record) => {
         const config: Record<string, { color: string; label: string }> = {
           bajo: { color: 'red', label: 'Bajo' },
           normal: { color: 'green', label: 'Normal' },
           exceso: { color: 'orange', label: 'Exceso' },
           sin_stock: { color: 'default', label: 'Sin Stock' },
+          servicio: { color: 'purple', label: 'Servicio' },
+        }
+        // Si es servicio, mostrar tag especial
+        if (record.es_servicio) {
+          return <Tag color="purple">Servicio</Tag>
         }
         const { color, label } = config[nivel] || { color: 'default', label: nivel }
         return <Tag color={color}>{label}</Tag>
@@ -260,13 +270,15 @@ export default function InventarioPage() {
             title="Editar cantidad"
             size="small"
           />
-          <Button
-            type="link"
-            icon={<SettingOutlined />}
-            onClick={() => handleOpenMinMaxModal(record)}
-            title="Editar límites Min/Max"
-            size="small"
-          />
+          {!record.es_servicio && (
+            <Button
+              type="link"
+              icon={<SettingOutlined />}
+              onClick={() => handleOpenMinMaxModal(record)}
+              title="Editar límites Min/Max"
+              size="small"
+            />
+          )}
         </Space>
       ),
     },
