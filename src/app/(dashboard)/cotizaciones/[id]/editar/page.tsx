@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { registrarHistorial } from '@/lib/utils/historial'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
+import VendedorSelect from '@/components/common/VendedorSelect'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -43,6 +44,7 @@ interface CotizacionData {
   tipo_cambio: number | null
   descuento_porcentaje: number
   notas: string | null
+  vendedor_id: string | null
   // CFDI
   cfdi_rfc: string | null
   cfdi_razon_social: string | null
@@ -95,6 +97,8 @@ export default function EditarCotizacionPage() {
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [almacenId, setAlmacenId] = useState<string | null>(null)
   const [listaPrecioId, setListaPrecioId] = useState<string | null>(null)
+  const [vendedorId, setVendedorId] = useState<string | null>(null)
+  const [vendedorNombre, setVendedorNombre] = useState<string | null>(null)
 
   // Items
   const [items, setItems] = useState<CotizacionItem[]>([])
@@ -173,6 +177,8 @@ export default function EditarCotizacionPage() {
       setClienteId(cotData.cliente_id)
       setAlmacenId(cotData.almacen_id)
       setListaPrecioId(cotData.lista_precio_id)
+      setVendedorId(cotData.vendedor_id)
+      setVendedorNombre(cotData.vendedor_nombre)
       setDescuentoGlobal(cotData.descuento_porcentaje || 0)
       setTipoCambio(cotData.tipo_cambio || tcGlobal)
       setMoneda((cotData.moneda as CodigoMoneda) || 'MXN')
@@ -472,6 +478,8 @@ export default function EditarCotizacionPage() {
           moneda,
           tipo_cambio: moneda === 'MXN' ? tipoCambio : null,
           notas: formValues.notas,
+          vendedor_id: vendedorId,
+          vendedor_nombre: vendedorNombre,
           // CFDI
           cfdi_rfc: formValues.cfdi_rfc || null,
           cfdi_razon_social: formValues.cfdi_razon_social || null,
@@ -773,6 +781,17 @@ export default function EditarCotizacionPage() {
                       value={descuentoGlobal}
                       onChange={(v) => setDescuentoGlobal(v || 0)}
                       style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Vendedor">
+                    <VendedorSelect
+                      value={vendedorId}
+                      onChange={(id, nombre) => {
+                        setVendedorId(id)
+                        setVendedorNombre(nombre || null)
+                      }}
                     />
                   </Form.Item>
                 </Col>

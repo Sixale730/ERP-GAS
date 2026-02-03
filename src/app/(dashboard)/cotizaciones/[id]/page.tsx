@@ -35,6 +35,8 @@ interface CotizacionDetalle {
   almacen_nombre: string
   moneda: CodigoMoneda
   tipo_cambio: number | null
+  vendedor_id: string | null
+  vendedor_nombre: string | null
   // Datos CFDI
   cfdi_rfc: string | null
   cfdi_razon_social: string | null
@@ -172,7 +174,10 @@ export default function CotizacionDetallePage() {
         forma_pago: cotData.forma_pago,
         metodo_pago: cotData.metodo_pago,
         condiciones_pago: cotData.condiciones_pago,
-        cliente_dias_credito: cotData.clientes?.dias_credito || 0
+        cliente_dias_credito: cotData.clientes?.dias_credito || 0,
+        // Vendedor
+        vendedor_id: cotData.vendedor_id,
+        vendedor_nombre: cotData.vendedor_nombre || null
       }
 
       setCotizacion(cotizacionData)

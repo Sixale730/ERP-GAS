@@ -8,7 +8,9 @@ import {
 import { DeleteOutlined, SaveOutlined, InfoCircleOutlined, DollarOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
+import DireccionEnvioSelect, { DireccionEnvioDisplay } from '@/components/common/DireccionEnvioSelect'
+import type { DireccionEnvio } from '@/types/database'
+import VendedorSelect from '@/components/common/VendedorSelect'
 import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
 import { registrarHistorial } from '@/lib/utils/historial'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
@@ -56,6 +58,12 @@ export default function NuevaCotizacionPage() {
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [almacenId, setAlmacenId] = useState<string | null>(null)
   const [listaPrecioId, setListaPrecioId] = useState<string | null>(null)
+  const [vendedorId, setVendedorId] = useState<string | null>(null)
+  const [vendedorNombre, setVendedorNombre] = useState<string | null>(null)
+
+  // Direccion de envio seleccionada
+  const [direccionEnvioId, setDireccionEnvioId] = useState<string | null>(null)
+  const [direccionEnvio, setDireccionEnvio] = useState<DireccionEnvio | null>(null)
 
   // Items
   const [items, setItems] = useState<CotizacionItem[]>([])
@@ -107,23 +115,9 @@ export default function NuevaCotizacionPage() {
         cfdi_codigo_postal: cliente.codigo_postal_fiscal,
       })
 
-      // Copiar datos de envío (usar dirección de envío si existe, sino la fiscal)
-      if (cliente.direccion_envio) {
-        form.setFieldsValue({
-          envio_direccion: cliente.direccion_envio,
-          envio_ciudad: cliente.ciudad_envio,
-          envio_estado: cliente.estado_envio,
-          envio_codigo_postal: cliente.codigo_postal_envio,
-          envio_contacto: cliente.contacto_envio,
-          envio_telefono: cliente.telefono_envio,
-        })
-      } else {
-        form.setFieldsValue({
-          envio_direccion: cliente.direccion,
-          envio_contacto: cliente.contacto_nombre,
-          envio_telefono: cliente.telefono,
-        })
-      }
+      // Reset direccion de envio - se seleccionara automaticamente la predeterminada
+      setDireccionEnvioId(null)
+      setDireccionEnvio(null)
 
       // Copiar preferencias de pago del cliente
       form.setFieldsValue({
@@ -373,19 +367,21 @@ export default function NuevaCotizacionPage() {
           tipo_cambio: moneda === 'MXN' ? tipoCambio : null,
           vigencia_dias: 30,
           notas: formValues.notas,
+          vendedor_id: vendedorId,
+          vendedor_nombre: vendedorNombre,
           // Datos CFDI
           cfdi_rfc: formValues.cfdi_rfc || null,
           cfdi_razon_social: formValues.cfdi_razon_social || null,
           cfdi_regimen_fiscal: formValues.cfdi_regimen_fiscal || null,
           cfdi_uso_cfdi: formValues.cfdi_uso_cfdi || null,
           cfdi_codigo_postal: formValues.cfdi_codigo_postal || null,
-          // Datos de envío
-          envio_direccion: formValues.envio_direccion || null,
-          envio_ciudad: formValues.envio_ciudad || null,
-          envio_estado: formValues.envio_estado || null,
-          envio_codigo_postal: formValues.envio_codigo_postal || null,
-          envio_contacto: formValues.envio_contacto || null,
-          envio_telefono: formValues.envio_telefono || null,
+          // Datos de envío (desde direccion seleccionada)
+          envio_direccion: direccionEnvio ? [direccionEnvio.calle, direccionEnvio.numero_exterior, direccionEnvio.colonia].filter(Boolean).join(', ') : null,
+          envio_ciudad: direccionEnvio?.ciudad || null,
+          envio_estado: direccionEnvio?.estado || null,
+          envio_codigo_postal: direccionEnvio?.codigo_postal || null,
+          envio_contacto: direccionEnvio?.contacto_nombre || null,
+          envio_telefono: direccionEnvio?.contacto_telefono || null,
           // Datos de pago
           forma_pago: formValues.forma_pago || null,
           metodo_pago: formValues.metodo_pago || null,
@@ -615,6 +611,18 @@ export default function NuevaCotizacionPage() {
                     />
                   </Form.Item>
                 </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Vendedor">
+                    <VendedorSelect
+                      value={vendedorId}
+                      onChange={(id, nombre) => {
+                        setVendedorId(id)
+                        setVendedorNombre(nombre || null)
+                      }}
+                      autoAssignCurrent={true}
+                    />
+                  </Form.Item>
+                </Col>
               </Row>
             </Form>
           </Card>
@@ -682,44 +690,27 @@ export default function NuevaCotizacionPage() {
                   label: (
                     <Space>
                       <EnvironmentOutlined />
-                      <span>Datos de Envío</span>
+                      <span>Direccion de Envio</span>
+                      {direccionEnvio && <span style={{ color: '#52c41a' }}>({direccionEnvio.alias})</span>}
                     </Space>
                   ),
                   children: (
-                    <Row gutter={16}>
-                      <Col xs={24}>
-                        <Form.Item name="envio_direccion" label="Dirección">
-                          <Input.TextArea rows={2} placeholder="Dirección de envío" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={16}>
-                        <Form.Item label="Estado y Ciudad">
-                          <EstadoCiudadSelect
-                            estadoValue={form.getFieldValue('envio_estado')}
-                            ciudadValue={form.getFieldValue('envio_ciudad')}
-                            onEstadoChange={(value) => form.setFieldValue('envio_estado', value)}
-                            onCiudadChange={(value) => form.setFieldValue('envio_ciudad', value)}
-                          />
-                          <Form.Item name="envio_estado" hidden><Input /></Form.Item>
-                          <Form.Item name="envio_ciudad" hidden><Input /></Form.Item>
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="envio_codigo_postal" label="C.P.">
-                          <Input placeholder="Código postal" maxLength={10} />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item name="envio_contacto" label="Contacto">
-                          <Input placeholder="Nombre de quien recibe" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item name="envio_telefono" label="Teléfono">
-                          <Input placeholder="Teléfono de contacto" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                    <div>
+                      <DireccionEnvioSelect
+                        clienteId={clienteId}
+                        value={direccionEnvioId}
+                        onChange={(id, dir) => {
+                          setDireccionEnvioId(id)
+                          setDireccionEnvio(dir)
+                        }}
+                        allowAddNew={true}
+                      />
+                      {direccionEnvio && (
+                        <div style={{ marginTop: 16 }}>
+                          <DireccionEnvioDisplay direccion={direccionEnvio} />
+                        </div>
+                      )}
+                    </div>
                   ),
                 },
                 {
