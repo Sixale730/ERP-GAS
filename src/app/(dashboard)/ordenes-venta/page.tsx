@@ -6,7 +6,7 @@ import { Table, Button, Input, Space, Tag, Card, Typography, message, Segmented 
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, FileTextOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoney, formatDate, formatDateTime } from '@/lib/utils/format'
+import { formatMoneyCurrency, formatDate, formatDateTime } from '@/lib/utils/format'
 import { generarPDFCotizacion } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
@@ -19,6 +19,7 @@ interface OrdenVentaRow {
   vigencia_dias: number
   status: string
   total: number
+  moneda?: string
   cliente_nombre?: string
   cliente_rfc?: string
   almacen_nombre?: string
@@ -149,7 +150,8 @@ export default function OrdenesVentaPage() {
       key: 'total',
       width: 130,
       align: 'right',
-      render: (total) => formatMoney(total),
+      render: (total: number, record: OrdenVentaRow) =>
+        formatMoneyCurrency(total, (record.moneda as any) || 'USD'),
       sorter: (a, b) => a.total - b.total,
     },
     {

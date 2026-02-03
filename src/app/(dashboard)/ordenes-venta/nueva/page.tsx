@@ -8,7 +8,8 @@ import {
 import { DeleteOutlined, SaveOutlined, InfoCircleOutlined, DollarOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
+import DireccionEnvioSelect, { DireccionEnvioDisplay } from '@/components/common/DireccionEnvioSelect'
+import type { DireccionEnvio } from '@/types/database'
 import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
 import { registrarHistorial } from '@/lib/utils/historial'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
@@ -28,6 +29,7 @@ interface OrdenVentaItem {
   cantidad: number
   precio_unitario: number
   subtotal: number
+  es_servicio: boolean
 }
 
 export default function NuevaOrdenVentaPage() {
@@ -51,6 +53,10 @@ export default function NuevaOrdenVentaPage() {
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [almacenId, setAlmacenId] = useState<string | null>(null)
   const [listaPrecioId, setListaPrecioId] = useState<string | null>(null)
+
+  // Direccion de envio seleccionada
+  const [direccionEnvioId, setDireccionEnvioId] = useState<string | null>(null)
+  const [direccionEnvio, setDireccionEnvio] = useState<DireccionEnvio | null>(null)
 
   const [items, setItems] = useState<OrdenVentaItem[]>([])
   const [descuentoGlobal, setDescuentoGlobal] = useState(0)
@@ -92,22 +98,9 @@ export default function NuevaOrdenVentaPage() {
         cfdi_codigo_postal: cliente.codigo_postal_fiscal,
       })
 
-      if (cliente.direccion_envio) {
-        form.setFieldsValue({
-          envio_direccion: cliente.direccion_envio,
-          envio_ciudad: cliente.ciudad_envio,
-          envio_estado: cliente.estado_envio,
-          envio_codigo_postal: cliente.codigo_postal_envio,
-          envio_contacto: cliente.contacto_envio,
-          envio_telefono: cliente.telefono_envio,
-        })
-      } else {
-        form.setFieldsValue({
-          envio_direccion: cliente.direccion,
-          envio_contacto: cliente.contacto_nombre,
-          envio_telefono: cliente.telefono,
-        })
-      }
+      // Reset direccion de envio - se seleccionara automaticamente la predeterminada
+      setDireccionEnvioId(null)
+      setDireccionEnvio(null)
 
       form.setFieldsValue({
         forma_pago: cliente.forma_pago,
@@ -261,6 +254,7 @@ export default function NuevaOrdenVentaPage() {
       cantidad: 1,
       precio_unitario: precioFinal,
       subtotal: precioFinal,
+      es_servicio: producto.es_servicio || false,
     }
 
     setItems([...items, newItem])
@@ -361,12 +355,13 @@ export default function NuevaOrdenVentaPage() {
           cfdi_regimen_fiscal: formValues.cfdi_regimen_fiscal || null,
           cfdi_uso_cfdi: formValues.cfdi_uso_cfdi || null,
           cfdi_codigo_postal: formValues.cfdi_codigo_postal || null,
-          envio_direccion: formValues.envio_direccion || null,
-          envio_ciudad: formValues.envio_ciudad || null,
-          envio_estado: formValues.envio_estado || null,
-          envio_codigo_postal: formValues.envio_codigo_postal || null,
-          envio_contacto: formValues.envio_contacto || null,
-          envio_telefono: formValues.envio_telefono || null,
+          // Datos de envío (desde direccion seleccionada)
+          envio_direccion: direccionEnvio ? [direccionEnvio.calle, direccionEnvio.numero_exterior, direccionEnvio.colonia].filter(Boolean).join(', ') : null,
+          envio_ciudad: direccionEnvio?.ciudad || null,
+          envio_estado: direccionEnvio?.estado || null,
+          envio_codigo_postal: direccionEnvio?.codigo_postal || null,
+          envio_contacto: direccionEnvio?.contacto_nombre || null,
+          envio_telefono: direccionEnvio?.contacto_telefono || null,
           forma_pago: formValues.forma_pago || null,
           metodo_pago: formValues.metodo_pago || null,
           condiciones_pago: formValues.condiciones_pago || null,
@@ -634,6 +629,9 @@ export default function NuevaOrdenVentaPage() {
 
               {mostrarAlertaStock && almacenId && items.length > 0 && (() => {
                 const productosSinStock = items.filter(item => {
+                  // Excluir servicios de la validación de stock
+                  const producto = productos.find(p => p.id === item.producto_id)
+                  if (producto?.es_servicio) return false
                   const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
                   return stockDisponible < item.cantidad
                 })
@@ -682,44 +680,27 @@ export default function NuevaOrdenVentaPage() {
                   label: (
                     <Space>
                       <EnvironmentOutlined />
-                      <span>Datos de Envio</span>
+                      <span>Direccion de Envio</span>
+                      {direccionEnvio && <span style={{ color: '#52c41a' }}>({direccionEnvio.alias})</span>}
                     </Space>
                   ),
                   children: (
-                    <Row gutter={16}>
-                      <Col xs={24}>
-                        <Form.Item name="envio_direccion" label="Direccion">
-                          <Input.TextArea rows={2} placeholder="Direccion de envio" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={16}>
-                        <Form.Item label="Estado y Ciudad">
-                          <EstadoCiudadSelect
-                            estadoValue={form.getFieldValue('envio_estado')}
-                            ciudadValue={form.getFieldValue('envio_ciudad')}
-                            onEstadoChange={(value) => form.setFieldValue('envio_estado', value)}
-                            onCiudadChange={(value) => form.setFieldValue('envio_ciudad', value)}
-                          />
-                          <Form.Item name="envio_estado" hidden><Input /></Form.Item>
-                          <Form.Item name="envio_ciudad" hidden><Input /></Form.Item>
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="envio_codigo_postal" label="C.P.">
-                          <Input placeholder="Codigo postal" maxLength={10} />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item name="envio_contacto" label="Contacto">
-                          <Input placeholder="Nombre de quien recibe" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item name="envio_telefono" label="Telefono">
-                          <Input placeholder="Telefono de contacto" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                    <div>
+                      <DireccionEnvioSelect
+                        clienteId={clienteId}
+                        value={direccionEnvioId}
+                        onChange={(id, dir) => {
+                          setDireccionEnvioId(id)
+                          setDireccionEnvio(dir)
+                        }}
+                        allowAddNew={true}
+                      />
+                      {direccionEnvio && (
+                        <div style={{ marginTop: 16 }}>
+                          <DireccionEnvioDisplay direccion={direccionEnvio} />
+                        </div>
+                      )}
+                    </div>
                   ),
                 },
                 {
