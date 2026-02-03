@@ -13,6 +13,7 @@ interface EstadoCiudadSelectProps {
   onCiudadChange: (value: string) => void
   disabled?: boolean
   layout?: 'horizontal' | 'vertical'
+  showLabels?: boolean
 }
 
 export default function EstadoCiudadSelect({
@@ -22,6 +23,7 @@ export default function EstadoCiudadSelect({
   onCiudadChange,
   disabled = false,
   layout = 'horizontal',
+  showLabels = true,
 }: EstadoCiudadSelectProps) {
   const [estadoSearch, setEstadoSearch] = useState(estadoValue || '')
   const [ciudadSearch, setCiudadSearch] = useState(ciudadValue || '')
@@ -130,7 +132,7 @@ export default function EstadoCiudadSelect({
   return (
     <div style={containerStyle}>
       <div style={{ flex: 1 }}>
-        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Estado</Text>
+        {showLabels && <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Estado</Text>}
         <AutoComplete
           style={{ width: '100%' }}
           value={estadoSearch}
@@ -152,7 +154,7 @@ export default function EstadoCiudadSelect({
         />
       </div>
       <div style={{ flex: 1 }}>
-        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Ciudad</Text>
+        {showLabels && <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Ciudad</Text>}
         <AutoComplete
           style={{ width: '100%' }}
           value={ciudadSearch}
