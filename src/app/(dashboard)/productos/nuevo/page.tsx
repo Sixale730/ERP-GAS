@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Card, Form, Input, Select, InputNumber, Button, Space, Typography, message, Spin
+  Card, Form, Input, Select, InputNumber, Button, Space, Typography, message, Spin, Switch, Alert
 } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
@@ -53,6 +53,7 @@ export default function NuevoProductoPage() {
         unidad_medida: 'PZA',
         stock_minimo: 0,
         stock_maximo: 0,
+        es_servicio: false,
       })
     } catch (error) {
       console.error('Error loading catalogos:', error)
@@ -79,8 +80,9 @@ export default function NuevoProductoPage() {
           categoria_id: values.categoria_id || null,
           proveedor_principal_id: values.proveedor_principal_id || null,
           unidad_medida: values.unidad_medida,
-          stock_minimo: values.stock_minimo || 0,
-          stock_maximo: values.stock_maximo || 0,
+          stock_minimo: values.es_servicio ? 0 : (values.stock_minimo || 0),
+          stock_maximo: values.es_servicio ? 0 : (values.stock_maximo || 0),
+          es_servicio: values.es_servicio || false,
           costo_promedio: 0,
           is_active: true,
         })
@@ -212,25 +214,54 @@ export default function NuevoProductoPage() {
                 { value: 'MT', label: 'Metro (MT)' },
                 { value: 'CAJA', label: 'Caja' },
                 { value: 'PAQ', label: 'Paquete' },
+                { value: 'SRV', label: 'Servicio (SRV)' },
+                { value: 'HR', label: 'Hora (HR)' },
               ]}
             />
           </Form.Item>
 
-          <Space size="large">
-            <Form.Item
-              name="stock_minimo"
-              label="Stock Mínimo"
-            >
-              <InputNumber min={0} placeholder="0" style={{ width: 150 }} />
-            </Form.Item>
+          <Form.Item
+            name="es_servicio"
+            label="Es Servicio"
+            valuePropName="checked"
+            tooltip="Los servicios no tienen control de inventario (min/max) y no generan alertas de stock bajo"
+          >
+            <Switch checkedChildren="Sí" unCheckedChildren="No" />
+          </Form.Item>
 
-            <Form.Item
-              name="stock_maximo"
-              label="Stock Máximo"
-            >
-              <InputNumber min={0} placeholder="0" style={{ width: 150 }} />
-            </Form.Item>
-          </Space>
+          <Form.Item noStyle shouldUpdate={(prev, curr) => prev.es_servicio !== curr.es_servicio}>
+            {({ getFieldValue }) => {
+              const esServicio = getFieldValue('es_servicio')
+              if (esServicio) {
+                return (
+                  <Alert
+                    message="Producto tipo Servicio"
+                    description="Los servicios no tienen control de stock mínimo/máximo y no aparecen en alertas de faltantes."
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                )
+              }
+              return (
+                <Space size="large">
+                  <Form.Item
+                    name="stock_minimo"
+                    label="Stock Mínimo"
+                  >
+                    <InputNumber min={0} placeholder="0" style={{ width: 150 }} />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="stock_maximo"
+                    label="Stock Máximo"
+                  >
+                    <InputNumber min={0} placeholder="0" style={{ width: 150 }} />
+                  </Form.Item>
+                </Space>
+              )
+            }}
+          </Form.Item>
 
           <Form.Item style={{ marginTop: 24 }}>
             <Space>
