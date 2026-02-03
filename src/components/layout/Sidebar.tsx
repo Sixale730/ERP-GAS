@@ -22,6 +22,7 @@ import {
   WarningOutlined,
   ContainerOutlined,
   UserSwitchOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons'
 import { UserRole } from '@/lib/hooks/useAuth'
 
@@ -58,12 +59,6 @@ const allMenuItems: MenuItemWithRoles[] = [
     roles: ['super_admin', 'admin_cliente'],
   },
   {
-    key: '/movimientos',
-    icon: <SwapOutlined />,
-    label: 'Movimientos',
-    roles: ['super_admin', 'admin_cliente'],
-  },
-  {
     key: '/clientes',
     icon: <TeamOutlined />,
     label: 'Clientes',
@@ -93,6 +88,24 @@ const allMenuItems: MenuItemWithRoles[] = [
     type: 'divider',
   },
   {
+    key: 'reportes',
+    icon: <BarChartOutlined />,
+    label: 'Reportes',
+    roles: ['super_admin', 'admin_cliente'],
+    children: [
+      {
+        key: '/reportes/servicios',
+        icon: <ToolOutlined />,
+        label: 'Servicios',
+      },
+      {
+        key: '/reportes/movimientos',
+        icon: <SwapOutlined />,
+        label: 'Movimientos',
+      },
+    ],
+  },
+  {
     key: 'catalogos',
     icon: <SettingOutlined />,
     label: 'Catalogos',
@@ -117,6 +130,11 @@ const allMenuItems: MenuItemWithRoles[] = [
         key: '/catalogos/listas-precios',
         icon: <UnorderedListOutlined />,
         label: 'Listas de Precios',
+      },
+      {
+        key: '/catalogos/precios-productos',
+        icon: <DollarOutlined />,
+        label: 'Precios de Productos',
       },
     ],
   },
