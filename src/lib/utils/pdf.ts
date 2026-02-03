@@ -303,15 +303,19 @@ function generarNotas(doc: jsPDF, y: number, notas: string | null | undefined): 
 export function generarPDFCotizacion(
   cotizacion: CotizacionPDF,
   items: ItemPDF[],
-  opciones: OpcionesMoneda = { moneda: 'USD' }
+  opciones?: OpcionesMoneda
 ): void {
+  // Si no se pasan opciones, usar la moneda de la cotización o MXN por defecto
+  const opcionesFinales: OpcionesMoneda = opciones || {
+    moneda: ((cotizacion as any).moneda as CodigoMoneda) || 'MXN'
+  }
   const doc = new jsPDF()
 
   let y = generarEncabezado(doc, 'COTIZACION', cotizacion.folio)
   y = generarDatosCliente(doc, y, cotizacion)
 
-  y = generarTablaProductos(doc, y, items, opciones)
-  y = generarTotales(doc, y, cotizacion, opciones)
+  y = generarTablaProductos(doc, y, items, opcionesFinales)
+  y = generarTotales(doc, y, cotizacion, opcionesFinales)
   generarNotas(doc, y, cotizacion.notas)
 
   // Pie de página
@@ -329,8 +333,12 @@ export function generarPDFCotizacion(
 export function generarPDFFactura(
   factura: FacturaPDF,
   items: ItemPDF[],
-  opciones: OpcionesMoneda = { moneda: 'USD' }
+  opciones?: OpcionesMoneda
 ): void {
+  // Si no se pasan opciones, usar la moneda de la factura o MXN por defecto
+  const opcionesFinales: OpcionesMoneda = opciones || {
+    moneda: ((factura as any).moneda as CodigoMoneda) || 'MXN'
+  }
   const doc = new jsPDF()
 
   let y = generarEncabezado(doc, 'FACTURA', factura.folio)
@@ -345,8 +353,8 @@ export function generarPDFFactura(
     y += 5
   }
 
-  y = generarTablaProductos(doc, y, items, opciones)
-  y = generarTotales(doc, y, { ...factura, saldo: factura.saldo }, opciones)
+  y = generarTablaProductos(doc, y, items, opcionesFinales)
+  y = generarTotales(doc, y, { ...factura, saldo: factura.saldo }, opcionesFinales)
   generarNotas(doc, y, factura.notas)
 
   // Pie de página
@@ -585,8 +593,12 @@ function generarEncabezadoOC(doc: jsPDF, folio: string): number {
 export function generarPDFOrdenCompra(
   orden: OrdenCompraPDF,
   items: ItemOrdenCompraPDF[],
-  opciones: OpcionesMoneda = { moneda: 'USD' }
+  opciones?: OpcionesMoneda
 ): void {
+  // Si no se pasan opciones, usar la moneda de la orden o MXN por defecto
+  const opcionesFinales: OpcionesMoneda = opciones || {
+    moneda: (orden.moneda as CodigoMoneda) || 'MXN'
+  }
   const doc = new jsPDF()
 
   let y = generarEncabezadoOC(doc, orden.folio)
@@ -601,8 +613,8 @@ export function generarPDFOrdenCompra(
     y += 5
   }
 
-  y = generarTablaProductosOC(doc, y, items, opciones)
-  y = generarTotalesOC(doc, y, orden, opciones)
+  y = generarTablaProductosOC(doc, y, items, opcionesFinales)
+  y = generarTotalesOC(doc, y, orden, opcionesFinales)
   generarNotas(doc, y, orden.notas)
 
   // Pie de página
