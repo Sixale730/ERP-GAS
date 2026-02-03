@@ -163,6 +163,7 @@ export type Database = {
           stock_minimo: number
           stock_maximo: number
           numero_parte: string | null
+          es_servicio: boolean
           is_active: boolean
           created_at: string
           updated_at: string
@@ -180,6 +181,7 @@ export type Database = {
           stock_minimo?: number
           stock_maximo?: number
           numero_parte?: string | null
+          es_servicio?: boolean
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -197,6 +199,7 @@ export type Database = {
           stock_minimo?: number
           stock_maximo?: number
           numero_parte?: string | null
+          es_servicio?: boolean
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -278,11 +281,27 @@ export type Database = {
           notas: string | null
           is_active: boolean
           moneda: 'USD' | 'MXN'
+          // Dirección comercial detallada
+          calle: string | null
+          numero_exterior: string | null
+          numero_interior: string | null
+          colonia: string | null
+          codigo_postal: string | null
+          ciudad: string | null
+          estado: string | null
+          pais: string | null
+          referencias: string | null
           // Campos de envío
           direccion_envio: string | null
+          calle_envio: string | null
+          numero_exterior_envio: string | null
+          numero_interior_envio: string | null
+          colonia_envio: string | null
           ciudad_envio: string | null
           estado_envio: string | null
           codigo_postal_envio: string | null
+          pais_envio: string | null
+          referencias_envio: string | null
           contacto_envio: string | null
           telefono_envio: string | null
           // Campos de pago predeterminados
@@ -311,11 +330,27 @@ export type Database = {
           notas?: string | null
           is_active?: boolean
           moneda?: 'USD' | 'MXN'
+          // Dirección comercial detallada
+          calle?: string | null
+          numero_exterior?: string | null
+          numero_interior?: string | null
+          colonia?: string | null
+          codigo_postal?: string | null
+          ciudad?: string | null
+          estado?: string | null
+          pais?: string | null
+          referencias?: string | null
           // Campos de envío
           direccion_envio?: string | null
+          calle_envio?: string | null
+          numero_exterior_envio?: string | null
+          numero_interior_envio?: string | null
+          colonia_envio?: string | null
           ciudad_envio?: string | null
           estado_envio?: string | null
           codigo_postal_envio?: string | null
+          pais_envio?: string | null
+          referencias_envio?: string | null
           contacto_envio?: string | null
           telefono_envio?: string | null
           // Campos de pago predeterminados
@@ -344,11 +379,27 @@ export type Database = {
           notas?: string | null
           is_active?: boolean
           moneda?: 'USD' | 'MXN'
+          // Dirección comercial detallada
+          calle?: string | null
+          numero_exterior?: string | null
+          numero_interior?: string | null
+          colonia?: string | null
+          codigo_postal?: string | null
+          ciudad?: string | null
+          estado?: string | null
+          pais?: string | null
+          referencias?: string | null
           // Campos de envío
           direccion_envio?: string | null
+          calle_envio?: string | null
+          numero_exterior_envio?: string | null
+          numero_interior_envio?: string | null
+          colonia_envio?: string | null
           ciudad_envio?: string | null
           estado_envio?: string | null
           codigo_postal_envio?: string | null
+          pais_envio?: string | null
+          referencias_envio?: string | null
           contacto_envio?: string | null
           telefono_envio?: string | null
           // Campos de pago predeterminados
@@ -824,6 +875,68 @@ export type Database = {
           created_at?: string
         }
       }
+      direcciones_envio: {
+        Row: {
+          id: string
+          cliente_id: string
+          alias: string
+          is_default: boolean
+          calle: string | null
+          numero_exterior: string | null
+          numero_interior: string | null
+          colonia: string | null
+          codigo_postal: string | null
+          ciudad: string | null
+          estado: string | null
+          pais: string | null
+          referencias: string | null
+          contacto_nombre: string | null
+          contacto_telefono: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          cliente_id: string
+          alias: string
+          is_default?: boolean
+          calle?: string | null
+          numero_exterior?: string | null
+          numero_interior?: string | null
+          colonia?: string | null
+          codigo_postal?: string | null
+          ciudad?: string | null
+          estado?: string | null
+          pais?: string | null
+          referencias?: string | null
+          contacto_nombre?: string | null
+          contacto_telefono?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          cliente_id?: string
+          alias?: string
+          is_default?: boolean
+          calle?: string | null
+          numero_exterior?: string | null
+          numero_interior?: string | null
+          colonia?: string | null
+          codigo_postal?: string | null
+          ciudad?: string | null
+          estado?: string | null
+          pais?: string | null
+          referencias?: string | null
+          contacto_nombre?: string | null
+          contacto_telefono?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       v_productos_stock: {
@@ -837,6 +950,28 @@ export type Database = {
           stock_total: number
           reservado_total: number
           disponible_total: number
+          stock_minimo: number
+          stock_maximo: number
+          es_servicio: boolean
+        }
+      }
+      v_inventario_detalle: {
+        Row: {
+          id: string
+          producto_id: string
+          almacen_id: string
+          cantidad: number
+          cantidad_reservada: number
+          updated_at: string
+          sku: string
+          producto_nombre: string
+          unidad_medida: string
+          stock_minimo: number
+          stock_maximo: number
+          es_servicio: boolean
+          almacen_codigo: string
+          almacen_nombre: string
+          nivel_stock: 'sin_stock' | 'bajo' | 'normal' | 'exceso' | 'servicio'
         }
       }
       v_cotizaciones: {
@@ -976,6 +1111,7 @@ export interface ConfigMargenGanancia {
 
 // View types
 export type ProductoStock = Views<'v_productos_stock'>
+export type InventarioDetalle = Views<'v_inventario_detalle'>
 export type CotizacionView = Views<'v_cotizaciones'>
 export type FacturaView = Views<'v_facturas'>
 export type OrdenCompraView = Views<'v_ordenes_compra'>
@@ -985,6 +1121,11 @@ export type MovimientoView = Views<'v_movimientos'>
 export type OrdenCompra = Tables<'ordenes_compra'>
 export type OrdenCompraItem = Tables<'orden_compra_items'>
 export type RecepcionOrden = Tables<'recepciones_orden'>
+
+// Direcciones de envio
+export type DireccionEnvio = Tables<'direcciones_envio'>
+export type DireccionEnvioInsert = InsertTables<'direcciones_envio'>
+export type DireccionEnvioUpdate = UpdateTables<'direcciones_envio'>
 
 // Configuracion de margenes por categoria
 export interface ConfigMargenesCategoria {
