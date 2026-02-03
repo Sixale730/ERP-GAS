@@ -1,0 +1,215 @@
+'use client'
+
+import { useState, useMemo } from 'react'
+import { Table, Input, Select, Space, Card, Typography, Tag } from 'antd'
+import { SearchOutlined } from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
+import { usePreciosProductos, useProveedores, useListasPrecios } from '@/lib/hooks/useQueries'
+
+const { Title } = Typography
+
+interface PrecioProductoRow {
+  id: string
+  sku: string
+  nombre: string
+  proveedor_id: string | null
+  proveedor_nombre: string | null
+  precio: number | null
+  precio_con_iva: number | null
+  lista_nombre: string | null
+  lista_id: string | null
+}
+
+export default function PreciosProductosPage() {
+  const [searchText, setSearchText] = useState('')
+  const [proveedorFilter, setProveedorFilter] = useState<string | null>(null)
+  const [listaFilter, setListaFilter] = useState<string | null>(null)
+
+  const { data: preciosData, isLoading } = usePreciosProductos()
+  const { data: proveedores } = useProveedores()
+  const { data: listasPrecios } = useListasPrecios()
+
+  // Filtrar datos
+  const filteredData = useMemo(() => {
+    if (!preciosData) return []
+
+    return preciosData.filter((row) => {
+      // Filtro de busqueda por texto
+      const matchesSearch =
+        !searchText ||
+        row.sku.toLowerCase().includes(searchText.toLowerCase()) ||
+        row.nombre.toLowerCase().includes(searchText.toLowerCase())
+
+      // Filtro por proveedor
+      const matchesProveedor =
+        !proveedorFilter || row.proveedor_id === proveedorFilter
+
+      // Filtro por lista de precios
+      const matchesLista = !listaFilter || row.lista_id === listaFilter
+
+      return matchesSearch && matchesProveedor && matchesLista
+    })
+  }, [preciosData, searchText, proveedorFilter, listaFilter])
+
+  // Agrupar por proveedor para mostrar totales
+  const groupedByProveedor = useMemo(() => {
+    const groups: Record<string, number> = {}
+    filteredData.forEach((row) => {
+      const key = row.proveedor_nombre || 'Sin proveedor'
+      groups[key] = (groups[key] || 0) + 1
+    })
+    return groups
+  }, [filteredData])
+
+  const formatCurrency = (value: number | null) => {
+    if (value === null) return '-'
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+    }).format(value)
+  }
+
+  const columns: ColumnsType<PrecioProductoRow> = [
+    {
+      title: 'SKU',
+      dataIndex: 'sku',
+      key: 'sku',
+      width: 120,
+      sorter: (a, b) => a.sku.localeCompare(b.sku),
+    },
+    {
+      title: 'Producto',
+      dataIndex: 'nombre',
+      key: 'nombre',
+      sorter: (a, b) => a.nombre.localeCompare(b.nombre),
+    },
+    {
+      title: 'Proveedor',
+      dataIndex: 'proveedor_nombre',
+      key: 'proveedor_nombre',
+      width: 200,
+      render: (v) => v || <Tag color="default">Sin proveedor</Tag>,
+      sorter: (a, b) =>
+        (a.proveedor_nombre || '').localeCompare(b.proveedor_nombre || ''),
+    },
+    {
+      title: 'Precio',
+      dataIndex: 'precio',
+      key: 'precio',
+      width: 130,
+      align: 'right',
+      render: (v) => formatCurrency(v),
+      sorter: (a, b) => (a.precio || 0) - (b.precio || 0),
+    },
+    {
+      title: 'Precio c/IVA',
+      dataIndex: 'precio_con_iva',
+      key: 'precio_con_iva',
+      width: 130,
+      align: 'right',
+      render: (v) => formatCurrency(v),
+      sorter: (a, b) => (a.precio_con_iva || 0) - (b.precio_con_iva || 0),
+    },
+    {
+      title: 'Lista',
+      dataIndex: 'lista_nombre',
+      key: 'lista_nombre',
+      width: 150,
+      render: (v) =>
+        v ? (
+          <Tag color="blue">{v}</Tag>
+        ) : (
+          <Tag color="warning">Sin precio</Tag>
+        ),
+      sorter: (a, b) =>
+        (a.lista_nombre || '').localeCompare(b.lista_nombre || ''),
+    },
+  ]
+
+  return (
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <Title level={2} style={{ margin: 0 }}>
+          Precios de Productos
+        </Title>
+      </div>
+
+      <Card>
+        <Space style={{ marginBottom: 16 }} wrap>
+          <Input
+            placeholder="Buscar por SKU o nombre..."
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 280 }}
+            allowClear
+          />
+          <Select
+            placeholder="Filtrar por proveedor"
+            value={proveedorFilter}
+            onChange={setProveedorFilter}
+            style={{ width: 220 }}
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            options={[
+              { value: '', label: 'Todos los proveedores' },
+              ...(proveedores?.map((p) => ({
+                value: p.id,
+                label: p.razon_social,
+              })) || []),
+            ]}
+          />
+          <Select
+            placeholder="Filtrar por lista de precios"
+            value={listaFilter}
+            onChange={setListaFilter}
+            style={{ width: 200 }}
+            allowClear
+            options={[
+              { value: '', label: 'Todas las listas' },
+              ...(listasPrecios?.map((l) => ({
+                value: l.id,
+                label: l.nombre,
+              })) || []),
+            ]}
+          />
+        </Space>
+
+        {Object.keys(groupedByProveedor).length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <Space wrap size={[8, 8]}>
+              {Object.entries(groupedByProveedor).map(([proveedor, count]) => (
+                <Tag key={proveedor} color="processing">
+                  {proveedor}: {count}
+                </Tag>
+              ))}
+            </Space>
+          </div>
+        )}
+
+        <Table
+          dataSource={filteredData}
+          columns={columns}
+          rowKey={(record) => `${record.id}-${record.lista_id || 'sin-lista'}`}
+          loading={isLoading}
+          pagination={{
+            pageSize: 20,
+            showTotal: (total) => `${total} registros`,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+          }}
+          size="middle"
+          scroll={{ x: 900 }}
+        />
+      </Card>
+    </div>
+  )
+}
