@@ -9,7 +9,8 @@
       "WebFetch(domain:finkok.com)",
       "WebFetch(domain:github.com)",
       "Bash(cat:*)",
-      "mcp__supabase__get_logs"
+      "mcp__supabase__get_logs",
+      "mcp__supabase__list_migrations"
     ]
   },
   "enableAllProjectMcpServers": true,

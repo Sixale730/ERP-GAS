@@ -1,34 +1,20 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
-import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, LoadingOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useCotizaciones, useDeleteCotizacion } from '@/lib/hooks/useQueries'
-import { formatMoneyCurrency, formatDate, formatDateTime } from '@/lib/utils/format'
-import { generarPDFCotizacion } from '@/lib/utils/pdf'
+import { useCotizaciones, useDeleteCotizacion, type CotizacionRow } from '@/lib/hooks/queries/useCotizaciones'
+import { TableSkeleton } from '@/components/common/Skeletons'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { formatDate, formatDateTime } from '@/lib/utils/format'
+import { generarPDFCotizacion } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
 
-interface CotizacionRow {
-  id: string
-  folio: string
-  fecha: string
-  vigencia_dias: number
-  status: string
-  total: number
-  moneda?: string
-  cliente_nombre?: string
-  cliente_rfc?: string
-  almacen_nombre?: string
-  created_at?: string
-  updated_at?: string
-}
-
-// Helper para verificar si la cotización está caducada
+// Helper para verificar si la cotizacion esta caducada
 function esCaducada(fecha: string, vigenciaDias: number): boolean {
   const vencimiento = dayjs(fecha).add(vigenciaDias, 'day')
   return dayjs().isAfter(vencimiento)
@@ -36,15 +22,11 @@ function esCaducada(fecha: string, vigenciaDias: number): boolean {
 
 const statusColors: Record<string, string> = {
   propuesta: 'processing',
-  orden_venta: 'success',
-  factura: 'purple',
   cancelada: 'error',
 }
 
 const statusLabels: Record<string, string> = {
   propuesta: 'Propuesta',
-  orden_venta: 'Orden de Venta',
-  factura: 'Facturada',
   cancelada: 'Cancelada',
 }
 
@@ -52,31 +34,19 @@ export default function CotizacionesPage() {
   const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
-  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
 
   // React Query hooks
-  const { data: cotizaciones = [], isLoading: loading, error } = useCotizaciones(statusFilter)
+  const { data: cotizaciones = [], isLoading, isError, error } = useCotizaciones(statusFilter)
   const deleteCotizacion = useDeleteCotizacion()
 
-  // Mostrar error si hay
-  if (error) {
-    message.error('Error al cargar cotizaciones')
-  }
-
   const handleDescargarPDF = async (cotizacionId: string) => {
-    setDownloadingPdf(cotizacionId)
+    const supabase = getSupabaseClient()
     try {
-      const supabase = getSupabaseClient()
-
-      // Cargar cotización con relaciones
-      const { data: cotizacion, error: cotError } = await supabase
+      // Cargar cotizacion completa
+      const { data: cotData, error: cotError } = await supabase
         .schema('erp')
-        .from('cotizaciones')
-        .select(`
-          *,
-          clientes:cliente_id (nombre_comercial, rfc),
-          almacenes:almacen_id (nombre)
-        `)
+        .from('v_cotizaciones')
+        .select('*')
         .eq('id', cotizacionId)
         .single()
 
@@ -91,53 +61,27 @@ export default function CotizacionesPage() {
 
       if (itemsError) throw itemsError
 
-      // Transformar datos para el PDF
-      const cotizacionPdf = {
-        folio: cotizacion.folio,
-        fecha: cotizacion.fecha,
-        fecha_vencimiento: dayjs(cotizacion.fecha).add(cotizacion.vigencia_dias || 30, 'day').format('YYYY-MM-DD'),
-        cliente_nombre: cotizacion.clientes?.nombre_comercial || '-',
-        cliente_rfc: cotizacion.clientes?.rfc,
-        almacen_nombre: cotizacion.almacenes?.nombre || '-',
-        subtotal: cotizacion.subtotal,
-        descuento_porcentaje: cotizacion.descuento_porcentaje,
-        descuento_monto: cotizacion.descuento_monto,
-        iva: cotizacion.iva,
-        total: cotizacion.total,
-        notas: cotizacion.notas,
-        vendedor_nombre: cotizacion.vendedor_nombre
-      }
-
       const items = itemsData?.map(item => ({
-        sku: item.productos?.sku || '-',
-        descripcion: item.descripcion,
-        cantidad: item.cantidad,
-        precio_unitario: item.precio_unitario,
-        descuento_porcentaje: item.descuento_porcentaje,
-        subtotal: item.subtotal
+        ...item,
+        sku: item.productos?.sku || '-'
       })) || []
 
-      // Generar PDF con moneda correcta
-      generarPDFCotizacion(cotizacionPdf, items, { moneda: cotizacion.moneda || 'USD' })
+      generarPDFCotizacion(cotData, items)
       message.success('PDF descargado')
-
     } catch (error) {
       console.error('Error generando PDF:', error)
       message.error('Error al generar PDF')
-    } finally {
-      setDownloadingPdf(null)
     }
   }
 
   const handleEliminar = async (cotizacion: CotizacionRow) => {
-    // Solo permitir eliminar cotizaciones en status 'propuesta'
     if (cotizacion.status !== 'propuesta') {
       message.error('Solo se pueden eliminar cotizaciones en status "Propuesta"')
       return
     }
 
     try {
-      await deleteCotizacion.mutateAsync(cotizacion.id)
+      await deleteCotizacion.mutateAsync(cotizacion)
       message.success(`Cotizacion ${cotizacion.folio} eliminada`)
     } catch (error) {
       console.error('Error eliminando cotizacion:', error)
@@ -145,14 +89,10 @@ export default function CotizacionesPage() {
     }
   }
 
-  // Filtrar con useMemo
-  const filteredCotizaciones = useMemo(() =>
-    cotizaciones.filter(
-      (c) =>
-        c.folio.toLowerCase().includes(searchText.toLowerCase()) ||
-        (c.cliente_nombre && c.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
-    ),
-    [cotizaciones, searchText]
+  const filteredCotizaciones = cotizaciones.filter(
+    (c) =>
+      c.folio.toLowerCase().includes(searchText.toLowerCase()) ||
+      (c.cliente_nombre && c.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
   )
 
   const columns: ColumnsType<CotizacionRow> = [
@@ -180,10 +120,16 @@ export default function CotizacionesPage() {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',
-      width: 130,
+      width: 150,
       align: 'right',
-      render: (total: number, record: CotizacionRow) =>
-        formatMoneyCurrency(total, (record.moneda as any) || 'USD'),
+      render: (total: number, record) => {
+        const moneda = record.moneda || 'MXN'
+        const formatted = new Intl.NumberFormat('es-MX', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(total || 0)
+        return `$${formatted} ${moneda}`
+      },
       sorter: (a, b) => a.total - b.total,
     },
     {
@@ -197,7 +143,6 @@ export default function CotizacionesPage() {
             {statusLabels[status] || status}
           </Tag>
           {esCaducada(record.fecha, record.vigencia_dias || 30) &&
-           status !== 'factura' &&
            status !== 'cancelada' && (
             <Tag color="warning" icon={<ClockCircleOutlined />}>
               Caducada
@@ -215,7 +160,7 @@ export default function CotizacionesPage() {
       sorter: (a, b) => dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
     },
     {
-      title: 'Última edición',
+      title: 'Ultima edicion',
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 140,
@@ -236,17 +181,16 @@ export default function CotizacionesPage() {
           />
           <Button
             type="link"
-            icon={downloadingPdf === record.id ? <LoadingOutlined /> : <FilePdfOutlined />}
+            icon={<FilePdfOutlined />}
             onClick={() => handleDescargarPDF(record.id)}
             title="Descargar PDF"
-            disabled={downloadingPdf !== null}
           />
           {record.status === 'propuesta' && (
             <Popconfirm
-              title="Eliminar cotización"
-              description={`¿Está seguro de eliminar ${record.folio}?`}
+              title="Eliminar cotizacion"
+              description={`Esta seguro de eliminar ${record.folio}?`}
               onConfirm={() => handleEliminar(record)}
-              okText="Sí, eliminar"
+              okText="Si, eliminar"
               cancelText="Cancelar"
               okButtonProps={{ danger: true }}
             >
@@ -255,6 +199,7 @@ export default function CotizacionesPage() {
                 danger
                 icon={<DeleteOutlined />}
                 title="Eliminar"
+                loading={deleteCotizacion.isPending}
               />
             </Popconfirm>
           )}
@@ -262,6 +207,10 @@ export default function CotizacionesPage() {
       ),
     },
   ]
+
+  if (isError) {
+    message.error(`Error al cargar cotizaciones: ${error?.message}`)
+  }
 
   return (
     <div>
@@ -272,7 +221,7 @@ export default function CotizacionesPage() {
           icon={<PlusOutlined />}
           onClick={() => router.push('/cotizaciones/nueva')}
         >
-          Nueva Cotización
+          Nueva Cotizacion
         </Button>
       </div>
 
@@ -294,25 +243,26 @@ export default function CotizacionesPage() {
             allowClear
             options={[
               { value: 'propuesta', label: 'Propuesta' },
-              { value: 'orden_venta', label: 'Orden de Venta' },
-              { value: 'factura', label: 'Facturada' },
               { value: 'cancelada', label: 'Cancelada' },
             ]}
           />
         </Space>
 
-        <Table
-          dataSource={filteredCotizaciones}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 800 }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `${total} cotizaciones`,
-          }}
-        />
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={7} />
+        ) : (
+          <Table
+            dataSource={filteredCotizaciones}
+            columns={columns}
+            rowKey="id"
+            scroll={{ x: 800 }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `${total} cotizaciones`,
+            }}
+          />
+        )}
       </Card>
     </div>
   )

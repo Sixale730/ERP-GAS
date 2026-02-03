@@ -1,34 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Segmented } from 'antd'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, FileTextOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoneyCurrency, formatDate, formatDateTime } from '@/lib/utils/format'
+import { formatMoneySimple, formatDate, formatDateTime } from '@/lib/utils/format'
 import { generarPDFCotizacion } from '@/lib/utils/pdf'
+import { useOrdenesVenta, type OrdenVentaRow, type FiltroStatusOV } from '@/lib/hooks/queries/useOrdenesVenta'
+import { TableSkeleton } from '@/components/common/Skeletons'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
-
-interface OrdenVentaRow {
-  id: string
-  folio: string
-  fecha: string
-  vigencia_dias: number
-  status: string
-  total: number
-  moneda?: string
-  cliente_nombre?: string
-  cliente_rfc?: string
-  almacen_nombre?: string
-  factura_id?: string
-  created_at?: string
-  updated_at?: string
-}
-
-type FiltroStatus = 'todas' | 'pendientes' | 'facturadas'
 
 const statusColors: Record<string, string> = {
   orden_venta: 'success',
@@ -42,51 +25,22 @@ const statusLabels: Record<string, string> = {
 
 export default function OrdenesVentaPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [ordenes, setOrdenes] = useState<OrdenVentaRow[]>([])
   const [searchText, setSearchText] = useState('')
-  const [filtro, setFiltro] = useState<FiltroStatus>('todas')
+  const [filtro, setFiltro] = useState<FiltroStatusOV>('todas')
 
-  useEffect(() => {
-    loadOrdenes()
-  }, [filtro])
+  // React Query - datos cacheados automáticamente
+  const { data: ordenes = [], isLoading, isError } = useOrdenesVenta(filtro)
 
-  const loadOrdenes = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      let query = supabase
-        .schema('erp')
-        .from('v_cotizaciones')
-        .select('*')
-        .like('folio', 'OV-%')
-        .order('fecha', { ascending: false })
-
-      // Filtrar por status segun el filtro seleccionado
-      if (filtro === 'todas') {
-        query = query.in('status', ['orden_venta', 'factura'])
-      } else if (filtro === 'pendientes') {
-        query = query.eq('status', 'orden_venta')
-      } else if (filtro === 'facturadas') {
-        query = query.eq('status', 'factura')
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setOrdenes(data || [])
-    } catch (error) {
-      console.error('Error loading ordenes:', error)
-      message.error('Error al cargar ordenes de venta')
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Para descargar PDF, usamos un estado para el ID seleccionado
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null)
 
   const handleDescargarPDF = async (ordenId: string) => {
-    const supabase = getSupabaseClient()
+    setDownloadingPdfId(ordenId)
     try {
+      // Importar dinámicamente para obtener datos frescos
+      const { getSupabaseClient } = await import('@/lib/supabase/client')
+      const supabase = getSupabaseClient()
+
       const { data: cotData, error: cotError } = await supabase
         .schema('erp')
         .from('v_cotizaciones')
@@ -114,14 +68,28 @@ export default function OrdenesVentaPage() {
     } catch (error) {
       console.error('Error generando PDF:', error)
       message.error('Error al generar PDF')
+    } finally {
+      setDownloadingPdfId(null)
     }
   }
 
-  const filteredOrdenes = ordenes.filter(
-    (o) =>
-      o.folio.toLowerCase().includes(searchText.toLowerCase()) ||
-      (o.cliente_nombre && o.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
-  )
+  // Filtrar localmente por búsqueda
+  const filteredOrdenes = useMemo(() => {
+    if (!searchText) return ordenes
+    const search = searchText.toLowerCase()
+    return ordenes.filter(
+      (o) =>
+        o.folio.toLowerCase().includes(search) ||
+        (o.cliente_nombre && o.cliente_nombre.toLowerCase().includes(search))
+    )
+  }, [ordenes, searchText])
+
+  // Conteos calculados de los datos cacheados
+  const conteos = useMemo(() => ({
+    todas: ordenes.length,
+    pendientes: ordenes.filter(o => o.status === 'orden_venta').length,
+    facturadas: ordenes.filter(o => o.status === 'factura').length,
+  }), [ordenes])
 
   const columns: ColumnsType<OrdenVentaRow> = [
     {
@@ -150,8 +118,7 @@ export default function OrdenesVentaPage() {
       key: 'total',
       width: 130,
       align: 'right',
-      render: (total: number, record: OrdenVentaRow) =>
-        formatMoneyCurrency(total, (record.moneda as any) || 'USD'),
+      render: (total) => formatMoneySimple(total),
       sorter: (a, b) => a.total - b.total,
     },
     {
@@ -197,6 +164,7 @@ export default function OrdenesVentaPage() {
             type="link"
             icon={<FilePdfOutlined />}
             onClick={() => handleDescargarPDF(record.id)}
+            loading={downloadingPdfId === record.id}
             title="Descargar PDF"
           />
           {record.status === 'factura' && record.factura_id && (
@@ -212,11 +180,8 @@ export default function OrdenesVentaPage() {
     },
   ]
 
-  // Contar por status para mostrar en tabs
-  const conteos = {
-    todas: ordenes.length,
-    pendientes: ordenes.filter(o => o.status === 'orden_venta').length,
-    facturadas: ordenes.filter(o => o.status === 'factura').length,
+  if (isError) {
+    message.error('Error al cargar órdenes de venta')
   }
 
   return (
@@ -237,7 +202,7 @@ export default function OrdenesVentaPage() {
           <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <Segmented
               value={filtro}
-              onChange={(value) => setFiltro(value as FiltroStatus)}
+              onChange={(value) => setFiltro(value as FiltroStatusOV)}
               options={[
                 { value: 'todas', label: `Todas (${conteos.todas})` },
                 { value: 'pendientes', label: `Pendientes (${conteos.pendientes})` },
@@ -254,18 +219,21 @@ export default function OrdenesVentaPage() {
             />
           </Space>
 
-          <Table
-            dataSource={filteredOrdenes}
-            columns={columns}
-            rowKey="id"
-            loading={loading}
-            scroll={{ x: 800 }}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showTotal: (total) => `${total} ordenes`,
-            }}
-          />
+          {isLoading ? (
+            <TableSkeleton rows={5} columns={7} />
+          ) : (
+            <Table
+              dataSource={filteredOrdenes}
+              columns={columns}
+              rowKey="id"
+              scroll={{ x: 800 }}
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showTotal: (total) => `${total} ordenes`,
+              }}
+            />
+          )}
         </Space>
       </Card>
     </div>

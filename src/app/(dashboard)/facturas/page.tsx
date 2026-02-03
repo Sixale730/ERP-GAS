@@ -5,25 +5,14 @@ import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
 import { SearchOutlined, EyeOutlined, FilePdfOutlined, LoadingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useFacturas, type FacturaRow } from '@/lib/hooks/queries/useFacturas'
+import { TableSkeleton } from '@/components/common/Skeletons'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoney, formatDate } from '@/lib/utils/format'
+import { formatMoneyCurrency, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura } from '@/lib/utils/pdf'
-import { useFacturas } from '@/lib/hooks/useQueries'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
-
-interface FacturaRow {
-  id: string
-  folio: string
-  fecha: string
-  status: string
-  total: number
-  saldo: number
-  dias_vencida: number
-  cliente_nombre?: string
-  almacen_nombre?: string
-}
 
 const statusColors: Record<string, string> = {
   pendiente: 'orange',
@@ -45,13 +34,8 @@ export default function FacturasPage() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
 
-  // React Query hook
-  const { data: facturas = [], isLoading: loading, error } = useFacturas(statusFilter)
-
-  // Mostrar error si hay
-  if (error) {
-    message.error('Error al cargar facturas')
-  }
+  // React Query hooks
+  const { data: facturas = [], isLoading, isError, error } = useFacturas(statusFilter)
 
   const handleDescargarPDF = async (facturaId: string) => {
     const supabase = getSupabaseClient()
@@ -128,7 +112,7 @@ export default function FacturasPage() {
       key: 'total',
       width: 130,
       align: 'right',
-      render: (total) => formatMoney(total),
+      render: (total, record) => formatMoneyCurrency(total, record.moneda || 'USD'),
     },
     {
       title: 'Saldo',
@@ -136,9 +120,9 @@ export default function FacturasPage() {
       key: 'saldo',
       width: 130,
       align: 'right',
-      render: (saldo) => (
+      render: (saldo, record) => (
         <span style={{ color: saldo > 0 ? '#cf1322' : '#3f8600', fontWeight: saldo > 0 ? 600 : 400 }}>
-          {formatMoney(saldo)}
+          {formatMoneyCurrency(saldo, record.moneda || 'USD')}
         </span>
       ),
       sorter: (a, b) => a.saldo - b.saldo,
@@ -151,9 +135,9 @@ export default function FacturasPage() {
       render: (dias, record) => {
         if (record.status === 'pagada' || record.status === 'cancelada') return '-'
         if (dias > 0) {
-          return <Tag color="red">{dias} días vencida</Tag>
+          return <Tag color="red">{dias} dias vencida</Tag>
         }
-        return <Tag color="green">Al día</Tag>
+        return <Tag color="green">Al dia</Tag>
       },
     },
     {
@@ -191,20 +175,35 @@ export default function FacturasPage() {
     },
   ]
 
-  // Summary stats
-  const totalPorCobrar = filteredFacturas
-    .filter(f => f.status !== 'cancelada')
+  // Summary stats - separar por moneda
+  const facturasActivas = filteredFacturas.filter(f => f.status !== 'cancelada')
+  const totalPorCobrarUSD = facturasActivas
+    .filter(f => f.moneda === 'USD' || !f.moneda)
+    .reduce((sum, f) => sum + f.saldo, 0)
+  const totalPorCobrarMXN = facturasActivas
+    .filter(f => f.moneda === 'MXN')
     .reduce((sum, f) => sum + f.saldo, 0)
   const facturasVencidas = filteredFacturas.filter(f => f.dias_vencida > 0 && f.status !== 'pagada').length
+
+  if (isError) {
+    message.error(`Error al cargar facturas: ${error?.message}`)
+  }
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Facturas</Title>
         <Space wrap>
-          <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
-            Por cobrar: {formatMoney(totalPorCobrar)}
-          </Tag>
+          {totalPorCobrarUSD > 0 && (
+            <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
+              Por cobrar: {formatMoneyCurrency(totalPorCobrarUSD, 'USD')}
+            </Tag>
+          )}
+          {totalPorCobrarMXN > 0 && (
+            <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
+              Por cobrar: {formatMoneyCurrency(totalPorCobrarMXN, 'MXN')}
+            </Tag>
+          )}
           {facturasVencidas > 0 && (
             <Tag color="orange" style={{ fontSize: 14, padding: '4px 8px' }}>
               {facturasVencidas} vencidas
@@ -238,18 +237,21 @@ export default function FacturasPage() {
           />
         </Space>
 
-        <Table
-          dataSource={filteredFacturas}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 900 }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `${total} facturas`,
-          }}
-        />
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={8} />
+        ) : (
+          <Table
+            dataSource={filteredFacturas}
+            columns={columns}
+            rowKey="id"
+            scroll={{ x: 900 }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `${total} facturas`,
+            }}
+          />
+        )}
       </Card>
     </div>
   )

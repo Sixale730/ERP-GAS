@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next'
+import { Suspense } from 'react'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
 import { ConfigProvider } from 'antd'
 import esES from 'antd/locale/es_ES'
-import { QueryProvider } from '@/lib/providers/QueryProvider'
+import { ReactQueryProvider } from '@/lib/react-query/provider'
+import NavigationProgress from '@/components/layout/NavigationProgress'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -31,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <QueryProvider>
+        <ReactQueryProvider>
           <AntdRegistry>
             <ConfigProvider
               locale={esES}
@@ -42,10 +44,13 @@ export default function RootLayout({
                 },
               }}
             >
+              <Suspense fallback={null}>
+                <NavigationProgress />
+              </Suspense>
               {children}
             </ConfigProvider>
           </AntdRegistry>
-        </QueryProvider>
+        </ReactQueryProvider>
       </body>
     </html>
   )

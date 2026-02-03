@@ -16,7 +16,13 @@ Desarrollado para gestionar inventario, cotizaciones, facturas y finanzas con so
 - **Framework**: Next.js 14 (App Router)
 - **UI Library**: Ant Design 5
 - **Language**: TypeScript
-- **State**: React Query + Zustand
+- **State Management**:
+  - **React Query** (TanStack Query): Cache de datos del servidor con staleTime de 5 min
+  - **Zustand**: Estado global de UI (sidebar, preferencias, busquedas recientes)
+- **UX**:
+  - **NProgress**: Barra de progreso durante navegacion
+  - **Skeleton Loaders**: Placeholders animados durante carga
+  - **Optimistic Updates**: Actualizaciones instantaneas en UI
 - **PWA**: Soporte para instalacion como app
 
 ## Configuracion de Supabase (IMPORTANTE)
@@ -96,22 +102,71 @@ src/
 │   │   ├── cotizaciones/      # Gestion cotizaciones
 │   │   ├── facturas/          # Gestion facturas
 │   │   └── catalogos/         # Almacenes, categorias, etc.
-│   ├── layout.tsx             # Layout raiz con Ant Design
-│   └── globals.css
+│   ├── layout.tsx             # Layout raiz con providers
+│   └── globals.css            # Estilos globales + NProgress + animaciones
 ├── components/
-│   ├── layout/                # AppLayout, Sidebar
+│   ├── layout/
+│   │   ├── AppLayout.tsx      # Layout principal con sidebar
+│   │   ├── Sidebar.tsx        # Menu de navegacion
+│   │   ├── GlobalSearch.tsx   # Busqueda global
+│   │   └── NavigationProgress.tsx  # Barra de progreso (NProgress)
+│   ├── common/
+│   │   └── Skeletons.tsx      # TableSkeleton, DashboardSkeleton, FormSkeleton
 │   ├── productos/
 │   ├── clientes/
-│   ├── cotizaciones/
-│   └── common/
+│   └── cotizaciones/
 ├── lib/
 │   ├── supabase/              # Cliente Supabase
-│   ├── hooks/                 # Custom hooks
-│   └── utils/                 # Utilidades (formateo, etc.)
-├── store/                     # Estado global (Zustand)
+│   ├── react-query/
+│   │   └── provider.tsx       # QueryClientProvider configurado
+│   ├── hooks/
+│   │   ├── queries/           # React Query hooks
+│   │   │   ├── useProductos.ts
+│   │   │   ├── useClientes.ts
+│   │   │   ├── useCotizaciones.ts
+│   │   │   ├── useFacturas.ts
+│   │   │   └── useDashboard.ts
+│   │   ├── useAuth.ts
+│   │   └── useConfiguracion.ts
+│   └── utils/                 # Utilidades (formateo, PDF, etc.)
+├── store/
+│   └── uiStore.ts             # Zustand store (sidebar, preferencias)
 └── types/
     └── database.ts            # Tipos TypeScript del schema
 ```
+
+## Arquitectura de Estado
+
+### React Query (Server State)
+Todos los datos del servidor se manejan con React Query para cache automatico:
+
+```typescript
+// Uso en componentes
+const { data, isLoading, isError } = useProductos()
+const deleteProducto = useDeleteProducto()
+
+// Optimistic updates integrados
+await deleteProducto.mutateAsync(id) // UI se actualiza inmediatamente
+```
+
+**Configuracion por defecto:**
+- `staleTime`: 5 minutos (datos se consideran frescos)
+- `gcTime`: 30 minutos (cache se mantiene)
+- `refetchOnWindowFocus`: false
+- Reintentos: 1 vez con delay de 1 segundo
+
+### Zustand (Client State)
+Estado de UI persistente en localStorage:
+
+```typescript
+const { sidebarCollapsed, setSidebarCollapsed } = useUIStore()
+```
+
+**Estado manejado:**
+- Estado del sidebar (collapsed)
+- Busquedas recientes
+- Preferencias de tabla (pageSize)
+- Filtros por pagina
 
 ## Paginas Implementadas
 
@@ -278,6 +333,12 @@ Recalcula subtotal, IVA, total y saldo de una factura.
 - [x] Formulario de nueva cotizacion (flujo completo)
 - [x] Pagina de facturas con vencimientos
 - [x] CRUD de almacenes
+- [x] **React Query**: Cache de datos con staleTime de 5 min
+- [x] **Zustand**: Estado global de UI persistente
+- [x] **NProgress**: Barra de progreso durante navegacion
+- [x] **Skeleton Loaders**: Placeholders animados durante carga
+- [x] **Optimistic Updates**: UI se actualiza antes de confirmar servidor
+- [x] **Next.js Optimizations**: Compresion, modularizeImports para antd/icons/dayjs
 
 ### Pendientes
 - [ ] Paginas de detalle y edicion de productos

@@ -72,6 +72,20 @@ export function formatMoneyCurrency(
 }
 
 /**
+ * Formatea un número como moneda sin sufijo de moneda
+ * Muestra solo $XX,XXX.XX
+ */
+export function formatMoneySimple(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined) return '$0.00'
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
+/**
  * Formatea una fecha
  */
 export function formatDate(date: string | Date | null | undefined, format: string = 'DD/MM/YYYY'): string {

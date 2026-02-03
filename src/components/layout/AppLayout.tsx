@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation'
 import Sidebar from './Sidebar'
 import GlobalSearch from './GlobalSearch'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useUIStore } from '@/store/uiStore'
 
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
@@ -31,7 +32,7 @@ const roleLabels: Record<string, { label: string; color: string }> = {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const [collapsed, setCollapsed] = useState(false)
+  const { sidebarCollapsed: collapsed, setSidebarCollapsed: setCollapsed } = useUIStore()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const screens = useBreakpoint()
   const isMobile = !screens.md // true si < 768px

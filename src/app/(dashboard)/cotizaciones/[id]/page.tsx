@@ -35,8 +35,6 @@ interface CotizacionDetalle {
   almacen_nombre: string
   moneda: CodigoMoneda
   tipo_cambio: number | null
-  vendedor_id: string | null
-  vendedor_nombre: string | null
   // Datos CFDI
   cfdi_rfc: string | null
   cfdi_razon_social: string | null
@@ -56,6 +54,8 @@ interface CotizacionDetalle {
   condiciones_pago: string | null
   // Datos del cliente para días de crédito
   cliente_dias_credito?: number
+  // Vendedor
+  vendedor_nombre: string | null
 }
 
 // Helpers para vigencia
@@ -176,8 +176,7 @@ export default function CotizacionDetallePage() {
         condiciones_pago: cotData.condiciones_pago,
         cliente_dias_credito: cotData.clientes?.dias_credito || 0,
         // Vendedor
-        vendedor_id: cotData.vendedor_id,
-        vendedor_nombre: cotData.vendedor_nombre || null
+        vendedor_nombre: cotData.vendedor_nombre
       }
 
       setCotizacion(cotizacionData)
@@ -297,7 +296,8 @@ export default function CotizacionDetallePage() {
     // Agregar fecha_vencimiento calculada para el PDF
     const cotizacionConVigencia = {
       ...cotizacion,
-      fecha_vencimiento: calcularFechaVencimiento(cotizacion.fecha, cotizacion.vigencia_dias)
+      fecha_vencimiento: calcularFechaVencimiento(cotizacion.fecha, cotizacion.vigencia_dias),
+      vendedor_nombre: cotizacion.vendedor_nombre
     }
 
     generarPDFCotizacion(cotizacionConVigencia, items, opciones)
@@ -570,6 +570,7 @@ export default function CotizacionDetallePage() {
                   </Text>
                 )}
               </Descriptions.Item>
+              <Descriptions.Item label="Vendedor">{cotizacion.vendedor_nombre || '-'}</Descriptions.Item>
             </Descriptions>
             {cotizacion.notas && (
               <>

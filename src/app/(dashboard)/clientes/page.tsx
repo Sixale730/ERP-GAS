@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useClientes, useDeleteCliente } from '@/lib/hooks/useQueries'
+import { useClientes, useDeleteCliente } from '@/lib/hooks/queries/useClientes'
+import { TableSkeleton } from '@/components/common/Skeletons'
 import { formatMoney } from '@/lib/utils/format'
 import type { Cliente } from '@/types/database'
 
@@ -16,13 +17,8 @@ export default function ClientesPage() {
   const [searchText, setSearchText] = useState('')
 
   // React Query hooks
-  const { data: clientes = [], isLoading: loading, error } = useClientes()
+  const { data: clientes = [], isLoading, isError, error } = useClientes()
   const deleteCliente = useDeleteCliente()
-
-  // Mostrar error si hay
-  if (error) {
-    message.error('Error al cargar clientes')
-  }
 
   const handleDelete = async (id: string) => {
     try {
@@ -47,7 +43,7 @@ export default function ClientesPage() {
 
   const columns: ColumnsType<Cliente> = [
     {
-      title: 'Código',
+      title: 'Codigo',
       dataIndex: 'codigo',
       key: 'codigo',
       width: 100,
@@ -66,7 +62,7 @@ export default function ClientesPage() {
       render: (rfc) => rfc || '-',
     },
     {
-      title: 'Teléfono',
+      title: 'Telefono',
       dataIndex: 'telefono',
       key: 'telefono',
       width: 130,
@@ -86,11 +82,11 @@ export default function ClientesPage() {
       ),
     },
     {
-      title: 'Crédito',
+      title: 'Credito',
       key: 'credito',
       width: 120,
       render: (_, record) => {
-        if (record.limite_credito === 0) return <Tag>Sin crédito</Tag>
+        if (record.limite_credito === 0) return <Tag>Sin credito</Tag>
         const porcentaje = (record.saldo_pendiente / record.limite_credito) * 100
         let color = 'green'
         if (porcentaje > 80) color = 'red'
@@ -110,17 +106,26 @@ export default function ClientesPage() {
             onClick={() => router.push(`/clientes/${record.id}`)}
           />
           <Popconfirm
-            title="¿Eliminar cliente?"
+            title="Eliminar cliente?"
             onConfirm={() => handleDelete(record.id)}
-            okText="Sí"
+            okText="Si"
             cancelText="No"
           >
-            <Button type="link" danger icon={<DeleteOutlined />} />
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              loading={deleteCliente.isPending}
+            />
           </Popconfirm>
         </Space>
       ),
     },
   ]
+
+  if (isError) {
+    message.error(`Error al cargar clientes: ${error?.message}`)
+  }
 
   return (
     <div>
@@ -138,7 +143,7 @@ export default function ClientesPage() {
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
           <Input
-            placeholder="Buscar por código, nombre o RFC..."
+            placeholder="Buscar por codigo, nombre o RFC..."
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -147,18 +152,21 @@ export default function ClientesPage() {
           />
         </Space>
 
-        <Table
-          dataSource={filteredClientes}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 900 }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `${total} clientes`,
-          }}
-        />
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={7} />
+        ) : (
+          <Table
+            dataSource={filteredClientes}
+            columns={columns}
+            rowKey="id"
+            scroll={{ x: 900 }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `${total} clientes`,
+            }}
+          />
+        )}
       </Card>
     </div>
   )

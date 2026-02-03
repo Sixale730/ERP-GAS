@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin, Button, Space } from 'antd'
+import { Row, Col, Card, Statistic, Table, Tag, Typography, Button, Space } from 'antd'
 import {
   ShoppingOutlined,
   DollarOutlined,
@@ -9,7 +9,8 @@ import {
   WarningOutlined,
   ShoppingCartOutlined,
 } from '@ant-design/icons'
-import { useDashboardData } from '@/lib/hooks/useQueries'
+import { useDashboard } from '@/lib/hooks/queries/useDashboard'
+import { DashboardSkeleton } from '@/components/common/Skeletons'
 import { formatMoney } from '@/lib/utils/format'
 
 const { Title } = Typography
@@ -17,18 +18,8 @@ const { Title } = Typography
 export default function DashboardPage() {
   const router = useRouter()
 
-  // React Query hook - una sola llamada con caché
-  const { data, isLoading: loading, error } = useDashboardData()
-
-  const stats = data?.stats || {
-    totalProductos: 0,
-    productosStockBajo: 0,
-    cotizacionesPendientes: 0,
-    facturasPorCobrar: 0,
-    totalPorCobrar: 0,
-  }
-  const productosStockBajo = data?.productosStockBajo || []
-  const facturasRecientes = data?.facturasRecientes || []
+  // React Query hook
+  const { data, isLoading, isError } = useDashboard()
 
   const productosColumns = [
     {
@@ -96,21 +87,22 @@ export default function DashboardPage() {
     },
   ]
 
-  if (loading) {
+  if (isLoading) {
+    return <DashboardSkeleton />
+  }
+
+  if (isError || !data) {
     return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
-        <Spin size="large" />
+      <div>
+        <Title level={2}>Dashboard</Title>
+        <Card>
+          <p>Error al cargar el dashboard. Por favor, recarga la pagina.</p>
+        </Card>
       </div>
     )
   }
 
-  if (error) {
-    return (
-      <div style={{ textAlign: 'center', padding: '50px', color: '#cf1322' }}>
-        Error al cargar el dashboard
-      </div>
-    )
-  }
+  const { stats, productosStockBajo, facturasRecientes } = data
 
   return (
     <div>

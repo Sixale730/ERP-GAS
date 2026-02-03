@@ -141,17 +141,16 @@ function generarDatosCliente(
   }
   doc.text(`Almacen: ${data.almacen_nombre}`, 14, y + (data.cliente_rfc ? 18 : 12))
 
-  // Columna derecha - fechas
-  let yDerecha = y
+  // Columna derecha - fechas y vendedor
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(0, 0, 0)
-  doc.text('FECHA', 14 + colWidth, yDerecha)
+  doc.text('FECHA', 14 + colWidth, y)
 
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLOR_GRIS)
-  doc.text(formatDate(data.fecha), 14 + colWidth, yDerecha + 6)
-  yDerecha += 12
+  doc.text(formatDate(data.fecha), 14 + colWidth, y + 6)
 
+  let yDerecha = y + 14
   if (data.fecha_vencimiento) {
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(0, 0, 0)
@@ -159,9 +158,10 @@ function generarDatosCliente(
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...COLOR_GRIS)
     doc.text(formatDate(data.fecha_vencimiento), 14 + colWidth, yDerecha + 6)
-    yDerecha += 12
+    yDerecha += 14
   }
 
+  // Vendedor
   if (data.vendedor_nombre) {
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(0, 0, 0)
@@ -169,13 +169,9 @@ function generarDatosCliente(
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...COLOR_GRIS)
     doc.text(data.vendedor_nombre, 14 + colWidth, yDerecha + 6)
-    yDerecha += 12
   }
 
-  // Retornar el máximo entre ambas columnas para evitar sobreposición
-  const alturaIzquierda = y + 30
-  const alturaDerecha = yDerecha
-  return Math.max(alturaIzquierda, alturaDerecha)
+  return y + 30
 }
 
 /**
