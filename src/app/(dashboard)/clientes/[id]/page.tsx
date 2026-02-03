@@ -9,6 +9,7 @@ import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
 import { getRegimenFiscalLabel, getUsoCfdiLabel, getFormaPagoLabel, getMetodoPagoLabel } from '@/lib/config/sat'
+import DireccionEnvioList from '@/components/common/DireccionEnvioList'
 
 const { Title, Text } = Typography
 
@@ -226,18 +227,9 @@ export default function ClienteDetallePage() {
             </Descriptions>
           </Card>
 
-          {(cliente.direccion_envio || cliente.ciudad_envio || cliente.contacto_envio) && (
-            <Card title="Dirección de Envío" style={{ marginBottom: 16 }}>
-              <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
-                <Descriptions.Item label="Dirección" span={2}>{cliente.direccion_envio || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Ciudad">{cliente.ciudad_envio || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Estado">{cliente.estado_envio || '-'}</Descriptions.Item>
-                <Descriptions.Item label="C.P.">{cliente.codigo_postal_envio || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Contacto">{cliente.contacto_envio || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Teléfono">{cliente.telefono_envio || '-'}</Descriptions.Item>
-              </Descriptions>
-            </Card>
-          )}
+          <Card title="Direcciones de Envío" style={{ marginBottom: 16 }}>
+            <DireccionEnvioList clienteId={id} showAddButton={true} />
+          </Card>
 
           {(cliente.forma_pago || cliente.metodo_pago) && (
             <Card title="Preferencias de Pago" style={{ marginBottom: 16 }}>

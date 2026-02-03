@@ -8,7 +8,7 @@ import {
 import { ArrowLeftOutlined, SaveOutlined, ExperimentOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
-import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
+import DireccionFields from '@/components/common/DireccionFields'
 import {
   CLIENTES_PRUEBA_SAT,
   getClientesPruebaAgrupados,
@@ -134,17 +134,31 @@ export default function NuevoClientePage() {
           codigo_postal_fiscal: values.codigo_postal_fiscal || null,
           telefono: values.telefono || null,
           email: values.email || null,
-          direccion: values.direccion || null,
           contacto_nombre: values.contacto_nombre || null,
           lista_precio_id: values.lista_precio_id || null,
           dias_credito: values.dias_credito || 0,
           limite_credito: values.limite_credito || 0,
           notas: values.notas || null,
-          // Campos de envío
-          direccion_envio: values.direccion_envio || null,
+          // Dirección comercial detallada
+          calle: values.calle || null,
+          numero_exterior: values.numero_exterior || null,
+          numero_interior: values.numero_interior || null,
+          colonia: values.colonia || null,
+          codigo_postal: values.codigo_postal || null,
+          ciudad: values.ciudad || null,
+          estado: values.estado || null,
+          pais: values.pais || null,
+          referencias: values.referencias || null,
+          // Campos de envío detallados
+          calle_envio: values.calle_envio || null,
+          numero_exterior_envio: values.numero_exterior_envio || null,
+          numero_interior_envio: values.numero_interior_envio || null,
+          colonia_envio: values.colonia_envio || null,
+          codigo_postal_envio: values.codigo_postal_envio || null,
           ciudad_envio: values.ciudad_envio || null,
           estado_envio: values.estado_envio || null,
-          codigo_postal_envio: values.codigo_postal_envio || null,
+          pais_envio: values.pais_envio || null,
+          referencias_envio: values.referencias_envio || null,
           contacto_envio: values.contacto_envio || null,
           telefono_envio: values.telefono_envio || null,
           // Campos de pago
@@ -235,12 +249,10 @@ export default function NuevoClientePage() {
                 <Input type="email" placeholder="correo@ejemplo.com" />
               </Form.Item>
             </Col>
-            <Col xs={24}>
-              <Form.Item name="direccion" label="Dirección">
-                <TextArea rows={2} placeholder="Dirección completa" />
-              </Form.Item>
-            </Col>
           </Row>
+
+          <Title level={5} style={{ marginTop: 24 }}>Direccion Comercial</Title>
+          <DireccionFields form={form} prefix="" />
 
           <Title level={5} style={{ marginTop: 24 }}>Datos Fiscales</Title>
           <Row gutter={16}>
@@ -279,38 +291,16 @@ export default function NuevoClientePage() {
             </Col>
           </Row>
 
-          <Title level={5} style={{ marginTop: 24 }}>Dirección de Envío</Title>
+          <Title level={5} style={{ marginTop: 24 }}>Direccion de Envio</Title>
+          <DireccionFields form={form} prefix="_envio" />
           <Row gutter={16}>
-            <Col xs={24}>
-              <Form.Item name="direccion_envio" label="Dirección de Envío">
-                <TextArea rows={2} placeholder="Dirección completa para envío (si es diferente a la fiscal)" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={16}>
-              <Form.Item label="Estado y Ciudad">
-                <EstadoCiudadSelect
-                  estadoValue={form.getFieldValue('estado_envio')}
-                  ciudadValue={form.getFieldValue('ciudad_envio')}
-                  onEstadoChange={(value) => form.setFieldValue('estado_envio', value)}
-                  onCiudadChange={(value) => form.setFieldValue('ciudad_envio', value)}
-                />
-                {/* Campos ocultos para el formulario */}
-                <Form.Item name="estado_envio" hidden><Input /></Form.Item>
-                <Form.Item name="ciudad_envio" hidden><Input /></Form.Item>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="codigo_postal_envio" label="C.P. Envío">
-                <Input placeholder="Código postal" maxLength={10} />
-              </Form.Item>
-            </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="contacto_envio" label="Contacto para Envío">
+              <Form.Item name="contacto_envio" label="Contacto para Envio">
                 <Input placeholder="Nombre de quien recibe" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="telefono_envio" label="Teléfono Envío">
+              <Form.Item name="telefono_envio" label="Telefono Envio">
                 <Input placeholder="Teléfono de contacto para entregas" />
               </Form.Item>
             </Col>
