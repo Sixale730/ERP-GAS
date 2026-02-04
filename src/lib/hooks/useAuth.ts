@@ -64,7 +64,7 @@ export function useAuth() {
       // Retry logic optimizado - timeouts más cortos
       const maxRetries = 2
       const initialDelay = 500
-      const timeoutMs = 5000
+      const timeoutMs = 15000  // 15 segundos para evitar timeouts prematuros
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -240,15 +240,15 @@ export function useAuth() {
 
         const { erpUser, organizacion } = await fetchERPUser()
 
-        setState({
+        setState((prev) => ({
           user: session.user,
           erpUser,
           organizacion,
           session,
           loading: false,
-          role: erpUser?.rol || role,
-          orgId: erpUser?.organizacion_id || orgId,
-        })
+          role: erpUser?.rol || role || prev.role,  // Preservar rol anterior si el nuevo es null
+          orgId: erpUser?.organizacion_id || orgId || prev.orgId,  // Preservar orgId anterior
+        }))
       }
     })
 

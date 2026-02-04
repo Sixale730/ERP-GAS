@@ -148,7 +148,7 @@ const allMenuItems: MenuItemWithRoles[] = [
         key: '/configuracion',
         icon: <SettingOutlined />,
         label: 'General',
-        roles: ['super_admin'],
+        roles: ['super_admin', 'admin_cliente'],
       },
       {
         key: '/configuracion/cfdi',
