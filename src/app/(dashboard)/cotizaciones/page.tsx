@@ -9,7 +9,7 @@ import { useCotizaciones, useDeleteCotizacion, type CotizacionRow } from '@/lib/
 import { TableSkeleton } from '@/components/common/Skeletons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatDate, formatDateTime } from '@/lib/utils/format'
-import { generarPDFCotizacion } from '@/lib/utils/pdf'
+import { generarPDFCotizacion, prepararDatosCotizacionPDF } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
@@ -66,7 +66,8 @@ export default function CotizacionesPage() {
         sku: item.productos?.sku || '-'
       })) || []
 
-      generarPDFCotizacion(cotData, items)
+      const { cotizacion, opciones } = prepararDatosCotizacionPDF(cotData)
+      generarPDFCotizacion(cotizacion, items, opciones)
       message.success('PDF descargado')
     } catch (error) {
       console.error('Error generando PDF:', error)

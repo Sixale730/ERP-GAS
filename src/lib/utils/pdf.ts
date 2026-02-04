@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import dayjs from 'dayjs'
 import { EMPRESA } from '@/lib/config/empresa'
 import { formatMoneyCurrency, formatDate } from './format'
 import { type CodigoMoneda } from '@/lib/config/moneda'
@@ -17,8 +18,8 @@ function formatMontoConMoneda(amount: number, opciones: OpcionesMoneda): string 
   return formatMoneyCurrency(amount, opciones.moneda)
 }
 
-// Tipos para cotizaciones
-interface CotizacionPDF {
+// Tipos para cotizaciones - exportados para uso externo
+export interface CotizacionPDF {
   folio: string
   fecha: string
   fecha_vencimiento?: string
@@ -43,8 +44,8 @@ interface ItemPDF {
   subtotal: number
 }
 
-// Tipos para facturas
-interface FacturaPDF {
+// Tipos para facturas - exportados para uso externo
+export interface FacturaPDF {
   folio: string
   fecha: string
   fecha_vencimiento?: string
@@ -624,4 +625,73 @@ export function generarPDFOrdenCompra(
   doc.text('Documento generado electronicamente', doc.internal.pageSize.getWidth() / 2, pageHeight - 10, { align: 'center' })
 
   doc.save(`${orden.folio}.pdf`)
+}
+
+/**
+ * Prepara los datos de una cotización para generar el PDF
+ * Calcula la fecha de vencimiento y extrae el vendedor
+ */
+export function prepararDatosCotizacionPDF(cotData: any): {
+  cotizacion: CotizacionPDF
+  opciones: OpcionesMoneda
+} {
+  // Calcular fecha de vencimiento
+  const vigenciaDias = cotData.vigencia_dias || 30
+  const fechaVencimiento = dayjs(cotData.fecha).add(vigenciaDias, 'day').format('YYYY-MM-DD')
+
+  const cotizacion: CotizacionPDF = {
+    folio: cotData.folio,
+    fecha: cotData.fecha,
+    fecha_vencimiento: fechaVencimiento,
+    cliente_nombre: cotData.cliente_nombre,
+    cliente_rfc: cotData.cliente_rfc,
+    almacen_nombre: cotData.almacen_nombre,
+    subtotal: cotData.subtotal,
+    descuento_porcentaje: cotData.descuento_porcentaje || 0,
+    descuento_monto: cotData.descuento_monto || 0,
+    iva: cotData.iva,
+    total: cotData.total,
+    notas: cotData.notas,
+    vendedor_nombre: cotData.vendedor_nombre,
+  }
+
+  const opciones: OpcionesMoneda = {
+    moneda: cotData.moneda || 'MXN',
+    tipoCambio: cotData.tipo_cambio || undefined,
+  }
+
+  return { cotizacion, opciones }
+}
+
+/**
+ * Prepara los datos de una factura para generar el PDF
+ */
+export function prepararDatosFacturaPDF(facData: any): {
+  factura: FacturaPDF
+  opciones: OpcionesMoneda
+} {
+  const factura: FacturaPDF = {
+    folio: facData.folio,
+    fecha: facData.fecha,
+    fecha_vencimiento: facData.fecha_vencimiento,
+    cliente_nombre: facData.cliente_nombre,
+    cliente_rfc: facData.cliente_rfc,
+    almacen_nombre: facData.almacen_nombre,
+    subtotal: facData.subtotal,
+    descuento_porcentaje: facData.descuento_porcentaje || 0,
+    descuento_monto: facData.descuento_monto || 0,
+    iva: facData.iva,
+    total: facData.total,
+    saldo: facData.saldo,
+    notas: facData.notas,
+    cotizacion_folio: facData.cotizacion_folio,
+    vendedor_nombre: facData.vendedor_nombre,
+  }
+
+  const opciones: OpcionesMoneda = {
+    moneda: facData.moneda || 'USD',
+    tipoCambio: facData.moneda === 'MXN' ? (facData.tipo_cambio || undefined) : undefined,
+  }
+
+  return { factura, opciones }
 }

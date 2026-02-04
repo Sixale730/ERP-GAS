@@ -9,7 +9,7 @@ import { useFacturas, type FacturaRow } from '@/lib/hooks/queries/useFacturas'
 import { TableSkeleton } from '@/components/common/Skeletons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyCurrency, formatDate } from '@/lib/utils/format'
-import { generarPDFFactura } from '@/lib/utils/pdf'
+import { generarPDFFactura, prepararDatosFacturaPDF } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
@@ -65,7 +65,8 @@ export default function FacturasPage() {
         sku: item.productos?.sku || '-'
       })) || []
 
-      generarPDFFactura(facData, items)
+      const { factura, opciones } = prepararDatosFacturaPDF(facData)
+      generarPDFFactura(factura, items, opciones)
       message.success('PDF descargado')
     } catch (error) {
       console.error('Error generando PDF:', error)

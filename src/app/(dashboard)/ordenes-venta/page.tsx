@@ -6,7 +6,7 @@ import { Table, Button, Input, Space, Tag, Card, Typography, message, Segmented 
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, FileTextOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { formatMoneySimple, formatDate, formatDateTime } from '@/lib/utils/format'
-import { generarPDFCotizacion } from '@/lib/utils/pdf'
+import { generarPDFCotizacion, prepararDatosCotizacionPDF } from '@/lib/utils/pdf'
 import { useOrdenesVenta, type OrdenVentaRow, type FiltroStatusOV } from '@/lib/hooks/queries/useOrdenesVenta'
 import { TableSkeleton } from '@/components/common/Skeletons'
 import dayjs from 'dayjs'
@@ -63,7 +63,8 @@ export default function OrdenesVentaPage() {
         sku: item.productos?.sku || '-'
       })) || []
 
-      generarPDFCotizacion(cotData, items)
+      const { cotizacion, opciones } = prepararDatosCotizacionPDF(cotData)
+      generarPDFCotizacion(cotizacion, items, opciones)
       message.success('PDF descargado')
     } catch (error) {
       console.error('Error generando PDF:', error)
