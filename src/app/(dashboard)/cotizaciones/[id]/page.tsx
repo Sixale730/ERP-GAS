@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Alert, Collapse
+  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Alert, Collapse, Input
 } from 'antd'
 import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, HistoryOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
@@ -104,6 +104,9 @@ export default function CotizacionDetallePage() {
   const [items, setItems] = useState<CotizacionItem[]>([])
   const [inventarioMap, setInventarioMap] = useState<Map<string, number>>(new Map())
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(true)
+  // Estados para edición inline de descripción
+  const [editingItems, setEditingItems] = useState<Map<string, string>>(new Map())
+  const [savingItem, setSavingItem] = useState<string | null>(null)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -382,6 +385,31 @@ export default function CotizacionDetallePage() {
     })
   }
 
+  // Función para actualizar descripción inline
+  const handleUpdateDescripcion = async (itemId: string, nuevaDescripcion: string) => {
+    setSavingItem(itemId)
+    const supabase = getSupabaseClient()
+
+    const { error } = await supabase
+      .schema('erp')
+      .from('cotizacion_items')
+      .update({ descripcion: nuevaDescripcion })
+      .eq('id', itemId)
+
+    if (error) {
+      message.error('Error al guardar la descripción')
+    } else {
+      setItems(items.map(i => i.id === itemId ? { ...i, descripcion: nuevaDescripcion } : i))
+      message.success('Descripción actualizada')
+    }
+    setSavingItem(null)
+    setEditingItems(prev => {
+      const newMap = new Map(prev)
+      newMap.delete(itemId)
+      return newMap
+    })
+  }
+
   const columns = [
     {
       title: 'SKU',
@@ -393,6 +421,53 @@ export default function CotizacionDetallePage() {
       title: 'Descripción',
       dataIndex: 'descripcion',
       key: 'descripcion',
+      render: (val: string, record: CotizacionItem) => {
+        const esEditable = ['propuesta', 'orden_venta'].includes(cotizacion?.status || '')
+        const editing = editingItems.has(record.id)
+
+        if (!esEditable) return val
+
+        if (editing) {
+          return (
+            <Space.Compact style={{ width: '100%' }}>
+              <Input.TextArea
+                value={editingItems.get(record.id)}
+                onChange={(e) => setEditingItems(prev => new Map(prev).set(record.id, e.target.value))}
+                autoSize={{ minRows: 1, maxRows: 3 }}
+                size="small"
+                style={{ flex: 1 }}
+              />
+              <Button
+                type="primary"
+                size="small"
+                loading={savingItem === record.id}
+                onClick={() => handleUpdateDescripcion(record.id, editingItems.get(record.id) || '')}
+              >
+                ✓
+              </Button>
+              <Button
+                size="small"
+                onClick={() => setEditingItems(prev => {
+                  const newMap = new Map(prev)
+                  newMap.delete(record.id)
+                  return newMap
+                })}
+              >
+                ✕
+              </Button>
+            </Space.Compact>
+          )
+        }
+
+        return (
+          <Text
+            style={{ cursor: 'pointer' }}
+            onClick={() => setEditingItems(prev => new Map(prev).set(record.id, val))}
+          >
+            {val} <EditOutlined style={{ fontSize: 12, opacity: 0.5 }} />
+          </Text>
+        )
+      }
     },
     {
       title: 'Cantidad',

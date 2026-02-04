@@ -23,6 +23,7 @@ interface CotizacionItem {
   producto_id: string
   producto_nombre: string
   sku: string
+  descripcion: string  // Descripción editable por línea
   precio_lista_usd: number
   margen_porcentaje: number
   cantidad: number
@@ -278,6 +279,7 @@ export default function NuevaCotizacionPage() {
       producto_id: producto.id,
       producto_nombre: producto.nombre,
       sku: producto.sku,
+      descripcion: producto.nombre,  // Inicializar con nombre del producto
       precio_lista_usd: precioUSD,
       margen_porcentaje: margen,
       cantidad: 1,
@@ -290,18 +292,20 @@ export default function NuevaCotizacionPage() {
     setProductOptions([])
   }
 
-  const handleUpdateItem = (key: string, field: string, value: number) => {
+  const handleUpdateItem = (key: string, field: string, value: number | string) => {
     setItems(items.map(item => {
       if (item.key === key) {
         const updated = { ...item, [field]: value }
 
         // Si cambia el margen, recalcular precio
-        if (field === 'margen_porcentaje') {
+        if (field === 'margen_porcentaje' && typeof value === 'number') {
           updated.precio_unitario = calcularPrecioFinal(updated.precio_lista_usd, value)
         }
 
-        // Recalcular subtotal
-        updated.subtotal = updated.cantidad * updated.precio_unitario
+        // Recalcular subtotal (solo si no es campo de texto)
+        if (field !== 'descripcion') {
+          updated.subtotal = updated.cantidad * updated.precio_unitario
+        }
         return updated
       }
       return item
@@ -414,7 +418,7 @@ export default function NuevaCotizacionPage() {
       const itemsToInsert = items.map(i => ({
         cotizacion_id: cotizacion.id,
         producto_id: i.producto_id,
-        descripcion: i.producto_nombre,
+        descripcion: i.descripcion,  // Usar descripción editable
         cantidad: i.cantidad,
         precio_unitario: i.precio_unitario,
         descuento_porcentaje: 0,
@@ -458,7 +462,22 @@ export default function NuevaCotizacionPage() {
     {
       title: 'Producto',
       dataIndex: 'producto_nombre',
+      width: 120,
       ellipsis: true,
+    },
+    {
+      title: 'Descripción',
+      dataIndex: 'descripcion',
+      width: 180,
+      render: (val: string, record: CotizacionItem) => (
+        <Input.TextArea
+          value={val}
+          onChange={(e) => handleUpdateItem(record.key, 'descripcion', e.target.value)}
+          autoSize={{ minRows: 1, maxRows: 3 }}
+          size="small"
+          placeholder="Descripción del producto"
+        />
+      ),
     },
     {
       title: 'Precio USD',
