@@ -1,15 +1,18 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Table, Input, Select, Space, Card, Typography, Tag } from 'antd'
-import { SearchOutlined } from '@ant-design/icons'
+import { Table, Input, Select, Space, Card, Typography, Tag, Button, Popconfirm, message } from 'antd'
+import { SearchOutlined, EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { usePreciosProductos, useProveedores, useListasPrecios } from '@/lib/hooks/useQueries'
+import { useDeletePrecioProducto } from '@/lib/hooks/usePreciosProductos'
+import PrecioProductoModal from '@/components/precios/PrecioProductoModal'
 
 const { Title } = Typography
 
 interface PrecioProductoRow {
   id: string
+  precio_id: string | null  // ID del precio en precios_productos
   sku: string
   nombre: string
   proveedor_id: string | null
@@ -25,9 +28,14 @@ export default function PreciosProductosPage() {
   const [proveedorFilter, setProveedorFilter] = useState<string | null>(null)
   const [listaFilter, setListaFilter] = useState<string | null>(null)
 
-  const { data: preciosData, isLoading } = usePreciosProductos()
+  // Estado para el modal de edicion
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingRow, setEditingRow] = useState<PrecioProductoRow | null>(null)
+
+  const { data: preciosData, isLoading, refetch } = usePreciosProductos()
   const { data: proveedores } = useProveedores()
   const { data: listasPrecios } = useListasPrecios()
+  const deletePrecio = useDeletePrecioProducto()
 
   // Filtrar datos
   const filteredData = useMemo(() => {
@@ -67,6 +75,43 @@ export default function PreciosProductosPage() {
       style: 'currency',
       currency: 'MXN',
     }).format(value)
+  }
+
+  // Calcular listas disponibles para un producto (para crear nuevo precio)
+  const getListasDisponiblesParaProducto = (productoId: string) => {
+    // Obtener todas las listas que ya tienen precio para este producto
+    const listasConPrecio = (preciosData || [])
+      .filter(row => row.id === productoId && row.precio_id !== null)
+      .map(row => row.lista_id)
+
+    return (listasPrecios || []).filter(l => !listasConPrecio.includes(l.id))
+  }
+
+  const handleEditPrecio = (record: PrecioProductoRow) => {
+    setEditingRow(record)
+    setModalOpen(true)
+  }
+
+  const handleAddPrecio = (record: PrecioProductoRow) => {
+    // Crear un registro sin precio para abrir el modal en modo crear
+    setEditingRow({
+      ...record,
+      precio_id: null,
+      precio: null,
+      precio_con_iva: null,
+    })
+    setModalOpen(true)
+  }
+
+  const handleDeletePrecio = async (record: PrecioProductoRow) => {
+    if (!record.precio_id) return
+    try {
+      await deletePrecio.mutateAsync({ id: record.precio_id, producto_id: record.id })
+      message.success('Precio eliminado')
+    } catch (error: any) {
+      console.error('Error deleting precio:', error)
+      message.error(error.message || 'Error al eliminar precio')
+    }
   }
 
   const columns: ColumnsType<PrecioProductoRow> = [
@@ -123,6 +168,40 @@ export default function PreciosProductosPage() {
         ),
       sorter: (a, b) =>
         (a.lista_nombre || '').localeCompare(b.lista_nombre || ''),
+    },
+    {
+      title: 'Acciones',
+      key: 'acciones',
+      width: 120,
+      render: (_, record) =>
+        record.precio_id ? (
+          <Space>
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEditPrecio(record)}
+            />
+            <Popconfirm
+              title="Eliminar precio"
+              description="Esta accion no se puede deshacer"
+              onConfirm={() => handleDeletePrecio(record)}
+              okText="Eliminar"
+              cancelText="Cancelar"
+            >
+              <Button size="small" icon={<DeleteOutlined />} danger />
+            </Popconfirm>
+          </Space>
+        ) : (
+          <Button
+            size="small"
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => handleAddPrecio(record)}
+            disabled={getListasDisponiblesParaProducto(record.id).length === 0}
+          >
+            Agregar
+          </Button>
+        ),
     },
   ]
 
@@ -207,9 +286,35 @@ export default function PreciosProductosPage() {
             pageSizeOptions: ['10', '20', '50', '100'],
           }}
           size="middle"
-          scroll={{ x: 900 }}
+          scroll={{ x: 1000 }}
         />
       </Card>
+
+      {/* Modal para editar/crear precios */}
+      {editingRow && (
+        <PrecioProductoModal
+          open={modalOpen}
+          onClose={() => {
+            setModalOpen(false)
+            setEditingRow(null)
+          }}
+          productoId={editingRow.id}
+          precio={
+            editingRow.precio_id
+              ? {
+                  id: editingRow.precio_id,
+                  producto_id: editingRow.id,
+                  lista_precio_id: editingRow.lista_id!,
+                  lista_nombre: editingRow.lista_nombre!,
+                  precio: editingRow.precio!,
+                  precio_con_iva: editingRow.precio_con_iva,
+                }
+              : null
+          }
+          listasDisponibles={getListasDisponiblesParaProducto(editingRow.id)}
+          onSuccess={() => refetch()}
+        />
+      )}
     </div>
   )
 }

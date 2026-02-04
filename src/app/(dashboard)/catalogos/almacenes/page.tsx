@@ -29,6 +29,7 @@ export default function AlmacenesPage() {
         .schema('erp')
         .from('almacenes')
         .select('*')
+        .eq('is_active', true)
         .order('codigo')
 
       if (error) throw error

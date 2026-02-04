@@ -495,6 +495,7 @@ export function useProveedores() {
 
 interface PrecioProductoRow {
   id: string
+  precio_id: string | null  // ID del precio en precios_productos
   sku: string
   nombre: string
   proveedor_id: string | null
@@ -525,6 +526,7 @@ export function usePreciosProductos() {
             razon_social
           ),
           precios_productos (
+            id,
             precio,
             precio_con_iva,
             lista_precio_id,
@@ -563,6 +565,7 @@ export function usePreciosProductos() {
 
             rows.push({
               id: producto.id,
+              precio_id: precio.id,
               sku: producto.sku,
               nombre: producto.nombre,
               proveedor_id: proveedor?.id || null,
@@ -577,6 +580,7 @@ export function usePreciosProductos() {
           // Producto sin precios configurados
           rows.push({
             id: producto.id,
+            precio_id: null,
             sku: producto.sku,
             nombre: producto.nombre,
             proveedor_id: proveedor?.id || null,
