@@ -8,6 +8,7 @@ import {
   FileTextOutlined,
   WarningOutlined,
   ShoppingCartOutlined,
+  PlusOutlined,
 } from '@ant-design/icons'
 import { useDashboard } from '@/lib/hooks/queries/useDashboard'
 import { DashboardSkeleton } from '@/components/common/Skeletons'
@@ -106,7 +107,24 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <Title level={2}>Dashboard</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={2} style={{ margin: 0 }}>Dashboard</Title>
+        <Space>
+          <Button
+            icon={<FileTextOutlined />}
+            onClick={() => router.push('/cotizaciones?status=propuesta')}
+          >
+            Ver Pendientes
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => router.push('/cotizaciones/nueva')}
+          >
+            Nueva Cotización
+          </Button>
+        </Space>
+      </div>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
@@ -130,7 +148,11 @@ export default function DashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card
+            hoverable
+            onClick={() => router.push('/cotizaciones')}
+            style={{ cursor: 'pointer' }}
+          >
             <Statistic
               title="Cotizaciones Pendientes"
               value={stats.cotizacionesPendientes}

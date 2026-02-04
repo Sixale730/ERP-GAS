@@ -63,12 +63,12 @@ async function fetchDashboardData(): Promise<DashboardData> {
       .lt('stock_total', 10)
       .limit(5),
 
-    // Cotizaciones pendientes
+    // Cotizaciones pendientes (propuesta = pendientes de convertir a orden de venta)
     supabase
       .schema('erp')
       .from('cotizaciones')
       .select('*', { count: 'exact', head: true })
-      .in('status', ['borrador', 'enviada', 'aceptada']),
+      .in('status', ['propuesta']),
 
     // Facturas por cobrar
     supabase
@@ -79,6 +79,9 @@ async function fetchDashboardData(): Promise<DashboardData> {
       .order('fecha', { ascending: false })
       .limit(5),
   ])
+
+  // Debug: ver qué retorna la consulta de cotizaciones
+  console.log('Cotizaciones pendientes result:', cotizacionesPendientesResult)
 
   // Procesar resultados
   const totalProductos = totalProductosResult.count || 0
