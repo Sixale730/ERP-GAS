@@ -1,14 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Table, Modal, InputNumber, Form
+  Card, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Table, Modal, InputNumber, Form, Popconfirm
 } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, SettingOutlined, SwapOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, SettingOutlined, SwapOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney } from '@/lib/utils/format'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
+import PrecioProductoModal from '@/components/precios/PrecioProductoModal'
+import { usePreciosProducto, useDeletePrecioProducto, type PrecioConLista } from '@/lib/hooks/usePreciosProductos'
+import { useListasPrecios } from '@/lib/hooks/useQueries'
 import type { MovimientoView } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -34,11 +37,6 @@ interface ProductoDetalle {
   is_active: boolean
 }
 
-interface PrecioLista {
-  id: string
-  lista_nombre: string
-  precio: number
-}
 
 interface InventarioAlmacen {
   almacen_id: string
@@ -55,7 +53,6 @@ export default function ProductoDetallePage() {
 
   const [loading, setLoading] = useState(true)
   const [producto, setProducto] = useState<ProductoDetalle | null>(null)
-  const [precios, setPrecios] = useState<PrecioLista[]>([])
   const [inventario, setInventario] = useState<InventarioAlmacen[]>([])
   const [movimientos, setMovimientos] = useState<MovimientoView[]>([])
   const [loadingMovimientos, setLoadingMovimientos] = useState(false)
@@ -65,6 +62,21 @@ export default function ProductoDetallePage() {
   const [stockMinimo, setStockMinimo] = useState(0)
   const [stockMaximo, setStockMaximo] = useState(0)
   const [savingStock, setSavingStock] = useState(false)
+
+  // Modal para editar precios
+  const [precioModalOpen, setPrecioModalOpen] = useState(false)
+  const [precioEditando, setPrecioEditando] = useState<PrecioConLista | null>(null)
+
+  // React Query hooks para precios
+  const { data: precios = [], refetch: refetchPrecios } = usePreciosProducto(id)
+  const { data: listasPrecios = [] } = useListasPrecios()
+  const deletePrecio = useDeletePrecioProducto()
+
+  // Calcular listas disponibles (sin precio asignado)
+  const listasDisponibles = useMemo(() => {
+    const precioListaIds = precios.map(p => p.lista_precio_id)
+    return listasPrecios.filter(l => !precioListaIds.includes(l.id))
+  }, [precios, listasPrecios])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -92,26 +104,6 @@ export default function ProductoDetallePage() {
         numero_parte: prodRes.data?.numero_parte || null,
       }
       setProducto(prodData)
-
-      // Load precios
-      const { data: preciosData, error: preciosError } = await supabase
-        .schema('erp')
-        .from('precios_productos')
-        .select(`
-          id,
-          precio,
-          listas_precios:lista_precio_id (nombre)
-        `)
-        .eq('producto_id', id)
-
-      if (!preciosError && preciosData) {
-        const preciosFormatted = preciosData.map(p => ({
-          id: p.id,
-          lista_nombre: (p.listas_precios as any)?.nombre || 'Sin nombre',
-          precio: p.precio
-        }))
-        setPrecios(preciosFormatted)
-      }
 
       // Load inventario por almacén
       const { data: invData, error: invError } = await supabase
@@ -206,6 +198,16 @@ export default function ProductoDetallePage() {
     }
   }
 
+  const handleDeletePrecio = async (record: PrecioConLista) => {
+    try {
+      await deletePrecio.mutateAsync({ id: record.id, producto_id: id })
+      message.success('Precio eliminado')
+    } catch (error: any) {
+      console.error('Error deleting precio:', error)
+      message.error(error.message || 'Error al eliminar precio')
+    }
+  }
+
   const preciosColumns = [
     {
       title: 'Lista de Precios',
@@ -218,6 +220,39 @@ export default function ProductoDetallePage() {
       key: 'precio',
       align: 'right' as const,
       render: (val: number) => formatMoney(val),
+    },
+    {
+      title: 'Precio c/IVA',
+      dataIndex: 'precio_con_iva',
+      key: 'precio_con_iva',
+      align: 'right' as const,
+      render: (val: number | null) => val ? formatMoney(val) : '-',
+    },
+    {
+      title: 'Acciones',
+      key: 'acciones',
+      width: 100,
+      render: (_: unknown, record: PrecioConLista) => (
+        <Space>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setPrecioEditando(record)
+              setPrecioModalOpen(true)
+            }}
+          />
+          <Popconfirm
+            title="Eliminar precio"
+            description="Esta accion no se puede deshacer"
+            onConfirm={() => handleDeletePrecio(record)}
+            okText="Eliminar"
+            cancelText="Cancelar"
+          >
+            <Button size="small" icon={<DeleteOutlined />} danger />
+          </Popconfirm>
+        </Space>
+      ),
     },
   ]
 
@@ -328,7 +363,24 @@ export default function ProductoDetallePage() {
             )}
           </Card>
 
-          <Card title="Precios por Lista" style={{ marginBottom: 16 }}>
+          <Card
+            title="Precios por Lista"
+            style={{ marginBottom: 16 }}
+            extra={
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  setPrecioEditando(null)
+                  setPrecioModalOpen(true)
+                }}
+                disabled={listasDisponibles.length === 0}
+              >
+                Agregar
+              </Button>
+            }
+          >
             <Table
               dataSource={precios}
               columns={preciosColumns}
@@ -455,6 +507,19 @@ export default function ProductoDetallePage() {
           )}
         </Form>
       </Modal>
+
+      {/* Modal para editar precios */}
+      <PrecioProductoModal
+        open={precioModalOpen}
+        onClose={() => {
+          setPrecioModalOpen(false)
+          setPrecioEditando(null)
+        }}
+        productoId={id}
+        precio={precioEditando}
+        listasDisponibles={listasDisponibles}
+        onSuccess={() => refetchPrecios()}
+      />
     </div>
   )
 }
