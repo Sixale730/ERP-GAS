@@ -7,7 +7,8 @@ import {
 } from 'antd'
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoney, formatDate } from '@/lib/utils/format'
+import { formatMoney, formatMoneyMXN, formatDate } from '@/lib/utils/format'
+import { MONEDAS, type CodigoMoneda } from '@/lib/config/moneda'
 import { getRegimenFiscalLabel, getUsoCfdiLabel, getFormaPagoLabel, getMetodoPagoLabel } from '@/lib/config/sat'
 import DireccionEnvioList from '@/components/common/DireccionEnvioList'
 
@@ -26,6 +27,7 @@ interface ClienteDetalle {
   email: string | null
   direccion: string | null
   contacto_nombre: string | null
+  moneda: CodigoMoneda | null
   lista_precio_id: string | null
   dias_credito: number
   limite_credito: number
@@ -145,7 +147,7 @@ export default function ClienteDetallePage() {
       dataIndex: 'total',
       key: 'total',
       align: 'right' as const,
-      render: (val: number) => formatMoney(val),
+      render: (val: number) => formatMoneyMXN(val),
     },
     {
       title: 'Saldo',
@@ -154,7 +156,7 @@ export default function ClienteDetallePage() {
       align: 'right' as const,
       render: (val: number) => (
         <span style={{ color: val > 0 ? '#cf1322' : '#3f8600' }}>
-          {formatMoney(val)}
+          {formatMoneyMXN(val)}
         </span>
       ),
     },
@@ -256,6 +258,14 @@ export default function ClienteDetallePage() {
           <Card title="Condiciones Comerciales" style={{ marginBottom: 16 }}>
             <Space direction="vertical" style={{ width: '100%' }} size="small">
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>Moneda:</Text>
+                <Text strong>
+                  {cliente.moneda
+                    ? `${cliente.moneda} - ${MONEDAS[cliente.moneda]?.nombre || cliente.moneda}`
+                    : 'USD - Dólar Americano'}
+                </Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>Lista de Precios:</Text>
                 <Text strong>{listaPrecioNombre || 'No asignada'}</Text>
               </div>
@@ -270,12 +280,12 @@ export default function ClienteDetallePage() {
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>Límite de Crédito:</Text>
-                <Text strong>{formatMoney(cliente.limite_credito)}</Text>
+                <Text strong>{formatMoneyMXN(cliente.limite_credito)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>Saldo Pendiente:</Text>
                 <Text strong style={{ color: cliente.saldo_pendiente > 0 ? '#cf1322' : 'inherit' }}>
-                  {formatMoney(cliente.saldo_pendiente)}
+                  {formatMoneyMXN(cliente.saldo_pendiente)}
                 </Text>
               </div>
               <Divider style={{ margin: '12px 0' }} />
@@ -285,7 +295,7 @@ export default function ClienteDetallePage() {
                   margin: 0,
                   color: creditoDisponible >= 0 ? '#3f8600' : '#cf1322'
                 }}>
-                  {formatMoney(creditoDisponible)}
+                  {formatMoneyMXN(creditoDisponible)}
                 </Title>
               </div>
 

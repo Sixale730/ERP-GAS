@@ -8,6 +8,7 @@ import {
 import { ArrowLeftOutlined, SaveOutlined, ExperimentOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
+import { MONEDAS, type CodigoMoneda } from '@/lib/config/moneda'
 import DireccionFields from '@/components/common/DireccionFields'
 import {
   CLIENTES_PRUEBA_SAT,
@@ -135,6 +136,7 @@ export default function NuevoClientePage() {
           telefono: values.telefono || null,
           email: values.email || null,
           contacto_nombre: values.contacto_nombre || null,
+          moneda: values.moneda || 'USD',
           lista_precio_id: values.lista_precio_id || null,
           dias_credito: values.dias_credito || 0,
           limite_credito: values.limite_credito || 0,
@@ -330,7 +332,14 @@ export default function NuevoClientePage() {
 
           <Title level={5} style={{ marginTop: 24 }}>Condiciones Comerciales</Title>
           <Row gutter={16}>
-            <Col xs={24} md={8}>
+            <Col xs={24} md={6}>
+              <Form.Item name="moneda" label="Moneda de Preferencia" initialValue="USD">
+                <Select
+                  options={Object.values(MONEDAS).map(m => ({ value: m.codigo, label: `${m.codigo} - ${m.nombre}` }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={6}>
               <Form.Item name="lista_precio_id" label="Lista de Precios">
                 <Select
                   placeholder="Seleccionar lista"
@@ -339,12 +348,12 @@ export default function NuevoClientePage() {
                 />
               </Form.Item>
             </Col>
-            <Col xs={24} md={8}>
+            <Col xs={24} md={6}>
               <Form.Item name="dias_credito" label="Días de Crédito">
                 <InputNumber min={0} placeholder="0" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col xs={24} md={8}>
+            <Col xs={24} md={6}>
               <Form.Item name="limite_credito" label="Límite de Crédito">
                 <InputNumber
                   min={0}
