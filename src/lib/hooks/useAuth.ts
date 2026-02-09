@@ -4,7 +4,16 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { getSupabaseClient } from '@/lib/supabase/client'
 
-export type UserRole = 'super_admin' | 'admin_cliente' | 'vendedor'
+export type UserRole = 'super_admin' | 'admin_cliente' | 'vendedor' | 'compras' | 'contador'
+
+export interface PermisoCRUD {
+  ver: boolean
+  crear: boolean
+  editar: boolean
+  eliminar: boolean
+}
+
+export type PermisosUsuario = Record<string, PermisoCRUD>
 
 export interface ERPUser {
   id: string
@@ -15,6 +24,7 @@ export interface ERPUser {
   avatar_url: string | null
   rol: UserRole
   is_active: boolean
+  permisos: PermisosUsuario | null
 }
 
 export interface Organizacion {
@@ -103,6 +113,7 @@ export function useAuth() {
               avatar_url: row.avatar_url,
               rol: row.rol as UserRole,
               is_active: row.is_active,
+              permisos: row.permisos || null,
             }
             const organizacion: Organizacion | null = row.org_nombre ? {
               id: row.organizacion_id,
@@ -299,6 +310,8 @@ export function useAuth() {
     isSuperAdmin: state.role === 'super_admin',
     isAdminCliente: state.role === 'admin_cliente',
     isVendedor: state.role === 'vendedor',
+    isCompras: state.role === 'compras',
+    isContador: state.role === 'contador',
     isAdmin: state.role === 'super_admin' || state.role === 'admin_cliente',
     // Info de display
     displayName: state.erpUser?.nombre || state.user?.email || 'Usuario',
