@@ -29,6 +29,8 @@ const roleLabels: Record<string, { label: string; color: string }> = {
   super_admin: { label: 'Super Admin', color: 'purple' },
   admin_cliente: { label: 'Admin', color: 'blue' },
   vendedor: { label: 'Vendedor', color: 'green' },
+  compras: { label: 'Compras', color: 'orange' },
+  contador: { label: 'Contador', color: 'cyan' },
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
@@ -37,7 +39,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const screens = useBreakpoint()
   const isMobile = !screens.md // true si < 768px
   const router = useRouter()
-  const { loading, displayName, avatarUrl, role, signOut, isAdmin, organizacion } = useAuth()
+  const { loading, displayName, avatarUrl, role, signOut, isAdmin, organizacion, erpUser } = useAuth()
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
@@ -140,7 +142,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           {isMobile ? 'CUANTY' : (collapsed ? 'ERP' : 'CUANTY ERP')}
         </h1>
       </div>
-      <Sidebar onNavigate={() => isMobile && setDrawerOpen(false)} userRole={role} />
+      <Sidebar onNavigate={() => isMobile && setDrawerOpen(false)} userRole={role} userPermisos={erpUser?.permisos ?? null} />
     </>
   )
 

@@ -24,19 +24,18 @@ import {
   UserSwitchOutlined,
   BarChartOutlined,
 } from '@ant-design/icons'
-import { UserRole } from '@/lib/hooks/useAuth'
+import { UserRole, PermisosUsuario } from '@/lib/hooks/useAuth'
+import { getPermisosEfectivos, Modulo } from '@/lib/hooks/usePermisos'
 
 type MenuItem = Required<MenuProps>['items'][number]
-
-// Roles que pueden ver cada item
-type RoleAccess = UserRole[] | 'all'
 
 interface MenuItemWithRoles {
   key?: string
   icon?: React.ReactNode
   label?: React.ReactNode
   type?: 'divider' | 'group'
-  roles?: RoleAccess
+  modulo?: Modulo // Modulo de permisos asociado
+  roles?: UserRole[] | 'all' // Fallback de roles (para items sin modulo)
   children?: MenuItemWithRoles[]
 }
 
@@ -50,39 +49,43 @@ const allMenuItems: MenuItemWithRoles[] = [
     key: '/productos',
     icon: <ShoppingOutlined />,
     label: 'Productos',
-    roles: ['super_admin', 'admin_cliente'],
+    modulo: 'productos',
   },
   {
     key: '/inventario',
     icon: <InboxOutlined />,
     label: 'Inventario',
-    roles: ['super_admin', 'admin_cliente'],
+    modulo: 'inventario',
   },
   {
     key: '/clientes',
     icon: <TeamOutlined />,
     label: 'Clientes',
+    modulo: 'clientes',
   },
   {
     key: '/cotizaciones',
     icon: <FileTextOutlined />,
     label: 'Cotizaciones',
+    modulo: 'cotizaciones',
   },
   {
     key: '/ordenes-venta',
     icon: <ContainerOutlined />,
     label: 'Ordenes de Venta',
+    modulo: 'ordenes_venta',
   },
   {
     key: '/facturas',
     icon: <DollarOutlined />,
     label: 'Facturas',
+    modulo: 'facturas',
   },
   {
     key: '/compras',
     icon: <ShoppingCartOutlined />,
     label: 'Compras',
-    roles: ['super_admin', 'admin_cliente'],
+    modulo: 'compras',
   },
   {
     type: 'divider',
@@ -91,7 +94,7 @@ const allMenuItems: MenuItemWithRoles[] = [
     key: 'reportes',
     icon: <BarChartOutlined />,
     label: 'Reportes',
-    roles: ['super_admin', 'admin_cliente'],
+    modulo: 'reportes',
     children: [
       {
         key: '/reportes/servicios',
@@ -114,7 +117,7 @@ const allMenuItems: MenuItemWithRoles[] = [
     key: 'catalogos',
     icon: <SettingOutlined />,
     label: 'Catalogos',
-    roles: ['super_admin', 'admin_cliente'],
+    modulo: 'catalogos',
     children: [
       {
         key: '/catalogos/almacenes',
@@ -147,13 +150,12 @@ const allMenuItems: MenuItemWithRoles[] = [
     key: 'configuracion',
     icon: <ToolOutlined />,
     label: 'Configuracion',
-    roles: ['super_admin', 'admin_cliente'], // Admins pueden ver configuracion
+    modulo: 'configuracion',
     children: [
       {
         key: '/configuracion',
         icon: <SettingOutlined />,
         label: 'General',
-        roles: ['super_admin', 'admin_cliente'],
       },
       {
         key: '/configuracion/cfdi',
@@ -165,7 +167,6 @@ const allMenuItems: MenuItemWithRoles[] = [
         key: '/configuracion/usuarios',
         icon: <UserSwitchOutlined />,
         label: 'Usuarios',
-        roles: ['super_admin', 'admin_cliente'],
       },
       {
         key: '/configuracion/admin',
@@ -177,28 +178,33 @@ const allMenuItems: MenuItemWithRoles[] = [
   },
 ]
 
-// Filtra items de menu segun el rol del usuario
-function filterMenuByRole(
+// Filtra items de menu segun los permisos efectivos del usuario
+function filterMenuByPermisos(
   items: MenuItemWithRoles[],
-  userRole: UserRole | null
+  userRole: UserRole | null,
+  permisos: PermisosUsuario
 ): MenuItem[] {
   if (!userRole) return []
 
   return items
     .filter((item) => {
       if (!item) return false
-      // Si no tiene roles definidos, es visible para todos
-      if (!('roles' in item) || !item.roles) return true
-      // Si roles es 'all', es visible para todos
-      if (item.roles === 'all') return true
-      // Si es un array, verificar si el rol esta incluido
-      return item.roles.includes(userRole)
+      // Dividers siempre visibles
+      if (item.type === 'divider') return true
+      // Si tiene modulo, verificar permiso "ver"
+      if (item.modulo) {
+        return permisos[item.modulo]?.ver === true
+      }
+      // Si tiene roles definidos (fallback), verificar rol
+      if (item.roles && item.roles !== 'all') {
+        return item.roles.includes(userRole)
+      }
+      // Sin restricciones: visible para todos
+      return true
     })
     .map((item) => {
-      // Si tiene children, filtrarlos tambien
       if ('children' in item && item.children) {
-        const filteredChildren = filterMenuByRole(item.children, userRole)
-        // Si no quedan children despues de filtrar, no mostrar el submenu
+        const filteredChildren = filterMenuByPermisos(item.children, userRole, permisos)
         if (filteredChildren.length === 0) return null
         return {
           ...item,
@@ -213,16 +219,23 @@ function filterMenuByRole(
 interface SidebarProps {
   onNavigate?: () => void
   userRole?: UserRole | null
+  userPermisos?: PermisosUsuario | null
 }
 
-export default function Sidebar({ onNavigate, userRole }: SidebarProps) {
+export default function Sidebar({ onNavigate, userRole, userPermisos }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
 
-  // Filtrar menu segun rol
+  // Calcular permisos efectivos
+  const permisosEfectivos = useMemo(
+    () => getPermisosEfectivos(userRole || null, userPermisos || null),
+    [userRole, userPermisos]
+  )
+
+  // Filtrar menu segun permisos
   const menuItems = useMemo(
-    () => filterMenuByRole(allMenuItems, userRole || null),
-    [userRole]
+    () => filterMenuByPermisos(allMenuItems, userRole || null, permisosEfectivos),
+    [userRole, permisosEfectivos]
   )
 
 
