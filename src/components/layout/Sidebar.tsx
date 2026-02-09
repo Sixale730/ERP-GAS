@@ -103,6 +103,11 @@ const allMenuItems: MenuItemWithRoles[] = [
         icon: <SwapOutlined />,
         label: 'Movimientos',
       },
+      {
+        key: '/reportes/inventario',
+        icon: <InboxOutlined />,
+        label: 'Inventario',
+      },
     ],
   },
   {
@@ -219,6 +224,7 @@ export default function Sidebar({ onNavigate, userRole }: SidebarProps) {
     () => filterMenuByRole(allMenuItems, userRole || null),
     [userRole]
   )
+
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
     router.push(e.key)
