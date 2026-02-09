@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar rol permitido
-    if (!['super_admin', 'admin_cliente', 'vendedor'].includes(rol)) {
+    if (!['super_admin', 'admin_cliente', 'vendedor', 'compras', 'contador'].includes(rol)) {
       return NextResponse.json({ error: 'Rol no valido' }, { status: 400 })
     }
 
@@ -67,20 +67,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // admin_cliente solo puede invitar vendedores
-    if (erpUser.rol === 'admin_cliente' && rol !== 'vendedor') {
+    // admin_cliente puede invitar vendedores, compras y contadores
+    if (erpUser.rol === 'admin_cliente' && !['vendedor', 'compras', 'contador'].includes(rol)) {
       return NextResponse.json(
-        { error: 'Solo puedes invitar vendedores' },
+        { error: 'Solo puedes invitar roles: vendedor, compras, contador' },
         { status: 403 }
       )
     }
 
     // Verificar que el email no tenga ya un usuario
+    const normalizedEmail = email.toLowerCase()
     const { data: existingUser } = await supabase
       .schema('erp')
       .from('usuarios')
       .select('id')
-      .eq('email', email)
+      .ilike('email', normalizedEmail)
       .single()
 
     if (existingUser) {
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       .schema('erp')
       .from('invitaciones')
       .select('id')
-      .eq('email', email)
+      .ilike('email', normalizedEmail)
       .is('usado_at', null)
       .gt('expira_at', new Date().toISOString())
       .single()
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
       .from('invitaciones')
       .insert({
         organizacion_id: erpUser.organizacion_id,
-        email,
+        email: normalizedEmail,
         rol,
         token,
         invitado_por: erpUser.id,
