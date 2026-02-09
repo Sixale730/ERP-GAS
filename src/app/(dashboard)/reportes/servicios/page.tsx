@@ -11,10 +11,12 @@ import {
   CalendarOutlined,
   SearchOutlined,
   ArrowLeftOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useReporteServicios, useMovimientosServicios } from '@/lib/hooks/useQueries'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
+import { generarPDFReporte } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -36,8 +38,10 @@ export default function ReporteServiciosPage() {
   const [searchText, setSearchText] = useState('')
   const [servicioFilter, setServicioFilter] = useState<string | undefined>(undefined)
 
+  const [generandoPDF, setGenerandoPDF] = useState(false)
+
   // React Query hooks
-  const { data: reporte, isLoading: loadingReporte } = useReporteServicios()
+  const { data: reporte, isLoading: loadingReporte, refetch } = useReporteServicios()
   const { data: movimientos = [], isLoading: loadingMovimientos } = useMovimientosServicios(servicioFilter, 100)
 
   const servicios = reporte?.servicios || []
@@ -145,6 +149,53 @@ export default function ReporteServiciosPage() {
     },
   ]
 
+  const handleDescargarPDF = async () => {
+    setGenerandoPDF(true)
+    try {
+      const { data: freshReporte } = await refetch()
+
+      const freshServicios = freshReporte?.servicios || []
+      const freshStats = freshReporte?.stats || {
+        totalServicios: 0,
+        serviciosUsadosMes: 0,
+        totalUnidadesConsumidas: 0,
+      }
+
+      // Aplicar filtro de búsqueda al dato fresco
+      const freshFiltered = freshServicios.filter(
+        (s) =>
+          s.nombre.toLowerCase().includes(searchText.toLowerCase()) ||
+          s.sku.toLowerCase().includes(searchText.toLowerCase())
+      )
+
+      generarPDFReporte({
+        titulo: 'Reporte de Servicios',
+        nombreArchivo: `reporte-servicios-${dayjs().format('YYYY-MM-DD')}`,
+        estadisticas: [
+          { label: 'Total Servicios', valor: freshStats.totalServicios },
+          { label: 'Usados Este Mes', valor: freshStats.serviciosUsadosMes },
+          { label: 'Unidades Consumidas', valor: freshStats.totalUnidadesConsumidas },
+        ],
+        columnas: [
+          { titulo: 'SKU', dataIndex: 'sku', width: 100 },
+          { titulo: 'Servicio', dataIndex: 'nombre' },
+          { titulo: 'Categoria', dataIndex: 'categoria_nombre', width: 150 },
+          { titulo: 'Unidad', dataIndex: 'unidad_medida', width: 80 },
+          { titulo: 'Total Usado', dataIndex: 'total_usado', width: 100, halign: 'right' },
+          { titulo: 'Usado Mes', dataIndex: 'usado_mes', width: 100, halign: 'right' },
+          { titulo: 'Ultimo Uso', dataIndex: 'ultima_fecha_uso_fmt', width: 130 },
+        ],
+        datos: freshFiltered.map(s => ({
+          ...s,
+          categoria_nombre: s.categoria_nombre || 'Sin categoria',
+          ultima_fecha_uso_fmt: s.ultima_fecha_uso ? dayjs(s.ultima_fecha_uso).format('DD/MM/YYYY HH:mm') : 'Sin uso',
+        })),
+      })
+    } finally {
+      setGenerandoPDF(false)
+    }
+  }
+
   if (loadingReporte) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -164,6 +215,9 @@ export default function ReporteServiciosPage() {
             <ToolOutlined /> Reporte de Servicios
           </Title>
         </Space>
+        <Button type="primary" icon={<FilePdfOutlined />} onClick={handleDescargarPDF} loading={generandoPDF}>
+          Descargar PDF
+        </Button>
       </div>
 
       {/* Estadísticas */}

@@ -2,11 +2,13 @@
 
 import { useState, useMemo } from 'react'
 import { Table, Input, Select, Space, Card, Typography, Tag, Button, Popconfirm, message } from 'antd'
-import { SearchOutlined, EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { SearchOutlined, EditOutlined, DeleteOutlined, PlusOutlined, FilePdfOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { usePreciosProductos, useProveedores, useListasPrecios } from '@/lib/hooks/useQueries'
 import { useDeletePrecioProducto } from '@/lib/hooks/usePreciosProductos'
 import PrecioProductoModal from '@/components/precios/PrecioProductoModal'
+import { generarPDFReporte } from '@/lib/utils/pdf'
+import dayjs from 'dayjs'
 
 const { Title } = Typography
 
@@ -27,6 +29,8 @@ export default function PreciosProductosPage() {
   const [searchText, setSearchText] = useState('')
   const [proveedorFilter, setProveedorFilter] = useState<string | null>(null)
   const [listaFilter, setListaFilter] = useState<string | null>(null)
+
+  const [generandoPDF, setGenerandoPDF] = useState(false)
 
   // Estado para el modal de edicion
   const [modalOpen, setModalOpen] = useState(false)
@@ -111,6 +115,67 @@ export default function PreciosProductosPage() {
     } catch (error: any) {
       console.error('Error deleting precio:', error)
       message.error(error.message || 'Error al eliminar precio')
+    }
+  }
+
+  const handleDescargarPDF = async () => {
+    setGenerandoPDF(true)
+    try {
+      const { data: freshData } = await refetch()
+      const dataToExport = (freshData || []).filter((row) => {
+        const matchesSearch =
+          !searchText ||
+          row.sku.toLowerCase().includes(searchText.toLowerCase()) ||
+          row.nombre.toLowerCase().includes(searchText.toLowerCase())
+        const matchesProveedor =
+          !proveedorFilter || row.proveedor_id === proveedorFilter
+        const matchesLista = !listaFilter || row.lista_id === listaFilter
+        return matchesSearch && matchesProveedor && matchesLista
+      })
+
+      const conPrecio = dataToExport.filter((r) => r.precio !== null).length
+      const sinPrecio = dataToExport.filter((r) => r.precio === null).length
+
+      const filtrosAplicados: string[] = []
+      if (proveedorFilter) {
+        const prov = proveedores?.find((p) => p.id === proveedorFilter)
+        if (prov) filtrosAplicados.push(`Proveedor: ${prov.razon_social}`)
+      }
+      if (listaFilter) {
+        const lista = listasPrecios?.find((l) => l.id === listaFilter)
+        if (lista) filtrosAplicados.push(`Lista: ${lista.nombre}`)
+      }
+      if (searchText) filtrosAplicados.push(`Busqueda: "${searchText}"`)
+
+      generarPDFReporte({
+        titulo: 'Catalogo de Precios de Productos',
+        nombreArchivo: `reporte-precios-productos-${dayjs().format('YYYY-MM-DD')}`,
+        filtrosAplicados: filtrosAplicados.length > 0 ? filtrosAplicados : undefined,
+        estadisticas: [
+          { label: 'Total registros', valor: dataToExport.length },
+          { label: 'Con precio', valor: conPrecio },
+          { label: 'Sin precio', valor: sinPrecio },
+        ],
+        columnas: [
+          { titulo: 'SKU', dataIndex: 'sku', width: 80 },
+          { titulo: 'Producto', dataIndex: 'nombre', width: 200 },
+          { titulo: 'Proveedor', dataIndex: 'proveedor_fmt' },
+          { titulo: 'Precio', dataIndex: 'precio_fmt', halign: 'right', width: 80 },
+          { titulo: 'Precio c/IVA', dataIndex: 'precio_iva_fmt', halign: 'right', width: 80 },
+          { titulo: 'Lista', dataIndex: 'lista_fmt', width: 100 },
+        ],
+        datos: dataToExport.map((row) => ({
+          sku: row.sku,
+          nombre: row.nombre,
+          proveedor_fmt: row.proveedor_nombre || 'Sin proveedor',
+          precio_fmt: row.precio !== null ? formatCurrency(row.precio) : 'Sin precio',
+          precio_iva_fmt: row.precio_con_iva !== null ? formatCurrency(row.precio_con_iva) : 'Sin precio',
+          lista_fmt: row.lista_nombre || 'Sin precio',
+        })),
+        orientacion: 'landscape',
+      })
+    } finally {
+      setGenerandoPDF(false)
     }
   }
 
@@ -212,12 +277,21 @@ export default function PreciosProductosPage() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: 24,
+          flexWrap: 'wrap',
+          gap: 16,
         }}
       >
         <Title level={2} style={{ margin: 0 }}>
           Precios de Productos
         </Title>
+        <Button
+          icon={<FilePdfOutlined />}
+          loading={generandoPDF}
+          onClick={handleDescargarPDF}
+        >
+          Descargar PDF
+        </Button>
       </div>
 
       <Card>
