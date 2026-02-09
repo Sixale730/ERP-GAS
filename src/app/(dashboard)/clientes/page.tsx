@@ -7,7 +7,7 @@ import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant
 import type { ColumnsType } from 'antd/es/table'
 import { useClientes, useDeleteCliente } from '@/lib/hooks/queries/useClientes'
 import { TableSkeleton } from '@/components/common/Skeletons'
-import { formatMoney } from '@/lib/utils/format'
+import { formatMoney, formatMoneyMXN } from '@/lib/utils/format'
 import type { Cliente } from '@/types/database'
 
 const { Title } = Typography
@@ -77,7 +77,7 @@ export default function ClientesPage() {
       sorter: (a, b) => a.saldo_pendiente - b.saldo_pendiente,
       render: (saldo) => (
         <span style={{ color: saldo > 0 ? '#cf1322' : 'inherit' }}>
-          {formatMoney(saldo)}
+          {formatMoneyMXN(saldo)}
         </span>
       ),
     },
@@ -91,7 +91,7 @@ export default function ClientesPage() {
         let color = 'green'
         if (porcentaje > 80) color = 'red'
         else if (porcentaje > 50) color = 'orange'
-        return <Tag color={color}>{formatMoney(record.limite_credito)}</Tag>
+        return <Tag color={color}>{formatMoneyMXN(record.limite_credito)}</Tag>
       },
     },
     {

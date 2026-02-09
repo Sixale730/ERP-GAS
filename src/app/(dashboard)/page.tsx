@@ -12,7 +12,7 @@ import {
 } from '@ant-design/icons'
 import { useDashboard } from '@/lib/hooks/queries/useDashboard'
 import { DashboardSkeleton } from '@/components/common/Skeletons'
-import { formatMoney } from '@/lib/utils/format'
+import { formatMoney, formatMoneyMXN } from '@/lib/utils/format'
 
 const { Title } = Typography
 
@@ -168,7 +168,7 @@ export default function DashboardPage() {
               value={stats.totalPorCobrar}
               prefix={<DollarOutlined />}
               precision={2}
-              formatter={(value) => formatMoney(Number(value))}
+              formatter={(value) => formatMoneyMXN(Number(value))}
               valueStyle={{ color: '#cf1322' }}
             />
           </Card>
