@@ -40,7 +40,7 @@ export async function GET(request: Request) {
           .schema('erp')
           .from('usuarios_autorizados')
           .select('id, organizacion_id, rol, nombre, estado')
-          .eq('email', user.email)
+          .ilike('email', user.email!)
           .eq('estado', 'pendiente_registro')
           .limit(1)
           .single()
@@ -65,43 +65,27 @@ export async function GET(request: Request) {
           }
         }
 
-        // 3. No está autorizado, verificar si ya tiene solicitud pendiente
-        const { data: solicitudExistente } = await supabase
-          .schema('erp')
-          .from('solicitudes_acceso')
-          .select('id, estado')
-          .eq('auth_user_id', user.id)
-          .eq('estado', 'pendiente')
-          .limit(1)
-          .single()
+        // 3. No autorizado: crear solicitud de acceso vía RPC (maneja idempotencia y rechazos)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: solicitudError } = await (supabase.rpc as any)(
+          'crear_solicitud_acceso',
+          {
+            p_auth_user_id: user.id,
+            p_email: user.email!,
+            p_nombre: user.user_metadata?.full_name || user.email,
+            p_avatar_url: user.user_metadata?.avatar_url || null,
+          }
+        )
 
-        if (solicitudExistente) {
-          // Ya tiene solicitud pendiente
-          return NextResponse.redirect(`${origin}/solicitud-pendiente`)
+        if (solicitudError) {
+          if (solicitudError.message?.includes('rechazada recientemente')) {
+            return NextResponse.redirect(`${origin}/registro-pendiente?reason=rejected`)
+          }
+          // RPC falló, redirigir a formulario manual como fallback
+          return NextResponse.redirect(`${origin}/solicitar-acceso`)
         }
 
-        // 4. Verificar si tiene solicitud rechazada reciente (últimas 24h)
-        const hace24h = new Date()
-        hace24h.setHours(hace24h.getHours() - 24)
-
-        const { data: solicitudRechazada } = await supabase
-          .schema('erp')
-          .from('solicitudes_acceso')
-          .select('id')
-          .eq('auth_user_id', user.id)
-          .eq('estado', 'rechazada')
-          .gt('revisado_at', hace24h.toISOString())
-          .limit(1)
-          .single()
-
-        if (solicitudRechazada) {
-          return NextResponse.redirect(
-            `${origin}/registro-pendiente?reason=rejected`
-          )
-        }
-
-        // 5. No tiene autorización ni solicitud, redirigir para solicitar acceso
-        return NextResponse.redirect(`${origin}/solicitar-acceso`)
+        return NextResponse.redirect(`${origin}/solicitud-pendiente`)
       }
     }
   }

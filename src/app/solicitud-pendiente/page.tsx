@@ -27,7 +27,7 @@ export default function SolicitudPendientePage() {
       }
 
       // Obtener solicitud pendiente con info de organización
-      const { data } = await supabase
+      let { data } = await supabase
         .schema('erp')
         .from('solicitudes_acceso')
         .select(`
@@ -39,6 +39,38 @@ export default function SolicitudPendientePage() {
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
+
+      // Safety net: si no hay solicitud pendiente, crearla via RPC
+      if (!data) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: rpcError } = await (supabase.rpc as any)(
+          'crear_solicitud_acceso',
+          {
+            p_auth_user_id: user.id,
+            p_email: user.email!,
+            p_nombre: user.user_metadata?.full_name || user.email,
+            p_avatar_url: user.user_metadata?.avatar_url || null,
+          }
+        )
+
+        if (!rpcError) {
+          // Re-fetch la solicitud recién creada
+          const { data: newData } = await supabase
+            .schema('erp')
+            .from('solicitudes_acceso')
+            .select(`
+              created_at,
+              organizaciones:organizacion_id (nombre)
+            `)
+            .eq('auth_user_id', user.id)
+            .eq('estado', 'pendiente')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single()
+
+          data = newData
+        }
+      }
 
       if (data) {
         setSolicitud({

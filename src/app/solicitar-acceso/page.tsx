@@ -30,12 +30,11 @@ export default function SolicitarAccesoPage() {
         setUserEmail(user.email || null)
       }
 
-      // Obtener organizaciones disponibles (excluir la del sistema)
+      // Obtener organizaciones disponibles (todas las activas)
       const { data: orgs } = await supabase
         .schema('erp')
         .from('organizaciones')
         .select('id, nombre, codigo')
-        .eq('is_sistema', false)
         .eq('is_active', true)
         .order('nombre')
 
@@ -46,7 +45,7 @@ export default function SolicitarAccesoPage() {
     fetchData()
   }, [])
 
-  const handleSolicitar = async (orgId: string) => {
+  const handleSolicitar = async (orgId?: string) => {
     setSubmitting(true)
     const supabase = getSupabaseClient()
 
@@ -57,22 +56,32 @@ export default function SolicitarAccesoPage() {
         return
       }
 
-      // Crear solicitud de acceso
-      const { error } = await supabase
-        .schema('erp')
-        .from('solicitudes_acceso')
-        .insert({
-          auth_user_id: user.id,
-          email: user.email,
-          nombre: user.user_metadata?.full_name || user.email,
-          avatar_url: user.user_metadata?.avatar_url || null,
-          organizacion_id: orgId,
-          estado: 'pendiente',
-        })
+      // Crear solicitud vía RPC (SECURITY DEFINER, bypasa RLS)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rpcParams: Record<string, any> = {
+        p_auth_user_id: user.id,
+        p_email: user.email!,
+        p_nombre: user.user_metadata?.full_name || user.email,
+        p_avatar_url: user.user_metadata?.avatar_url || null,
+      }
+      if (orgId) {
+        rpcParams.p_organizacion_id = orgId
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.rpc as any)('crear_solicitud_acceso', rpcParams)
 
       if (error) {
         console.error('Error al crear solicitud:', error)
-        message.error('Error al enviar la solicitud')
+        if (error.message?.includes('rechazada recientemente')) {
+          message.error('Tu solicitud fue rechazada recientemente. Intenta en 24 horas.')
+        } else if (error.message?.includes('cuenta activa')) {
+          message.info('Ya tienes una cuenta activa. Redirigiendo...')
+          window.location.href = '/'
+          return
+        } else {
+          message.error('Error al enviar la solicitud')
+        }
         return
       }
 
@@ -116,10 +125,9 @@ export default function SolicitarAccesoPage() {
             title="Solicitud Enviada"
             subTitle="Tu solicitud de acceso ha sido enviada. Un administrador la revisará pronto."
             extra={
-              <Paragraph type="secondary">
-                Te notificaremos cuando tu solicitud sea aprobada.
-                Puedes cerrar esta página.
-              </Paragraph>
+              <Button type="primary" href="/solicitud-pendiente">
+                Ver Estado de Solicitud
+              </Button>
             }
           />
         </Card>
@@ -155,8 +163,18 @@ export default function SolicitarAccesoPage() {
         {organizaciones.length === 0 ? (
           <Result
             status="info"
-            title="No hay organizaciones disponibles"
-            subTitle="Contacta al administrador del sistema para obtener acceso."
+            title="Solicitar Acceso"
+            subTitle="Envía tu solicitud y un administrador la revisará."
+            extra={
+              <Button
+                type="primary"
+                size="large"
+                loading={submitting}
+                onClick={() => handleSolicitar()}
+              >
+                Enviar Solicitud
+              </Button>
+            }
           />
         ) : (
           <List

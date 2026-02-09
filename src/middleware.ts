@@ -1,5 +1,40 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
+
+/**
+ * Intenta auto-registrar un usuario que tiene sesión de Supabase Auth
+ * y está en usuarios_autorizados pero no en erp.usuarios.
+ * Esto cubre el caso donde el auth callback falló en el primer login.
+ */
+async function tryAutoRegister(supabase: SupabaseClient, user: User): Promise<boolean> {
+  try {
+    if (!user.email) return false
+
+    // Verificar si está en usuarios_autorizados con estado pendiente
+    const { data: autorizado } = await supabase
+      .schema('erp' as 'public')
+      .from('usuarios_autorizados')
+      .select('id')
+      .ilike('email', user.email)
+      .eq('estado', 'pendiente_registro')
+      .maybeSingle()
+
+    if (!autorizado) return false
+
+    // Llamar al RPC para registrar al usuario
+    const { error } = await supabase.rpc('registrar_usuario_autorizado', {
+      p_auth_user_id: user.id,
+      p_email: user.email,
+      p_nombre: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
+      p_avatar_url: user.user_metadata?.avatar_url || null,
+    })
+
+    return !error
+  } catch {
+    return false
+  }
+}
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -79,8 +114,14 @@ export async function middleware(request: NextRequest) {
             return response
           }
 
-          // No existe en la BD, redirigir a solicitar acceso
-          return NextResponse.redirect(new URL('/solicitar-acceso', request.url))
+          // No existe en erp.usuarios - verificar si está autorizado para auto-registro
+          const autoRegistered = await tryAutoRegister(supabase, user)
+          if (autoRegistered) {
+            return response
+          }
+
+          // No autorizado, redirigir a solicitud pendiente (la solicitud se crea en auth callback)
+          return NextResponse.redirect(new URL('/solicitud-pendiente', request.url))
         }
       } catch {
         // Error al decodificar, verificar en BD como fallback
@@ -95,7 +136,13 @@ export async function middleware(request: NextRequest) {
           return response
         }
 
-        return NextResponse.redirect(new URL('/solicitar-acceso', request.url))
+        // Intentar auto-registro como fallback
+        const autoRegistered = await tryAutoRegister(supabase, user)
+        if (autoRegistered) {
+          return response
+        }
+
+        return NextResponse.redirect(new URL('/solicitud-pendiente', request.url))
       }
     }
   }
