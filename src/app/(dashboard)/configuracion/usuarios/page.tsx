@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Card,
   Table,
@@ -19,6 +19,7 @@ import {
   Badge,
   Avatar,
   Tabs,
+  Checkbox,
 } from 'antd'
 import {
   UserAddOutlined,
@@ -31,9 +32,11 @@ import {
   CheckOutlined,
   StopOutlined,
   UserOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { useAuth, UserRole } from '@/lib/hooks/useAuth'
+import { useAuth, UserRole, PermisosUsuario } from '@/lib/hooks/useAuth'
+import { MODULOS, PERMISOS_DEFAULT, Modulo, Accion } from '@/lib/hooks/usePermisos'
 
 const { Title, Text } = Typography
 
@@ -45,6 +48,7 @@ interface Usuario {
   is_active: boolean
   created_at: string
   ultimo_acceso: string | null
+  permisos: PermisosUsuario | null
 }
 
 interface UsuarioAutorizado {
@@ -71,10 +75,70 @@ const roleLabels: Record<UserRole, { label: string; color: string }> = {
   super_admin: { label: 'Super Admin', color: 'purple' },
   admin_cliente: { label: 'Administrador', color: 'blue' },
   vendedor: { label: 'Vendedor', color: 'green' },
+  compras: { label: 'Compras', color: 'orange' },
+  contador: { label: 'Contador', color: 'cyan' },
+}
+
+const ACCIONES: { key: Accion; label: string }[] = [
+  { key: 'ver', label: 'Ver' },
+  { key: 'crear', label: 'Crear' },
+  { key: 'editar', label: 'Editar' },
+  { key: 'eliminar', label: 'Eliminar' },
+]
+
+// Componente de tabla de permisos reutilizable
+function PermisosTable({
+  permisos,
+  onChange,
+}: {
+  permisos: PermisosUsuario
+  onChange: (permisos: PermisosUsuario) => void
+}) {
+  const handleChange = (modulo: Modulo, accion: Accion, checked: boolean) => {
+    const updated = { ...permisos }
+    updated[modulo] = { ...updated[modulo], [accion]: checked }
+    // Si desmarcan "ver", desmarcar todo lo demas del modulo
+    if (accion === 'ver' && !checked) {
+      updated[modulo] = { ver: false, crear: false, editar: false, eliminar: false }
+    }
+    onChange(updated)
+  }
+
+  const columns = [
+    {
+      title: 'Modulo',
+      dataIndex: 'label',
+      key: 'label',
+      width: 160,
+    },
+    ...ACCIONES.map((accion) => ({
+      title: accion.label,
+      key: accion.key,
+      width: 80,
+      align: 'center' as const,
+      render: (_: unknown, record: { key: Modulo; label: string }) => (
+        <Checkbox
+          checked={permisos[record.key]?.[accion.key] ?? false}
+          onChange={(e) => handleChange(record.key, accion.key, e.target.checked)}
+        />
+      ),
+    })),
+  ]
+
+  return (
+    <Table
+      dataSource={MODULOS}
+      columns={columns}
+      rowKey="key"
+      pagination={false}
+      size="small"
+      bordered
+    />
+  )
 }
 
 export default function UsuariosPage() {
-  const { isSuperAdmin, orgId, organizacion } = useAuth()
+  const { isSuperAdmin, isAdmin, orgId, organizacion } = useAuth()
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [autorizados, setAutorizados] = useState<UsuarioAutorizado[]>([])
   const [solicitudes, setSolicitudes] = useState<SolicitudAcceso[]>([])
@@ -83,14 +147,36 @@ export default function UsuariosPage() {
   const [adding, setAdding] = useState(false)
   const [form] = Form.useForm()
 
+  // Estado para permisos en el modal de agregar usuario
+  const [addPermisos, setAddPermisos] = useState<PermisosUsuario>(
+    () => ({ ...PERMISOS_DEFAULT.vendedor })
+  )
+
+  // Estado para el modal de editar permisos de usuario activo
+  const [permisosModalOpen, setPermisosModalOpen] = useState(false)
+  const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null)
+  const [editPermisos, setEditPermisos] = useState<PermisosUsuario>({})
+  const [savingPermisos, setSavingPermisos] = useState(false)
+
+  // Estado para el modal de aprobacion de solicitud
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false)
+  const [approvingSolicitud, setApprovingSolicitud] = useState<SolicitudAcceso | null>(null)
+  const [approvalRol, setApprovalRol] = useState<UserRole>('vendedor')
+  const [approvalPermisos, setApprovalPermisos] = useState<PermisosUsuario>(
+    () => ({ ...PERMISOS_DEFAULT.vendedor })
+  )
+  const [approving, setApproving] = useState(false)
+
   // Opciones de rol - super_admin solo puede ser asignado por super_admin
   const roleOptions = [
     ...(isSuperAdmin ? [{ value: 'super_admin', label: 'Super Admin' }] : []),
-    { value: 'admin_cliente', label: 'Administrador' },
+    ...(isSuperAdmin ? [{ value: 'admin_cliente', label: 'Administrador' }] : []),
     { value: 'vendedor', label: 'Vendedor' },
+    { value: 'compras', label: 'Compras' },
+    { value: 'contador', label: 'Contador' },
   ]
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     const supabase = getSupabaseClient()
 
@@ -98,7 +184,7 @@ export default function UsuariosPage() {
     let usuariosQuery = supabase
       .schema('erp')
       .from('usuarios')
-      .select('id, email, nombre, rol, is_active, created_at, ultimo_acceso')
+      .select('id, email, nombre, rol, is_active, created_at, ultimo_acceso, permisos')
       .order('created_at', { ascending: false })
 
     if (!isSuperAdmin && orgId) {
@@ -107,7 +193,6 @@ export default function UsuariosPage() {
 
     const { data: usuariosData } = await usuariosQuery
     if (usuariosData) {
-      // Si no es super_admin, filtrar usuarios super_admin (doble protección con RLS)
       const filteredUsuarios = isSuperAdmin
         ? usuariosData
         : usuariosData.filter((u: Usuario) => u.rol !== 'super_admin')
@@ -143,16 +228,24 @@ export default function UsuariosPage() {
     }
 
     setLoading(false)
-  }
+  }, [isSuperAdmin, orgId])
 
   useEffect(() => {
     fetchData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuperAdmin, orgId])
+  }, [fetchData])
+
+  // Cuando cambia el rol en el formulario de agregar, actualizar permisos defaults
+  const handleRolChange = (rol: UserRole) => {
+    const defaults = PERMISOS_DEFAULT[rol]
+    if (defaults) {
+      setAddPermisos({ ...defaults })
+    }
+  }
 
   const handleAddAuthorized = async (values: { email: string; rol: UserRole; nombre?: string }) => {
     setAdding(true)
     const supabase = getSupabaseClient()
+    const normalizedEmail = values.email.toLowerCase()
 
     try {
       // Verificar que el email no exista ya
@@ -160,7 +253,7 @@ export default function UsuariosPage() {
         .schema('erp')
         .from('usuarios')
         .select('id')
-        .eq('email', values.email)
+        .ilike('email', normalizedEmail)
         .single()
 
       if (existingUser) {
@@ -168,16 +261,21 @@ export default function UsuariosPage() {
         return
       }
 
+      // Verificar si los permisos son iguales a los defaults del rol
+      const defaults = PERMISOS_DEFAULT[values.rol]
+      const isDefault = JSON.stringify(addPermisos) === JSON.stringify(defaults)
+
       // Agregar a usuarios_autorizados
       const { error } = await supabase
         .schema('erp')
         .from('usuarios_autorizados')
         .insert({
-          email: values.email,
+          email: normalizedEmail,
           rol: values.rol,
           nombre: values.nombre || null,
           organizacion_id: orgId,
           estado: 'pendiente_registro',
+          permisos: isDefault ? null : addPermisos,
         })
 
       if (error) {
@@ -192,6 +290,7 @@ export default function UsuariosPage() {
       message.success(`Email ${values.email} autorizado`)
       setAddModalOpen(false)
       form.resetFields()
+      setAddPermisos({ ...PERMISOS_DEFAULT.vendedor })
       fetchData()
     } catch (error) {
       message.error(error instanceof Error ? error.message : 'Error al autorizar email')
@@ -239,26 +338,71 @@ export default function UsuariosPage() {
   const handleDeleteUsuario = async (id: string) => {
     const supabase = getSupabaseClient()
 
-    const { error } = await supabase
-      .schema('erp')
-      .from('usuarios')
-      .delete()
-      .eq('id', id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.rpc as any)('eliminar_usuario', { p_usuario_id: id })
 
     if (error) {
-      message.error('Error al eliminar usuario')
+      message.error(error.message || 'Error al eliminar usuario')
     } else {
       message.success('Usuario eliminado permanentemente')
       fetchData()
     }
   }
 
-  const handleSolicitud = async (solicitudId: string, accion: 'aprobar' | 'rechazar', rol?: string) => {
+  const handleOpenPermisos = (usuario: Usuario) => {
+    setEditingUsuario(usuario)
+    // Si el usuario tiene permisos custom, usarlos; si no, usar defaults del rol
+    const efectivos = usuario.permisos || PERMISOS_DEFAULT[usuario.rol] || PERMISOS_DEFAULT.vendedor
+    setEditPermisos({ ...efectivos })
+    setPermisosModalOpen(true)
+  }
+
+  const handleSavePermisos = async () => {
+    if (!editingUsuario) return
+    setSavingPermisos(true)
+    const supabase = getSupabaseClient()
+
+    // Verificar si los permisos son iguales a los defaults del rol
+    const defaults = PERMISOS_DEFAULT[editingUsuario.rol]
+    const isDefault = JSON.stringify(editPermisos) === JSON.stringify(defaults)
+
+    const { error } = await supabase
+      .schema('erp')
+      .from('usuarios')
+      .update({ permisos: isDefault ? null : editPermisos })
+      .eq('id', editingUsuario.id)
+
+    if (error) {
+      message.error('Error al guardar permisos')
+    } else {
+      message.success('Permisos actualizados')
+      setPermisosModalOpen(false)
+      setEditingUsuario(null)
+      fetchData()
+    }
+    setSavingPermisos(false)
+  }
+
+  const handleOpenApproval = (solicitud: SolicitudAcceso) => {
+    setApprovingSolicitud(solicitud)
+    setApprovalRol('vendedor')
+    setApprovalPermisos({ ...PERMISOS_DEFAULT.vendedor })
+    setApprovalModalOpen(true)
+  }
+
+  const handleApprovalRolChange = (rol: UserRole) => {
+    setApprovalRol(rol)
+    setApprovalPermisos({ ...PERMISOS_DEFAULT[rol] })
+  }
+
+  const handleSolicitud = async (solicitudId: string, accion: 'aprobar' | 'rechazar', rol?: string, permisos?: PermisosUsuario) => {
     try {
+      if (accion === 'aprobar') setApproving(true)
+
       const response = await fetch('/api/solicitudes-acceso', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ solicitudId, accion, rol }),
+        body: JSON.stringify({ solicitudId, accion, rol, permisos }),
       })
 
       const data = await response.json()
@@ -268,9 +412,13 @@ export default function UsuariosPage() {
       }
 
       message.success(accion === 'aprobar' ? 'Usuario aprobado' : 'Solicitud rechazada')
+      setApprovalModalOpen(false)
+      setApprovingSolicitud(null)
       fetchData()
     } catch (error) {
       message.error(error instanceof Error ? error.message : 'Error')
+    } finally {
+      setApproving(false)
     }
   }
 
@@ -328,6 +476,14 @@ export default function UsuariosPage() {
         }
         return (
           <Space>
+            <Button
+              size="small"
+              icon={<SettingOutlined />}
+              onClick={() => handleOpenPermisos(record)}
+              title="Permisos"
+            >
+              Permisos
+            </Button>
             <Popconfirm
               title={record.is_active ? 'Desactivar usuario?' : 'Activar usuario?'}
               description={
@@ -345,7 +501,7 @@ export default function UsuariosPage() {
                 {record.is_active ? 'Desactivar' : 'Activar'}
               </Button>
             </Popconfirm>
-            {isSuperAdmin && (
+            {isAdmin && (
               <Popconfirm
                 title="Eliminar usuario permanentemente?"
                 description="Esta accion no se puede deshacer. Se eliminara el usuario de la base de datos."
@@ -440,15 +596,9 @@ export default function UsuariosPage() {
       key: 'acciones',
       render: (_: unknown, record: SolicitudAcceso) => (
         <Space>
-          <Popconfirm
-            title="Aprobar solicitud?"
-            description="El usuario sera creado como Vendedor"
-            onConfirm={() => handleSolicitud(record.id, 'aprobar', 'vendedor')}
-          >
-            <Button size="small" type="primary" icon={<CheckOutlined />}>
-              Aprobar
-            </Button>
-          </Popconfirm>
+          <Button size="small" type="primary" icon={<CheckOutlined />} onClick={() => handleOpenApproval(record)}>
+            Aprobar
+          </Button>
           <Popconfirm
             title="Rechazar solicitud?"
             onConfirm={() => handleSolicitud(record.id, 'rechazar')}
@@ -578,14 +728,17 @@ export default function UsuariosPage() {
         <Tabs items={tabItems} />
       </Card>
 
+      {/* Modal: Agregar Usuario Autorizado */}
       <Modal
         title="Agregar Usuario Autorizado"
         open={addModalOpen}
         onCancel={() => {
           setAddModalOpen(false)
           form.resetFields()
+          setAddPermisos({ ...PERMISOS_DEFAULT.vendedor })
         }}
         footer={null}
+        width={700}
       >
         <Form form={form} layout="vertical" onFinish={handleAddAuthorized}>
           <Form.Item
@@ -618,14 +771,17 @@ export default function UsuariosPage() {
             rules={[{ required: true, message: 'Selecciona un rol' }]}
             initialValue="vendedor"
           >
-            <Select options={roleOptions} />
+            <Select options={roleOptions} onChange={handleRolChange} />
           </Form.Item>
+
+          <Divider>Permisos de Acceso</Divider>
+          <PermisosTable permisos={addPermisos} onChange={setAddPermisos} />
 
           <Alert
             message="El usuario podra iniciar sesion con Google usando este email. Su cuenta se creara automaticamente."
             type="info"
             showIcon
-            style={{ marginBottom: 16 }}
+            style={{ marginTop: 16, marginBottom: 16 }}
           />
 
           <Divider />
@@ -641,6 +797,115 @@ export default function UsuariosPage() {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Modal: Editar Permisos de Usuario Activo */}
+      <Modal
+        title={`Permisos - ${editingUsuario?.nombre || editingUsuario?.email || ''}`}
+        open={permisosModalOpen}
+        onCancel={() => {
+          setPermisosModalOpen(false)
+          setEditingUsuario(null)
+        }}
+        width={700}
+        footer={
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={() => {
+              if (editingUsuario) {
+                setEditPermisos({ ...PERMISOS_DEFAULT[editingUsuario.rol] })
+              }
+            }}>
+              Restaurar Defaults
+            </Button>
+            <Button onClick={() => setPermisosModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="primary" loading={savingPermisos} onClick={handleSavePermisos}>
+              Guardar
+            </Button>
+          </Space>
+        }
+      >
+        {editingUsuario && (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <Text type="secondary">
+                Rol: <Tag color={roleLabels[editingUsuario.rol]?.color}>{roleLabels[editingUsuario.rol]?.label}</Tag>
+                {editingUsuario.permisos && (
+                  <Tag color="gold">Permisos personalizados</Tag>
+                )}
+              </Text>
+            </div>
+            <PermisosTable permisos={editPermisos} onChange={setEditPermisos} />
+          </>
+        )}
+      </Modal>
+
+      {/* Modal: Aprobar Solicitud de Acceso */}
+      <Modal
+        title={`Aprobar solicitud - ${approvingSolicitud?.nombre || approvingSolicitud?.email || ''}`}
+        open={approvalModalOpen}
+        onCancel={() => {
+          setApprovalModalOpen(false)
+          setApprovingSolicitud(null)
+        }}
+        width={700}
+        footer={
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={() => {
+              setApprovalPermisos({ ...PERMISOS_DEFAULT[approvalRol] })
+            }}>
+              Restaurar Defaults
+            </Button>
+            <Button onClick={() => {
+              setApprovalModalOpen(false)
+              setApprovingSolicitud(null)
+            }}>
+              Cancelar
+            </Button>
+            <Button
+              type="primary"
+              loading={approving}
+              onClick={() => {
+                if (approvingSolicitud) {
+                  handleSolicitud(approvingSolicitud.id, 'aprobar', approvalRol, approvalPermisos)
+                }
+              }}
+            >
+              Aprobar
+            </Button>
+          </Space>
+        }
+      >
+        {approvingSolicitud && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <Avatar src={approvingSolicitud.avatar_url} icon={<UserOutlined />} size={48} />
+              <div>
+                <div style={{ fontWeight: 500 }}>{approvingSolicitud.nombre || approvingSolicitud.email}</div>
+                {approvingSolicitud.nombre && <Text type="secondary">{approvingSolicitud.email}</Text>}
+                {approvingSolicitud.organizaciones?.nombre && (
+                  <div><Text type="secondary">Organizacion: {approvingSolicitud.organizaciones.nombre}</Text></div>
+                )}
+              </div>
+            </div>
+
+            <Divider />
+
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>Rol</Text>
+              <Select
+                value={approvalRol}
+                onChange={handleApprovalRolChange}
+                options={roleOptions}
+                style={{ width: 250 }}
+              />
+            </div>
+
+            <Divider>Permisos de Acceso</Divider>
+            <PermisosTable permisos={approvalPermisos} onChange={setApprovalPermisos} />
+          </>
+        )}
       </Modal>
     </div>
   )
