@@ -627,6 +627,181 @@ export function generarPDFOrdenCompra(
   doc.save(`${orden.folio}.pdf`)
 }
 
+// ==========================================
+// GENERADOR DE PDF PARA REPORTES
+// ==========================================
+
+export interface ReportePDFConfig {
+  titulo: string
+  nombreArchivo: string
+  filtrosAplicados?: string[]
+  estadisticas?: Array<{ label: string; valor: string | number }>
+  columnas: Array<{
+    titulo: string
+    dataIndex: string
+    width?: number
+    halign?: 'left' | 'center' | 'right'
+  }>
+  datos: Array<Record<string, any>>
+  orientacion?: 'portrait' | 'landscape'
+}
+
+/**
+ * Genera el encabezado de empresa para reportes
+ */
+function generarEncabezadoReporte(doc: jsPDF, titulo: string): number {
+  const pageWidth = doc.internal.pageSize.getWidth()
+  let y = 20
+
+  // Logo (si existe)
+  if (EMPRESA.logo) {
+    try {
+      doc.addImage(EMPRESA.logo, 'PNG', 14, y, 30, 30)
+    } catch {
+      // Si falla el logo, continuar sin él
+    }
+  }
+
+  // Nombre empresa
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLOR_PRIMARIO)
+  doc.text(EMPRESA.nombre, EMPRESA.logo ? 50 : 14, y + 5)
+
+  // Datos empresa
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLOR_GRIS)
+  const xDatos = EMPRESA.logo ? 50 : 14
+  doc.text(`RFC: ${EMPRESA.rfc}`, xDatos, y + 12)
+  doc.text(EMPRESA.direccion, xDatos, y + 17)
+  doc.text(`Tel: ${EMPRESA.telefono} | ${EMPRESA.email}`, xDatos, y + 22)
+
+  // Título del reporte (derecha)
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLOR_PRIMARIO)
+  doc.text(titulo, pageWidth - 14, y + 5, { align: 'right' })
+
+  // Fecha de generación (derecha)
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLOR_GRIS)
+  doc.text(dayjs().format('DD/MM/YYYY HH:mm'), pageWidth - 14, y + 14, { align: 'right' })
+
+  // Línea separadora
+  y += 35
+  doc.setDrawColor(...COLOR_PRIMARIO)
+  doc.setLineWidth(0.5)
+  doc.line(14, y, pageWidth - 14, y)
+
+  return y + 10
+}
+
+/**
+ * Genera un PDF de reporte genérico con encabezado, filtros, estadísticas y tabla de datos
+ */
+export function generarPDFReporte(config: ReportePDFConfig): void {
+  const { titulo, nombreArchivo, filtrosAplicados, estadisticas, columnas, datos, orientacion = 'portrait' } = config
+
+  const doc = new jsPDF({ orientation: orientacion })
+  let y = generarEncabezadoReporte(doc, titulo)
+
+  // Filtros aplicados
+  if (filtrosAplicados && filtrosAplicados.length > 0) {
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(...COLOR_GRIS)
+    doc.text(`Filtros: ${filtrosAplicados.join(' | ')}`, 14, y)
+    y += 8
+  }
+
+  // Estadísticas como tabla compacta
+  if (estadisticas && estadisticas.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [estadisticas.map(e => e.label)],
+      body: [estadisticas.map(e => String(e.valor))],
+      theme: 'plain',
+      headStyles: {
+        fillColor: [240, 240, 240],
+        textColor: COLOR_GRIS,
+        fontStyle: 'bold',
+        fontSize: 8,
+        halign: 'center',
+      },
+      bodyStyles: {
+        fontSize: 10,
+        fontStyle: 'bold',
+        textColor: COLOR_PRIMARIO,
+        halign: 'center',
+      },
+      margin: { left: 14, right: 14 },
+    })
+    y = (doc as any).lastAutoTable.finalY + 8
+  }
+
+  // Tabla principal de datos
+  const headers = columnas.map(c => c.titulo)
+  const body = datos.map(row =>
+    columnas.map(col => {
+      const val = row[col.dataIndex]
+      return val !== null && val !== undefined ? String(val) : '-'
+    })
+  )
+
+  // Distribucion proporcional: asignar cellWidth explicito a TODAS las columnas
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const availableWidth = pageWidth - 28 // 14mm margin each side
+  const DEFAULT_AUTO_WEIGHT = 150
+  const totalWeight = columnas.reduce((sum, c) => sum + (c.width || DEFAULT_AUTO_WEIGHT), 0)
+
+  const columnStyles: Record<number, any> = {}
+  columnas.forEach((col, i) => {
+    const weight = col.width || DEFAULT_AUTO_WEIGHT
+    const style: any = { cellWidth: (weight / totalWeight) * availableWidth }
+    if (col.halign) style.halign = col.halign
+    columnStyles[i] = style
+  })
+
+  autoTable(doc, {
+    startY: y,
+    head: [headers],
+    body,
+    theme: 'striped',
+    headStyles: {
+      fillColor: COLOR_PRIMARIO,
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 9,
+    },
+    bodyStyles: {
+      fontSize: 9,
+      textColor: COLOR_GRIS,
+    },
+    columnStyles,
+    margin: { left: 14, right: 14 },
+  })
+
+  // Pie de página
+  const pageCount = (doc as any).internal.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const pageWidth = doc.internal.pageSize.getWidth()
+    doc.setFontSize(8)
+    doc.setTextColor(...COLOR_GRIS)
+    doc.text(
+      `Generado el ${dayjs().format('DD/MM/YYYY HH:mm')}`,
+      pageWidth / 2,
+      pageHeight - 10,
+      { align: 'center' }
+    )
+  }
+
+  doc.save(`${nombreArchivo}.pdf`)
+}
+
 /**
  * Prepara los datos de una cotización para generar el PDF
  * Calcula la fecha de vencimiento y extrae el vendedor
