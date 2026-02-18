@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import type { ConfigMargenesCategoria } from '@/types/database'
 
@@ -9,45 +10,65 @@ const DEFAULT_MARGENES: ConfigMargenesCategoria = {
   por_categoria: {}
 }
 
+const margenesKeys = {
+  all: ['margenes-categoria'] as const,
+}
+
+async function fetchMargenesConfig(): Promise<ConfigMargenesCategoria> {
+  const supabase = getSupabaseClient()
+
+  const { data, error } = await supabase
+    .schema('erp')
+    .from('configuracion')
+    .select('valor')
+    .eq('clave', 'margenes_categoria')
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    throw error
+  }
+
+  if (data?.valor) {
+    return data.valor as ConfigMargenesCategoria
+  }
+
+  return DEFAULT_MARGENES
+}
+
+async function updateMargenesConfig(newConfig: ConfigMargenesCategoria) {
+  const supabase = getSupabaseClient()
+
+  const { error } = await supabase
+    .schema('erp')
+    .from('configuracion')
+    .upsert({
+      clave: 'margenes_categoria',
+      valor: newConfig,
+      descripcion: 'Margenes de ganancia por categoria para ordenes de compra'
+    }, { onConflict: 'clave' })
+
+  if (error) throw error
+
+  return newConfig
+}
+
 export function useMargenesCategoria() {
-  const [config, setConfig] = useState<ConfigMargenesCategoria>(DEFAULT_MARGENES)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
-  const loadConfig = useCallback(async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-    setError(null)
+  const { data: config = DEFAULT_MARGENES, isLoading: loading, error: queryError } = useQuery({
+    queryKey: margenesKeys.all,
+    queryFn: fetchMargenesConfig,
+    staleTime: 1000 * 60 * 5,
+  })
 
-    try {
-      const { data, error: fetchError } = await supabase
-        .schema('erp')
-        .from('configuracion')
-        .select('valor')
-        .eq('clave', 'margenes_categoria')
-        .single()
+  const error = queryError ? (queryError as Error).message : null
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError
-      }
-
-      if (data?.valor) {
-        setConfig(data.valor as ConfigMargenesCategoria)
-      } else {
-        setConfig(DEFAULT_MARGENES)
-      }
-    } catch (err: any) {
-      console.error('Error loading margenes config:', err)
-      setError(err.message)
-      setConfig(DEFAULT_MARGENES)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadConfig()
-  }, [loadConfig])
+  const mutation = useMutation({
+    mutationFn: updateMargenesConfig,
+    onSuccess: (newConfig) => {
+      queryClient.setQueryData(margenesKeys.all, newConfig)
+    },
+  })
 
   const getMargenParaCategoria = useCallback((categoriaId: string | null): number => {
     if (!categoriaId) return config.global
@@ -55,22 +76,12 @@ export function useMargenesCategoria() {
   }, [config])
 
   const updateConfig = async (newConfig: ConfigMargenesCategoria) => {
-    const supabase = getSupabaseClient()
-
-    const { error: updateError } = await supabase
-      .schema('erp')
-      .from('configuracion')
-      .upsert({
-        clave: 'margenes_categoria',
-        valor: newConfig,
-        descripcion: 'Margenes de ganancia por categoria para ordenes de compra'
-      }, { onConflict: 'clave' })
-
-    if (!updateError) {
-      setConfig(newConfig)
+    try {
+      await mutation.mutateAsync(newConfig)
+      return { error: null }
+    } catch (err: any) {
+      return { error: err }
     }
-
-    return { error: updateError }
   }
 
   const setMargenGlobal = async (porcentaje: number) => {
@@ -99,6 +110,6 @@ export function useMargenesCategoria() {
     updateConfig,
     setMargenGlobal,
     setMargenCategoria,
-    reload: loadConfig
+    reload: () => queryClient.invalidateQueries({ queryKey: margenesKeys.all }),
   }
 }
