@@ -24,7 +24,8 @@ interface OrdenVentaItem {
   producto_id: string
   producto_nombre: string
   sku: string
-  precio_lista_usd: number
+  precio_lista: number
+  moneda_precio: CodigoMoneda  // Moneda de origen del precio en la lista
   margen_porcentaje: number
   cantidad: number
   precio_unitario: number
@@ -46,7 +47,7 @@ export default function NuevaOrdenVentaPage() {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const [productos, setProductos] = useState<any[]>([])
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
-  const [preciosMap, setPreciosMap] = useState<Map<string, number>>(new Map())
+  const [preciosMap, setPreciosMap] = useState<Map<string, { precio: number, moneda: CodigoMoneda }>>(new Map())
   const [loadingPrecios, setLoadingPrecios] = useState(false)
   const [preciosCargados, setPreciosCargados] = useState(false)
 
@@ -186,12 +187,12 @@ export default function NuevaOrdenVentaPage() {
       const { data, error } = await supabase
         .schema('erp')
         .from('precios_productos')
-        .select('producto_id, precio')
+        .select('producto_id, precio, moneda')
         .eq('lista_precio_id', listaPrecioId)
 
       if (error) throw error
 
-      setPreciosMap(new Map(data?.map(p => [p.producto_id, Number(p.precio)]) || []))
+      setPreciosMap(new Map(data?.map(p => [p.producto_id, { precio: Number(p.precio), moneda: (p.moneda || 'USD') as CodigoMoneda }]) || []))
       setPreciosCargados(true)
 
       if (!data || data.length === 0) {
@@ -205,9 +206,11 @@ export default function NuevaOrdenVentaPage() {
     }
   }
 
-  const calcularPrecioFinal = (precioUSD: number, margenPct: number, monedaDestino: CodigoMoneda = moneda) => {
-    const precioConMargen = precioUSD * (1 + margenPct / 100)
-    return monedaDestino === 'USD' ? precioConMargen : precioConMargen * tipoCambio
+  const calcularPrecioFinal = (precioBase: number, monedaOrigen: CodigoMoneda, margenPct: number, monedaDestino: CodigoMoneda = moneda) => {
+    const precioConMargen = precioBase * (1 + margenPct / 100)
+    if (monedaOrigen === monedaDestino) return precioConMargen
+    if (monedaOrigen === 'USD') return precioConMargen * tipoCambio
+    return precioConMargen / tipoCambio
   }
 
   const formatMoney = (amount: number) => {
@@ -228,11 +231,11 @@ export default function NuevaOrdenVentaPage() {
         )
         .slice(0, 10)
         .map(p => {
-          const precio = preciosMap.get(p.id) || 0
+          const precioData = preciosMap.get(p.id) || { precio: 0, moneda: 'USD' as CodigoMoneda }
           return {
             value: p.id,
-            label: `${p.sku} - ${p.nombre} ($${precio.toFixed(2)} USD)`,
-            producto: { ...p, precio },
+            label: `${p.sku} - ${p.nombre} ($${precioData.precio.toFixed(2)} ${precioData.moneda})`,
+            producto: { ...p, precio: precioData.precio, moneda_precio: precioData.moneda },
           }
         })
       setProductOptions(filtered)
@@ -250,16 +253,18 @@ export default function NuevaOrdenVentaPage() {
       return
     }
 
-    const precioUSD = producto.precio
+    const precioBase = producto.precio
+    const monedaPrecio: CodigoMoneda = producto.moneda_precio || 'USD'
     const margen = 0
-    const precioFinal = calcularPrecioFinal(precioUSD, margen)
+    const precioFinal = calcularPrecioFinal(precioBase, monedaPrecio, margen)
 
     const newItem: OrdenVentaItem = {
       key: producto.id,
       producto_id: producto.id,
       producto_nombre: producto.nombre,
       sku: producto.sku,
-      precio_lista_usd: precioUSD,
+      precio_lista: precioBase,
+      moneda_precio: monedaPrecio,
       margen_porcentaje: margen,
       cantidad: 1,
       precio_unitario: precioFinal,
@@ -278,7 +283,7 @@ export default function NuevaOrdenVentaPage() {
         const updated = { ...item, [field]: value }
 
         if (field === 'margen_porcentaje') {
-          updated.precio_unitario = calcularPrecioFinal(updated.precio_lista_usd, value)
+          updated.precio_unitario = calcularPrecioFinal(updated.precio_lista, updated.moneda_precio, value)
         }
 
         updated.subtotal = updated.cantidad * updated.precio_unitario
@@ -296,23 +301,24 @@ export default function NuevaOrdenVentaPage() {
     const newTC = value || tcGlobal
     setTipoCambio(newTC)
 
-    if (moneda === 'MXN') {
-      setItems(items.map(item => {
-        const nuevoPrecio = item.precio_lista_usd * (1 + item.margen_porcentaje / 100) * newTC
-        return {
-          ...item,
-          precio_unitario: nuevoPrecio,
-          subtotal: item.cantidad * nuevoPrecio
-        }
-      }))
-    }
+    // Solo recalcular items que requieren conversión
+    setItems(items.map(item => {
+      if (item.moneda_precio === moneda) return item
+      const precioConMargen = item.precio_lista * (1 + item.margen_porcentaje / 100)
+      const nuevoPrecio = item.moneda_precio === 'USD' ? precioConMargen * newTC : precioConMargen / newTC
+      return {
+        ...item,
+        precio_unitario: nuevoPrecio,
+        subtotal: item.cantidad * nuevoPrecio
+      }
+    }))
   }
 
   const handleMonedaChange = (nuevaMoneda: CodigoMoneda) => {
     setMoneda(nuevaMoneda)
 
     setItems(prevItems => prevItems.map(item => {
-      const nuevoPrecio = calcularPrecioFinal(item.precio_lista_usd, item.margen_porcentaje, nuevaMoneda)
+      const nuevoPrecio = calcularPrecioFinal(item.precio_lista, item.moneda_precio, item.margen_porcentaje, nuevaMoneda)
       return {
         ...item,
         precio_unitario: nuevoPrecio,
@@ -443,10 +449,10 @@ export default function NuevaOrdenVentaPage() {
       ellipsis: true,
     },
     {
-      title: 'Precio USD',
-      dataIndex: 'precio_lista_usd',
-      width: 100,
-      render: (val: number) => `$${val.toFixed(2)}`,
+      title: 'Precio Lista',
+      dataIndex: 'precio_lista',
+      width: 110,
+      render: (val: number, record: OrdenVentaItem) => `$${val.toFixed(2)} ${record.moneda_precio}`,
     },
     {
       title: (

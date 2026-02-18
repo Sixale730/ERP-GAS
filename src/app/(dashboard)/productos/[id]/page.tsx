@@ -7,7 +7,7 @@ import {
 } from 'antd'
 import { ArrowLeftOutlined, EditOutlined, SettingOutlined, SwapOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoney } from '@/lib/utils/format'
+import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
 import PrecioProductoModal from '@/components/precios/PrecioProductoModal'
 import { usePreciosProducto, useDeletePrecioProducto, type PrecioConLista } from '@/lib/hooks/usePreciosProductos'
@@ -34,6 +34,7 @@ interface ProductoDetalle {
   reservado_total: number
   disponible_total: number
   numero_parte: string | null
+  moneda: 'USD' | 'MXN'
   is_active: boolean
 }
 
@@ -93,7 +94,7 @@ export default function ProductoDetallePage() {
       // Load producto from view + numero_parte from productos table
       const [viewRes, prodRes] = await Promise.all([
         supabase.schema('erp').from('v_productos_stock').select('*').eq('id', id).single(),
-        supabase.schema('erp').from('productos').select('numero_parte').eq('id', id).single(),
+        supabase.schema('erp').from('productos').select('numero_parte, moneda').eq('id', id).single(),
       ])
 
       if (viewRes.error) throw viewRes.error
@@ -102,6 +103,7 @@ export default function ProductoDetallePage() {
       const prodData = {
         ...viewRes.data,
         numero_parte: prodRes.data?.numero_parte || null,
+        moneda: (prodRes.data?.moneda as 'USD' | 'MXN') || 'USD',
       }
       setProducto(prodData)
 
@@ -215,18 +217,29 @@ export default function ProductoDetallePage() {
       key: 'lista_nombre',
     },
     {
+      title: 'Moneda',
+      dataIndex: 'moneda',
+      key: 'moneda',
+      width: 80,
+      render: (val: string) => (
+        <Tag color={val === 'USD' ? 'green' : 'blue'}>{val || 'USD'}</Tag>
+      ),
+    },
+    {
       title: 'Precio',
       dataIndex: 'precio',
       key: 'precio',
       align: 'right' as const,
-      render: (val: number) => formatMoney(val),
+      render: (val: number, record: PrecioConLista) =>
+        record.moneda === 'MXN' ? formatMoneyMXN(val) : formatMoneyUSD(val),
     },
     {
       title: 'Precio c/IVA',
       dataIndex: 'precio_con_iva',
       key: 'precio_con_iva',
       align: 'right' as const,
-      render: (val: number | null) => val ? formatMoney(val) : '-',
+      render: (val: number | null, record: PrecioConLista) =>
+        val ? (record.moneda === 'MXN' ? formatMoneyMXN(val) : formatMoneyUSD(val)) : '-',
     },
     {
       title: 'Acciones',
@@ -340,7 +353,7 @@ export default function ProductoDetallePage() {
                 {producto.unidad_medida}
               </Descriptions.Item>
               <Descriptions.Item label="Costo Promedio">
-                {formatMoney(producto.costo_promedio || 0)}
+                {producto.moneda === 'MXN' ? formatMoneyMXN(producto.costo_promedio || 0) : formatMoneyUSD(producto.costo_promedio || 0)}
               </Descriptions.Item>
               <Descriptions.Item label="Stock Mínimo">
                 <Space>

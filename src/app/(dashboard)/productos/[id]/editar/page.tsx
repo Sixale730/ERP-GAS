@@ -87,6 +87,7 @@ export default function EditarProductoPage() {
         categoria_id: prodRes.data.categoria_id,
         proveedor_principal_id: prodRes.data.proveedor_principal_id,
         unidad_medida: prodRes.data.unidad_medida,
+        moneda: prodRes.data.moneda || 'USD',
         stock_minimo: prodRes.data.stock_minimo,
         stock_maximo: prodRes.data.stock_maximo,
         es_servicio: prodRes.data.es_servicio || false,
@@ -117,6 +118,7 @@ export default function EditarProductoPage() {
           categoria_id: values.categoria_id || null,
           proveedor_principal_id: values.proveedor_principal_id || null,
           unidad_medida: values.unidad_medida,
+          moneda: values.moneda || 'USD',
           stock_minimo: values.es_servicio ? 0 : (values.stock_minimo || 0),
           stock_maximo: values.es_servicio ? 0 : (values.stock_maximo || 0),
           es_servicio: values.es_servicio || false,
@@ -327,6 +329,19 @@ export default function EditarProductoPage() {
                 { value: 'PAQ', label: 'Paquete' },
                 { value: 'SRV', label: 'Servicio (SRV)' },
                 { value: 'HR', label: 'Hora (HR)' },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="moneda"
+            label="Moneda de Costo"
+            rules={[{ required: true, message: 'Moneda es requerida' }]}
+          >
+            <Select
+              options={[
+                { value: 'USD', label: 'USD - Dólar Americano' },
+                { value: 'MXN', label: 'MXN - Peso Mexicano' },
               ]}
             />
           </Form.Item>

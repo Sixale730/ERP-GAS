@@ -42,12 +42,14 @@ export default function PrecioProductoModal({
         // Modo edición - cargar valores existentes
         form.setFieldsValue({
           lista_precio_id: precio.lista_precio_id,
+          moneda: precio.moneda || 'MXN',
           precio: precio.precio,
         })
         setPrecioConIva(precio.precio_con_iva ?? precio.precio * 1.16)
       } else {
-        // Modo crear - resetear form
+        // Modo crear - resetear form con default MXN
         form.resetFields()
+        form.setFieldsValue({ moneda: 'MXN' })
         setPrecioConIva(null)
       }
     }
@@ -72,6 +74,7 @@ export default function PrecioProductoModal({
           producto_id: productoId,
           precio: values.precio,
           precio_con_iva: precioConIva,
+          moneda: values.moneda,
         })
         message.success('Precio actualizado correctamente')
       } else {
@@ -81,6 +84,7 @@ export default function PrecioProductoModal({
           lista_precio_id: values.lista_precio_id,
           precio: values.precio,
           precio_con_iva: precioConIva,
+          moneda: values.moneda,
         })
         message.success('Precio creado correctamente')
       }
@@ -136,6 +140,19 @@ export default function PrecioProductoModal({
         </Form.Item>
 
         <Form.Item
+          name="moneda"
+          label="Moneda"
+          rules={[{ required: true, message: 'Selecciona la moneda' }]}
+        >
+          <Select
+            options={[
+              { value: 'MXN', label: 'Peso Mexicano (MXN)' },
+              { value: 'USD', label: 'Dólar Americano (USD)' },
+            ]}
+          />
+        </Form.Item>
+
+        <Form.Item
           name="precio"
           label="Precio (sin IVA)"
           rules={[
@@ -167,7 +184,7 @@ export default function PrecioProductoModal({
               {precioConIva !== null
                 ? new Intl.NumberFormat('es-MX', {
                     style: 'currency',
-                    currency: 'MXN',
+                    currency: form.getFieldValue('moneda') || 'MXN',
                   }).format(precioConIva)
                 : '-'}
             </Text>

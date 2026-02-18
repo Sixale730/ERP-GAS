@@ -51,6 +51,7 @@ export default function NuevoProductoPage() {
       // Set default values
       form.setFieldsValue({
         unidad_medida: 'PZA',
+        moneda: 'USD',
         stock_minimo: 0,
         stock_maximo: 0,
         es_servicio: false,
@@ -80,6 +81,7 @@ export default function NuevoProductoPage() {
           categoria_id: values.categoria_id || null,
           proveedor_principal_id: values.proveedor_principal_id || null,
           unidad_medida: values.unidad_medida,
+          moneda: values.moneda || 'USD',
           stock_minimo: values.es_servicio ? 0 : (values.stock_minimo || 0),
           stock_maximo: values.es_servicio ? 0 : (values.stock_maximo || 0),
           es_servicio: values.es_servicio || false,
@@ -216,6 +218,19 @@ export default function NuevoProductoPage() {
                 { value: 'PAQ', label: 'Paquete' },
                 { value: 'SRV', label: 'Servicio (SRV)' },
                 { value: 'HR', label: 'Hora (HR)' },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="moneda"
+            label="Moneda de Costo"
+            rules={[{ required: true, message: 'Moneda es requerida' }]}
+          >
+            <Select
+              options={[
+                { value: 'USD', label: 'USD - Dólar Americano' },
+                { value: 'MXN', label: 'MXN - Peso Mexicano' },
               ]}
             />
           </Form.Item>

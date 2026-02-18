@@ -66,7 +66,7 @@ export default function NuevaOrdenCompraPage() {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
   const [productosOptions, setProductosOptions] = useState<ProductoOption[]>([])
-  const [preciosMap, setPreciosMap] = useState<Map<string, number>>(new Map())
+  const [preciosMap, setPreciosMap] = useState<Map<string, { precio: number, moneda: 'USD' | 'MXN' }>>(new Map())
   const [items, setItems] = useState<ItemOrden[]>([])
   const [searchValue, setSearchValue] = useState('')
   const [saving, setSaving] = useState(false)
@@ -106,7 +106,8 @@ export default function NuevaOrdenCompraPage() {
         const itemsOC: ItemOrden[] = data.map(p => {
           const producto = productos.find(prod => prod.id === p.id)
           const margen = getMargenParaCategoria(producto?.categoria_id || null)
-          const precioBase = preciosMap.get(p.id) || producto?.costo_promedio || 0
+          const precioData = preciosMap.get(p.id)
+          const precioBase = precioData?.precio || producto?.costo_promedio || 0
           const precioConMargen = precioBase * (1 - margen / 100)
           const cantidadSugerida = Math.max(20 - (p.stock_total || 0), 10)
           const subtotalItem = Math.round(cantidadSugerida * precioConMargen * 100) / 100
@@ -165,10 +166,10 @@ export default function NuevaOrdenCompraPage() {
       const { data: preciosData } = await supabase
         .schema('erp')
         .from('precios_productos')
-        .select('producto_id, precio')
+        .select('producto_id, precio, moneda')
         .eq('lista_precio_id', '33333333-3333-3333-3333-333333333301')
 
-      setPreciosMap(new Map(preciosData?.map(p => [p.producto_id, Number(p.precio)]) || []))
+      setPreciosMap(new Map(preciosData?.map(p => [p.producto_id, { precio: Number(p.precio), moneda: (p.moneda || 'USD') as 'USD' | 'MXN' }]) || []))
     } catch (error) {
       console.error('Error loading data:', error)
       message.error('Error al cargar datos')
@@ -214,15 +215,22 @@ export default function NuevaOrdenCompraPage() {
     const margen = getMargenParaCategoria(producto.categoria_id)
 
     // Obtener precio de la lista de precios (o costo_promedio como fallback)
-    const precioBase = preciosMap.get(producto.id) || producto.costo_promedio || 0
+    const precioData = preciosMap.get(producto.id)
+    const precioBase = precioData?.precio || producto.costo_promedio || 0
+    const monedaPrecio = precioData?.moneda || 'USD'
 
     // Calcular precio con margen
     const precioConMargen = precioBase * (1 - margen / 100)
 
-    // Aplicar tipo de cambio si la moneda es MXN
-    const precioFinal = monedaSeleccionada === 'MXN'
-      ? precioConMargen * tipoCambioLocal
-      : precioConMargen
+    // Convertir a la moneda del documento
+    let precioFinal = precioConMargen
+    if (monedaPrecio !== monedaSeleccionada) {
+      if (monedaPrecio === 'USD' && monedaSeleccionada === 'MXN') {
+        precioFinal = precioConMargen * tipoCambioLocal
+      } else if (monedaPrecio === 'MXN' && monedaSeleccionada === 'USD') {
+        precioFinal = precioConMargen / tipoCambioLocal
+      }
+    }
 
     const newItem: ItemOrden = {
       key: producto.id,

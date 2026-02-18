@@ -26,7 +26,8 @@ interface CotizacionItem {
   producto_nombre: string
   sku: string
   descripcion: string  // Descripción editable por línea
-  precio_lista_usd: number
+  precio_lista: number
+  moneda_precio: CodigoMoneda  // Moneda de origen del precio en la lista
   margen_porcentaje: number
   cantidad: number
   cantidad_original?: number // Para comparar cambios en orden_venta
@@ -92,7 +93,7 @@ export default function EditarCotizacionPage() {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const [productos, setProductos] = useState<any[]>([])
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
-  const [preciosMap, setPreciosMap] = useState<Map<string, number>>(new Map())
+  const [preciosMap, setPreciosMap] = useState<Map<string, { precio: number, moneda: CodigoMoneda }>>(new Map())
 
   // Selected
   const [clienteId, setClienteId] = useState<string | null>(null)
@@ -229,14 +230,30 @@ export default function EditarCotizacionPage() {
       setListasPrecios(listasRes.data || [])
       setProductos(productosRes.data || [])
 
+      // Cargar precios para obtener moneda de origen
+      let preciosMapLocal = new Map<string, { precio: number, moneda: CodigoMoneda }>()
+      if (cotData.lista_precio_id) {
+        const { data: preciosData } = await supabase
+          .schema('erp')
+          .from('precios_productos')
+          .select('producto_id, precio, moneda')
+          .eq('lista_precio_id', cotData.lista_precio_id)
+
+        preciosMapLocal = new Map(preciosData?.map(p => [p.producto_id, { precio: Number(p.precio), moneda: (p.moneda || 'USD') as CodigoMoneda }]) || [])
+        setPreciosMap(preciosMapLocal)
+      }
+
       // Pre-llenar items
       if (itemsData) {
+        const cotMoneda = (cotData.moneda as CodigoMoneda) || 'MXN'
+
         const loadedItems: CotizacionItem[] = itemsData.map(item => {
-          // Calcular precio USD base desde el precio MXN guardado
-          const precioMXN = Number(item.precio_unitario)
-          const tc = cotData.tipo_cambio || tcGlobal
-          // Asumir margen 0 si no podemos calcularlo
-          const precioUSD = precioMXN / tc
+          const precioGuardado = Number(item.precio_unitario)
+          // Buscar la moneda de origen del precio en la lista
+          const precioListaData = preciosMapLocal.get(item.producto_id)
+          const monedaPrecio: CodigoMoneda = precioListaData?.moneda || cotMoneda
+          // Usar el precio de la lista si existe, sino calcular desde el guardado
+          const precioLista = precioListaData?.precio ?? precioGuardado
 
           return {
             key: item.producto_id,
@@ -244,12 +261,13 @@ export default function EditarCotizacionPage() {
             producto_id: item.producto_id,
             producto_nombre: item.productos?.nombre || item.descripcion,
             sku: item.productos?.sku || '-',
-            descripcion: item.descripcion || item.productos?.nombre || '',  // Cargar descripción existente
-            precio_lista_usd: precioUSD,
+            descripcion: item.descripcion || item.productos?.nombre || '',
+            precio_lista: precioLista,
+            moneda_precio: monedaPrecio,
             margen_porcentaje: 0,
             cantidad: Number(item.cantidad),
             cantidad_original: Number(item.cantidad),
-            precio_unitario_mxn: precioMXN,
+            precio_unitario_mxn: precioGuardado,
             subtotal: Number(item.subtotal),
           }
         })
@@ -275,19 +293,23 @@ export default function EditarCotizacionPage() {
       const { data, error } = await supabase
         .schema('erp')
         .from('precios_productos')
-        .select('producto_id, precio')
+        .select('producto_id, precio, moneda')
         .eq('lista_precio_id', listaPrecioId)
 
       if (error) throw error
 
-      setPreciosMap(new Map(data?.map(p => [p.producto_id, Number(p.precio)]) || []))
+      setPreciosMap(new Map(data?.map(p => [p.producto_id, { precio: Number(p.precio), moneda: (p.moneda || 'USD') as CodigoMoneda }]) || []))
     } catch (error) {
       console.error('Error loading precios:', error)
     }
   }
 
-  const calcularPrecioMXN = (precioUSD: number, margenPct: number) => {
-    return precioUSD * (1 + margenPct / 100) * tipoCambio
+  // Calcular precio final segun moneda de origen y destino
+  const calcularPrecioFinalLocal = (precioBase: number, monedaOrigen: CodigoMoneda, margenPct: number, monedaDestino: CodigoMoneda = moneda) => {
+    const precioConMargen = precioBase * (1 + margenPct / 100)
+    if (monedaOrigen === monedaDestino) return precioConMargen
+    if (monedaOrigen === 'USD') return precioConMargen * tipoCambio  // USD→MXN
+    return precioConMargen / tipoCambio  // MXN→USD
   }
 
   const handleProductSearch = (value: string) => {
@@ -300,11 +322,11 @@ export default function EditarCotizacionPage() {
         )
         .slice(0, 10)
         .map(p => {
-          const precio = preciosMap.get(p.id) || 0
+          const precioData = preciosMap.get(p.id) || { precio: 0, moneda: 'USD' as CodigoMoneda }
           return {
             value: p.id,
-            label: `${p.sku} - ${p.nombre} ($${precio.toFixed(2)} USD)`,
-            producto: { ...p, precio },
+            label: `${p.sku} - ${p.nombre} ($${precioData.precio.toFixed(2)} ${precioData.moneda})`,
+            producto: { ...p, precio: precioData.precio, moneda_precio: precioData.moneda },
           }
         })
       setProductOptions(filtered)
@@ -322,9 +344,10 @@ export default function EditarCotizacionPage() {
       return
     }
 
-    const precioUSD = producto.precio
+    const precioBase = producto.precio
+    const monedaPrecio: CodigoMoneda = producto.moneda_precio || 'USD'
     const margen = 0
-    const precioMXN = calcularPrecioMXN(precioUSD, margen)
+    const precioFinal = calcularPrecioFinalLocal(precioBase, monedaPrecio, margen)
 
     const newItem: CotizacionItem = {
       key: producto.id,
@@ -332,11 +355,12 @@ export default function EditarCotizacionPage() {
       producto_nombre: producto.nombre,
       sku: producto.sku,
       descripcion: producto.nombre,  // Inicializar con nombre del producto
-      precio_lista_usd: precioUSD,
+      precio_lista: precioBase,
+      moneda_precio: monedaPrecio,
       margen_porcentaje: margen,
       cantidad: 1,
-      precio_unitario_mxn: precioMXN,
-      subtotal: precioMXN,
+      precio_unitario_mxn: precioFinal,
+      subtotal: precioFinal,
     }
 
     setItems([...items, newItem])
@@ -350,7 +374,7 @@ export default function EditarCotizacionPage() {
         const updated = { ...item, [field]: value }
 
         if (field === 'margen_porcentaje' && typeof value === 'number') {
-          updated.precio_unitario_mxn = calcularPrecioMXN(updated.precio_lista_usd, value)
+          updated.precio_unitario_mxn = calcularPrecioFinalLocal(updated.precio_lista, updated.moneda_precio, value)
         }
 
         // Recalcular subtotal (solo si no es campo de texto)
@@ -371,32 +395,26 @@ export default function EditarCotizacionPage() {
     const newTC = value || tcGlobal
     setTipoCambio(newTC)
 
-    // Solo recalcular si estamos en MXN
-    if (moneda === 'MXN') {
-      setItems(items.map(item => {
-        const nuevoPrecio = item.precio_lista_usd * (1 + item.margen_porcentaje / 100) * newTC
-        return {
-          ...item,
-          precio_unitario_mxn: nuevoPrecio,
-          subtotal: item.cantidad * nuevoPrecio
-        }
-      }))
-    }
-  }
-
-  // Calcular precio final segun moneda
-  const calcularPrecioFinal = (precioUSD: number, margenPct: number, monedaDestino: CodigoMoneda = moneda) => {
-    const precioConMargen = precioUSD * (1 + margenPct / 100)
-    return monedaDestino === 'USD' ? precioConMargen : precioConMargen * tipoCambio
+    // Solo recalcular items que requieren conversión
+    setItems(items.map(item => {
+      if (item.moneda_precio === moneda) return item
+      const precioConMargen = item.precio_lista * (1 + item.margen_porcentaje / 100)
+      const nuevoPrecio = item.moneda_precio === 'USD' ? precioConMargen * newTC : precioConMargen / newTC
+      return {
+        ...item,
+        precio_unitario_mxn: nuevoPrecio,
+        subtotal: item.cantidad * nuevoPrecio
+      }
+    }))
   }
 
   // Cambiar moneda y recalcular todos los items
   const handleMonedaChange = (nuevaMoneda: CodigoMoneda) => {
     setMoneda(nuevaMoneda)
 
-    // Recalcular todos los items con la nueva moneda
+    // Recalcular todos los items con la nueva moneda destino
     setItems(prevItems => prevItems.map(item => {
-      const nuevoPrecio = calcularPrecioFinal(item.precio_lista_usd, item.margen_porcentaje, nuevaMoneda)
+      const nuevoPrecio = calcularPrecioFinalLocal(item.precio_lista, item.moneda_precio, item.margen_porcentaje, nuevaMoneda)
       return {
         ...item,
         precio_unitario_mxn: nuevoPrecio,
@@ -617,10 +635,10 @@ export default function EditarCotizacionPage() {
       ),
     },
     {
-      title: 'Precio USD',
-      dataIndex: 'precio_lista_usd',
-      width: 100,
-      render: (val: number) => `$${val.toFixed(2)}`,
+      title: 'Precio Lista',
+      dataIndex: 'precio_lista',
+      width: 110,
+      render: (val: number, record: CotizacionItem) => `$${val.toFixed(2)} ${record.moneda_precio}`,
     },
     {
       title: (

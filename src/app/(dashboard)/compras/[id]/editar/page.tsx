@@ -67,7 +67,7 @@ export default function EditarOrdenCompraPage() {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
   const [productosOptions, setProductosOptions] = useState<ProductoOption[]>([])
-  const [preciosMap, setPreciosMap] = useState<Map<string, number>>(new Map())
+  const [preciosMap, setPreciosMap] = useState<Map<string, { precio: number, moneda: 'USD' | 'MXN' }>>(new Map())
   const [items, setItems] = useState<ItemOrden[]>([])
   const [searchValue, setSearchValue] = useState('')
   const [saving, setSaving] = useState(false)
@@ -129,14 +129,14 @@ export default function EditarOrdenCompraPage() {
         supabase
           .schema('erp')
           .from('precios_productos')
-          .select('producto_id, precio')
+          .select('producto_id, precio, moneda')
           .eq('lista_precio_id', '33333333-3333-3333-3333-333333333301'),
       ])
 
       setProveedores(proveedoresRes.data || [])
       setAlmacenes(almacenesRes.data || [])
       setProductos(productosRes.data || [])
-      setPreciosMap(new Map(preciosRes.data?.map(p => [p.producto_id, Number(p.precio)]) || []))
+      setPreciosMap(new Map(preciosRes.data?.map(p => [p.producto_id, { precio: Number(p.precio), moneda: (p.moneda || 'USD') as 'USD' | 'MXN' }]) || []))
 
       // Pre-llenar formulario
       form.setFieldsValue({
@@ -212,7 +212,20 @@ export default function EditarOrdenCompraPage() {
     }
 
     const margen = getMargenParaCategoria(producto.categoria_id)
-    const precioBase = preciosMap.get(producto.id) || producto.costo_promedio || 0
+    const precioData = preciosMap.get(producto.id)
+    const precioBase = precioData?.precio || producto.costo_promedio || 0
+    const monedaPrecio = precioData?.moneda || 'USD'
+
+    // Convertir a moneda del documento si es distinta
+    let precioFinal = precioBase
+    if (monedaPrecio !== monedaSeleccionada) {
+      const tc = tipoCambioOrden || tipoCambio || 17.50
+      if (monedaPrecio === 'USD' && monedaSeleccionada === 'MXN') {
+        precioFinal = precioBase * tc
+      } else if (monedaPrecio === 'MXN' && monedaSeleccionada === 'USD') {
+        precioFinal = precioBase / tc
+      }
+    }
 
     const newItem: ItemOrden = {
       key: `new-${Date.now()}`,
@@ -221,9 +234,9 @@ export default function EditarOrdenCompraPage() {
       nombre: producto.nombre,
       categoria_id: producto.categoria_id,
       cantidad: 1,
-      precio_unitario: precioBase,
+      precio_unitario: precioFinal,
       descuento_porcentaje: margen,
-      subtotal: precioBase * (1 - margen / 100),
+      subtotal: precioFinal * (1 - margen / 100),
     }
 
     setItems([...items, newItem])

@@ -21,6 +21,7 @@ interface PrecioProductoRow {
   proveedor_nombre: string | null
   precio: number | null
   precio_con_iva: number | null
+  moneda: 'USD' | 'MXN' | null
   lista_nombre: string | null
   lista_id: string | null
 }
@@ -29,6 +30,7 @@ export default function PreciosProductosPage() {
   const [searchText, setSearchText] = useState('')
   const [proveedorFilter, setProveedorFilter] = useState<string | null>(null)
   const [listaFilter, setListaFilter] = useState<string | null>(null)
+  const [monedaFilter, setMonedaFilter] = useState<string | null>(null)
 
   const [generandoPDF, setGenerandoPDF] = useState(false)
 
@@ -59,9 +61,12 @@ export default function PreciosProductosPage() {
       // Filtro por lista de precios
       const matchesLista = !listaFilter || row.lista_id === listaFilter
 
-      return matchesSearch && matchesProveedor && matchesLista
+      // Filtro por moneda
+      const matchesMoneda = !monedaFilter || row.moneda === monedaFilter
+
+      return matchesSearch && matchesProveedor && matchesLista && matchesMoneda
     })
-  }, [preciosData, searchText, proveedorFilter, listaFilter])
+  }, [preciosData, searchText, proveedorFilter, listaFilter, monedaFilter])
 
   // Agrupar por proveedor para mostrar totales
   const groupedByProveedor = useMemo(() => {
@@ -130,7 +135,8 @@ export default function PreciosProductosPage() {
         const matchesProveedor =
           !proveedorFilter || row.proveedor_id === proveedorFilter
         const matchesLista = !listaFilter || row.lista_id === listaFilter
-        return matchesSearch && matchesProveedor && matchesLista
+        const matchesMoneda = !monedaFilter || row.moneda === monedaFilter
+        return matchesSearch && matchesProveedor && matchesLista && matchesMoneda
       })
 
       const conPrecio = dataToExport.filter((r) => r.precio !== null).length
@@ -145,6 +151,7 @@ export default function PreciosProductosPage() {
         const lista = listasPrecios?.find((l) => l.id === listaFilter)
         if (lista) filtrosAplicados.push(`Lista: ${lista.nombre}`)
       }
+      if (monedaFilter) filtrosAplicados.push(`Moneda: ${monedaFilter}`)
       if (searchText) filtrosAplicados.push(`Busqueda: "${searchText}"`)
 
       generarPDFReporte({
@@ -219,6 +226,17 @@ export default function PreciosProductosPage() {
       align: 'right',
       render: (v) => formatCurrency(v),
       sorter: (a, b) => (a.precio_con_iva || 0) - (b.precio_con_iva || 0),
+    },
+    {
+      title: 'Moneda',
+      dataIndex: 'moneda',
+      key: 'moneda',
+      width: 90,
+      render: (v) =>
+        v ? (
+          <Tag color={v === 'USD' ? 'green' : 'blue'}>{v}</Tag>
+        ) : '-',
+      sorter: (a, b) => (a.moneda || '').localeCompare(b.moneda || ''),
     },
     {
       title: 'Lista',
@@ -334,6 +352,18 @@ export default function PreciosProductosPage() {
               })) || []),
             ]}
           />
+          <Select
+            placeholder="Filtrar por moneda"
+            value={monedaFilter}
+            onChange={setMonedaFilter}
+            style={{ width: 150 }}
+            allowClear
+            options={[
+              { value: '', label: 'Todas' },
+              { value: 'USD', label: 'USD' },
+              { value: 'MXN', label: 'MXN' },
+            ]}
+          />
         </Space>
 
         {Object.keys(groupedByProveedor).length > 0 && (
@@ -382,6 +412,7 @@ export default function PreciosProductosPage() {
                   lista_nombre: editingRow.lista_nombre!,
                   precio: editingRow.precio!,
                   precio_con_iva: editingRow.precio_con_iva,
+                  moneda: editingRow.moneda || 'USD',
                 }
               : null
           }

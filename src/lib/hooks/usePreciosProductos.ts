@@ -18,6 +18,7 @@ export interface PrecioConLista {
   lista_nombre: string
   precio: number
   precio_con_iva: number | null
+  moneda: 'USD' | 'MXN'
 }
 
 // Hook para obtener precios de un producto específico
@@ -35,6 +36,7 @@ export function usePreciosProducto(productoId: string) {
           lista_precio_id,
           precio,
           precio_con_iva,
+          moneda,
           listas_precios:lista_precio_id (nombre)
         `)
         .eq('producto_id', productoId)
@@ -48,6 +50,7 @@ export function usePreciosProducto(productoId: string) {
         lista_nombre: (p.listas_precios as any)?.nombre || 'Sin nombre',
         precio: p.precio,
         precio_con_iva: p.precio_con_iva,
+        moneda: (p.moneda as 'USD' | 'MXN') || 'USD',
       }))
     },
     enabled: !!productoId,
@@ -65,6 +68,7 @@ export function useCreatePrecioProducto() {
       lista_precio_id: string
       precio: number
       precio_con_iva?: number | null
+      moneda?: 'USD' | 'MXN'
     }) => {
       const supabase = getSupabaseClient()
       const { error } = await supabase
@@ -75,6 +79,7 @@ export function useCreatePrecioProducto() {
           lista_precio_id: data.lista_precio_id,
           precio: data.precio,
           precio_con_iva: data.precio_con_iva ?? null,
+          moneda: data.moneda || 'MXN',
         })
 
       if (error) throw error
@@ -98,6 +103,7 @@ export function useUpdatePrecioProducto() {
       producto_id: string
       precio: number
       precio_con_iva?: number | null
+      moneda?: 'USD' | 'MXN'
     }) => {
       const supabase = getSupabaseClient()
       const { error } = await supabase
@@ -106,6 +112,7 @@ export function useUpdatePrecioProducto() {
         .update({
           precio: data.precio,
           precio_con_iva: data.precio_con_iva ?? null,
+          moneda: data.moneda || 'MXN',
         })
         .eq('id', data.id)
 

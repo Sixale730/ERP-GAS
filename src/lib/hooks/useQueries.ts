@@ -502,6 +502,7 @@ interface PrecioProductoRow {
   proveedor_nombre: string | null
   precio: number | null
   precio_con_iva: number | null
+  moneda: 'USD' | 'MXN' | null
   lista_nombre: string | null
   lista_id: string | null
 }
@@ -529,6 +530,7 @@ export function usePreciosProductos() {
             id,
             precio,
             precio_con_iva,
+            moneda,
             lista_precio_id,
             listas_precios:lista_precio_id (
               id,
@@ -572,6 +574,7 @@ export function usePreciosProductos() {
               proveedor_nombre: proveedor?.razon_social || null,
               precio: precio.precio,
               precio_con_iva: precio.precio_con_iva,
+              moneda: precio.moneda || 'USD',
               lista_nombre: listaPrecio?.nombre || null,
               lista_id: listaPrecio?.id || null,
             })
@@ -587,6 +590,7 @@ export function usePreciosProductos() {
             proveedor_nombre: proveedor?.razon_social || null,
             precio: null,
             precio_con_iva: null,
+            moneda: null,
             lista_nombre: null,
             lista_id: null,
           })

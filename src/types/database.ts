@@ -163,6 +163,7 @@ export type Database = {
           stock_minimo: number
           stock_maximo: number
           numero_parte: string | null
+          moneda: 'USD' | 'MXN'
           es_servicio: boolean
           is_active: boolean
           created_at: string
@@ -181,6 +182,7 @@ export type Database = {
           stock_minimo?: number
           stock_maximo?: number
           numero_parte?: string | null
+          moneda?: 'USD' | 'MXN'
           es_servicio?: boolean
           is_active?: boolean
           created_at?: string
@@ -199,6 +201,7 @@ export type Database = {
           stock_minimo?: number
           stock_maximo?: number
           numero_parte?: string | null
+          moneda?: 'USD' | 'MXN'
           es_servicio?: boolean
           is_active?: boolean
           created_at?: string
@@ -212,6 +215,7 @@ export type Database = {
           lista_precio_id: string
           precio: number
           precio_con_iva: number | null
+          moneda: 'USD' | 'MXN'
           created_at: string
           updated_at: string
         }
@@ -221,6 +225,7 @@ export type Database = {
           lista_precio_id: string
           precio: number
           precio_con_iva?: number | null
+          moneda?: 'USD' | 'MXN'
           created_at?: string
           updated_at?: string
         }
@@ -230,6 +235,7 @@ export type Database = {
           lista_precio_id?: string
           precio?: number
           precio_con_iva?: number | null
+          moneda?: 'USD' | 'MXN'
           created_at?: string
           updated_at?: string
         }
