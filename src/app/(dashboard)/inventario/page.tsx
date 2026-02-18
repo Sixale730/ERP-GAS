@@ -22,10 +22,12 @@ export default function InventarioPage() {
   const router = useRouter()
   const [almacenFilter, setAlmacenFilter] = useState<string | null>(null)
   const [searchText, setSearchText] = useState('')
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 15 })
 
-  // React Query hooks - datos cacheados automáticamente
+  // React Query hooks - datos cacheados automáticamente with server-side pagination
   const { data: almacenes = [] } = useAlmacenes()
-  const { data: inventario = [], isLoading } = useInventario(almacenFilter)
+  const { data: inventarioResult, isLoading } = useInventario(almacenFilter, pagination)
+  const inventario = inventarioResult?.data ?? []
   const { data: movimientos = [], isLoading: loadingMovimientos } = useMovimientos(almacenFilter)
 
   // Mutations
@@ -280,9 +282,12 @@ export default function InventarioPage() {
             rowKey="id"
             scroll={{ x: 900 }}
             pagination={{
-              pageSize: 15,
+              current: pagination.page,
+              pageSize: pagination.pageSize,
+              total: inventarioResult?.total ?? 0,
               showSizeChanger: true,
               showTotal: (total) => `${total} registros`,
+              onChange: (page, pageSize) => setPagination({ page, pageSize }),
             }}
             rowClassName={(record) => {
               if (record.nivel_stock === 'bajo') return 'row-stock-bajo'

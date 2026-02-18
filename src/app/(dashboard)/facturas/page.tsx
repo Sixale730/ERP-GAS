@@ -33,9 +33,11 @@ export default function FacturasPage() {
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
-  // React Query hooks
-  const { data: facturas = [], isLoading, isError, error } = useFacturas(statusFilter)
+  // React Query hooks with server-side pagination
+  const { data: facturasResult, isLoading, isError, error } = useFacturas(statusFilter, pagination)
+  const facturas = facturasResult?.data ?? []
 
   const handleDescargarPDF = async (facturaId: string) => {
     const supabase = getSupabaseClient()
@@ -247,9 +249,12 @@ export default function FacturasPage() {
             rowKey="id"
             scroll={{ x: 900 }}
             pagination={{
-              pageSize: 10,
+              current: pagination.page,
+              pageSize: pagination.pageSize,
+              total: facturasResult?.total ?? 0,
               showSizeChanger: true,
               showTotal: (total) => `${total} facturas`,
+              onChange: (page, pageSize) => setPagination({ page, pageSize }),
             }}
           />
         )}

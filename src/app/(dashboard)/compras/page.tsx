@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Table,
   Button,
@@ -31,7 +32,8 @@ import { formatDate, formatDateTime } from '@/lib/utils/format'
 import dayjs from 'dayjs'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
-import type { OrdenCompraView, Proveedor, Almacen } from '@/types/database'
+import { useOrdenesCompra, useProveedoresCompra, useAlmacenesCompra } from '@/lib/hooks/queries/useOrdenesCompra'
+import type { OrdenCompraView } from '@/types/database'
 
 const { Title, Text } = Typography
 
@@ -70,12 +72,18 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 
 export default function ComprasPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { getMargenParaCategoria } = useMargenesCategoria()
   const { tipoCambio } = useConfiguracion()
-  const [loading, setLoading] = useState(true)
-  const [ordenes, setOrdenes] = useState<OrdenCompraView[]>([])
-  const [proveedores, setProveedores] = useState<Proveedor[]>([])
-  const [almacenes, setAlmacenes] = useState<Almacen[]>([])
+
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 15 })
+
+  // React Query hooks - cached and deduplicated with server-side pagination
+  const { data: ordenesResult, isLoading: loading } = useOrdenesCompra(pagination)
+  const ordenes = ordenesResult?.data ?? []
+  const { data: proveedores = [] } = useProveedoresCompra()
+  const { data: almacenes = [] } = useAlmacenesCompra()
+
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [proveedorFilter, setProveedorFilter] = useState<string | null>(null)
@@ -93,67 +101,6 @@ export default function ComprasPage() {
   const [proveedoresSeleccionados, setProveedoresSeleccionados] = useState<string[]>([])
   const [proveedoresDisponibles, setProveedoresDisponibles] = useState<{id: string, nombre: string}[]>([])
   const [tipoCambioOrden, setTipoCambioOrden] = useState<number>(17.50)
-
-  useEffect(() => {
-    loadOrdenes()
-    loadProveedores()
-    loadAlmacenes()
-  }, [])
-
-  const loadOrdenes = async () => {
-    const supabase = getSupabaseClient()
-    setLoading(true)
-
-    try {
-      const { data, error } = await supabase
-        .schema('erp')
-        .from('v_ordenes_compra')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setOrdenes(data || [])
-    } catch (error) {
-      console.error('Error loading ordenes:', error)
-      message.error('Error al cargar ordenes de compra')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadProveedores = async () => {
-    const supabase = getSupabaseClient()
-
-    try {
-      const { data } = await supabase
-        .schema('erp')
-        .from('proveedores')
-        .select('*')
-        .eq('is_active', true)
-        .order('razon_social')
-
-      setProveedores(data || [])
-    } catch (error) {
-      console.error('Error loading proveedores:', error)
-    }
-  }
-
-  const loadAlmacenes = async () => {
-    const supabase = getSupabaseClient()
-
-    try {
-      const { data } = await supabase
-        .schema('erp')
-        .from('almacenes')
-        .select('*')
-        .eq('is_active', true)
-        .order('nombre')
-
-      setAlmacenes(data || [])
-    } catch (error) {
-      console.error('Error loading almacenes:', error)
-    }
-  }
 
   const loadProductosFaltantes = async (almacenId: string) => {
     const supabase = getSupabaseClient()
@@ -470,7 +417,7 @@ export default function ComprasPage() {
       message.success(`Se crearon ${ordenesCreadas.length} ordenes de compra: ${ordenesCreadas.join(', ')}`)
       setModalVisible(false)
       resetModal()
-      loadOrdenes()
+      queryClient.invalidateQueries({ queryKey: ['ordenes-compra'] })
     } catch (error: any) {
       console.error('Error generando ordenes:', error)
       message.error(error.message || 'Error al generar ordenes')
@@ -689,9 +636,12 @@ export default function ComprasPage() {
           loading={loading}
           scroll={{ x: 900 }}
           pagination={{
-            pageSize: 15,
+            current: pagination.page,
+            pageSize: pagination.pageSize,
+            total: ordenesResult?.total ?? 0,
             showSizeChanger: true,
             showTotal: (total) => `${total} ordenes`,
+            onChange: (page, pageSize) => setPagination({ page, pageSize }),
           }}
         />
       </Card>

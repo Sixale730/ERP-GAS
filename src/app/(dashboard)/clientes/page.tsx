@@ -15,9 +15,11 @@ const { Title } = Typography
 export default function ClientesPage() {
   const router = useRouter()
   const [searchText, setSearchText] = useState('')
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
-  // React Query hooks
-  const { data: clientes = [], isLoading, isError, error } = useClientes()
+  // React Query hooks with server-side pagination
+  const { data: clientesResult, isLoading, isError, error } = useClientes(pagination)
+  const clientes = clientesResult?.data ?? []
   const deleteCliente = useDeleteCliente()
 
   const handleDelete = async (id: string) => {
@@ -161,9 +163,12 @@ export default function ClientesPage() {
             rowKey="id"
             scroll={{ x: 900 }}
             pagination={{
-              pageSize: 10,
+              current: pagination.page,
+              pageSize: pagination.pageSize,
+              total: clientesResult?.total ?? 0,
               showSizeChanger: true,
               showTotal: (total) => `${total} clientes`,
+              onChange: (page, pageSize) => setPagination({ page, pageSize }),
             }}
           />
         )}

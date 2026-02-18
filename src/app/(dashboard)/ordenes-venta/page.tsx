@@ -27,9 +27,11 @@ export default function OrdenesVentaPage() {
   const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [filtro, setFiltro] = useState<FiltroStatusOV>('todas')
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
-  // React Query - datos cacheados automáticamente
-  const { data: ordenes = [], isLoading, isError } = useOrdenesVenta(filtro)
+  // React Query - datos cacheados automáticamente with server-side pagination
+  const { data: ordenesResult, isLoading, isError } = useOrdenesVenta(filtro, pagination)
+  const ordenes = ordenesResult?.data ?? []
 
   // Para descargar PDF, usamos un estado para el ID seleccionado
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null)
@@ -229,9 +231,12 @@ export default function OrdenesVentaPage() {
               rowKey="id"
               scroll={{ x: 800 }}
               pagination={{
-                pageSize: 10,
+                current: pagination.page,
+                pageSize: pagination.pageSize,
+                total: ordenesResult?.total ?? 0,
                 showSizeChanger: true,
                 showTotal: (total) => `${total} ordenes`,
+                onChange: (page, pageSize) => setPagination({ page, pageSize }),
               }}
             />
           )}

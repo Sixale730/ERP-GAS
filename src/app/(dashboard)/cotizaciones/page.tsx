@@ -34,9 +34,11 @@ export default function CotizacionesPage() {
   const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
-  // React Query hooks
-  const { data: cotizaciones = [], isLoading, isError, error } = useCotizaciones(statusFilter)
+  // React Query hooks with server-side pagination
+  const { data: cotizacionesResult, isLoading, isError, error } = useCotizaciones(statusFilter, pagination)
+  const cotizaciones = cotizacionesResult?.data ?? []
   const deleteCotizacion = useDeleteCotizacion()
 
   const handleDescargarPDF = async (cotizacionId: string) => {
@@ -258,9 +260,12 @@ export default function CotizacionesPage() {
             rowKey="id"
             scroll={{ x: 800 }}
             pagination={{
-              pageSize: 10,
+              current: pagination.page,
+              pageSize: pagination.pageSize,
+              total: cotizacionesResult?.total ?? 0,
               showSizeChanger: true,
               showTotal: (total) => `${total} cotizaciones`,
+              onChange: (page, pageSize) => setPagination({ page, pageSize }),
             }}
           />
         )}

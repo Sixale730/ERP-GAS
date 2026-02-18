@@ -14,9 +14,11 @@ const { Title } = Typography
 export default function ProductosPage() {
   const router = useRouter()
   const [searchText, setSearchText] = useState('')
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
-  // React Query hooks
-  const { data: productos = [], isLoading, isError, error } = useProductos()
+  // React Query hooks with server-side pagination
+  const { data: productosResult, isLoading, isError, error } = useProductos(pagination)
+  const productos = productosResult?.data ?? []
   const deleteProducto = useDeleteProducto()
 
   const handleDelete = async (id: string) => {
@@ -149,9 +151,12 @@ export default function ProductosPage() {
             rowKey="id"
             scroll={{ x: 800 }}
             pagination={{
-              pageSize: 10,
+              current: pagination.page,
+              pageSize: pagination.pageSize,
+              total: productosResult?.total ?? 0,
               showSizeChanger: true,
               showTotal: (total) => `${total} productos`,
+              onChange: (page, pageSize) => setPagination({ page, pageSize }),
             }}
           />
         )}
