@@ -52,70 +52,78 @@ export default function GlobalSearch() {
   const router = useRouter()
   const [searchValue, setSearchValue] = useState('')
   const [options, setOptions] = useState<OptionGroup[]>([])
-  const [loading, setLoading] = useState(false)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Limpiar timeout al desmontar
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current)
       }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
     }
   }, [])
 
   const buscarGlobal = async (texto: string) => {
+    // Abort any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     const supabase = getSupabaseClient()
     const busqueda = `%${texto}%`
 
     try {
       const [productosRes, clientesRes, cotizacionesRes, facturasRes, ordenesRes] = await Promise.all([
-        // Productos
         supabase
           .schema('erp')
           .from('productos')
           .select('id, sku, nombre')
           .or(`sku.ilike.${busqueda},nombre.ilike.${busqueda}`)
           .eq('is_active', true)
-          .limit(5),
-
-        // Clientes
+          .limit(5)
+          .abortSignal(controller.signal),
         supabase
           .schema('erp')
           .from('clientes')
           .select('id, codigo, nombre_comercial, rfc')
           .or(`codigo.ilike.${busqueda},nombre_comercial.ilike.${busqueda},rfc.ilike.${busqueda}`)
           .eq('is_active', true)
-          .limit(5),
-
-        // Cotizaciones
+          .limit(5)
+          .abortSignal(controller.signal),
         supabase
           .schema('erp')
           .from('v_cotizaciones')
           .select('id, folio, cliente_nombre')
           .or(`folio.ilike.${busqueda},cliente_nombre.ilike.${busqueda}`)
-          .limit(5),
-
-        // Facturas
+          .limit(5)
+          .abortSignal(controller.signal),
         supabase
           .schema('erp')
           .from('v_facturas')
           .select('id, folio, cliente_nombre')
           .or(`folio.ilike.${busqueda},cliente_nombre.ilike.${busqueda}`)
-          .limit(5),
-
-        // Ordenes de Compra
+          .limit(5)
+          .abortSignal(controller.signal),
         supabase
           .schema('erp')
           .from('ordenes_compra')
           .select('id, folio')
           .ilike('folio', busqueda)
-          .limit(5),
+          .limit(5)
+          .abortSignal(controller.signal),
       ])
+
+      // If this request was aborted, don't update state
+      if (controller.signal.aborted) return
 
       const results: SearchResult[] = []
 
-      // Productos
       productosRes.data?.forEach((p) => {
         results.push({
           id: p.id,
@@ -126,7 +134,6 @@ export default function GlobalSearch() {
         })
       })
 
-      // Clientes
       clientesRes.data?.forEach((c) => {
         results.push({
           id: c.id,
@@ -137,7 +144,6 @@ export default function GlobalSearch() {
         })
       })
 
-      // Cotizaciones
       cotizacionesRes.data?.forEach((cot) => {
         results.push({
           id: cot.id,
@@ -148,7 +154,6 @@ export default function GlobalSearch() {
         })
       })
 
-      // Facturas
       facturasRes.data?.forEach((f) => {
         results.push({
           id: f.id,
@@ -159,7 +164,6 @@ export default function GlobalSearch() {
         })
       })
 
-      // Ordenes de Compra
       ordenesRes.data?.forEach((oc) => {
         results.push({
           id: oc.id,
@@ -169,7 +173,7 @@ export default function GlobalSearch() {
         })
       })
 
-      // Agrupar por tipo
+      // Group by type
       const grupos: Record<string, SearchResult[]> = {}
       results.forEach((r) => {
         if (!grupos[r.tipo]) {
@@ -178,7 +182,6 @@ export default function GlobalSearch() {
         grupos[r.tipo].push(r)
       })
 
-      // Convertir a formato de AutoComplete
       const optionGroups: OptionGroup[] = Object.entries(grupos).map(([tipo, items]) => ({
         label: (
           <Text strong style={{ fontSize: 12, color: '#8c8c8c' }}>
@@ -205,8 +208,9 @@ export default function GlobalSearch() {
       }))
 
       setOptions(optionGroups)
-    } catch (error) {
-      console.error('Error en busqueda global:', error)
+    } catch (error: unknown) {
+      // Ignore abort errors
+      if (error instanceof DOMException && error.name === 'AbortError') return
       setOptions([])
     }
   }
@@ -214,27 +218,21 @@ export default function GlobalSearch() {
   const handleSearch = (value: string) => {
     setSearchValue(value)
 
-    // Limpiar timeout anterior
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
     }
 
-    // Minimo 2 caracteres
     if (value.length < 2) {
       setOptions([])
-      setLoading(false)
       return
     }
 
-    setLoading(true)
-
-    // Debounce de 300ms
-    debounceRef.current = setTimeout(async () => {
-      await buscarGlobal(value)
-      setLoading(false)
+    debounceRef.current = setTimeout(() => {
+      buscarGlobal(value)
     }, 300)
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSelect = (_value: string, option: any) => {
     const result = option.result as SearchResult
     if (result) {

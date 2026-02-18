@@ -10,7 +10,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { ArrowLeftOutlined, SaveOutlined, EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { usePreciosProducto, useDeletePrecioProducto, type PrecioConLista } from '@/lib/hooks/usePreciosProductos'
-import { useListasPrecios } from '@/lib/hooks/useQueries'
+import { useListasPrecios } from '@/lib/hooks/queries/useCatalogos'
 import PrecioProductoModal from '@/components/precios/PrecioProductoModal'
 
 const { Title } = Typography

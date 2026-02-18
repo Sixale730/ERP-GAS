@@ -80,7 +80,7 @@ export default function DetalleOrdenCompraPage() {
     setLoading(true)
 
     try {
-      // Cargar orden
+      // First: load orden (needed for proveedor_id and almacen_destino_id)
       const { data: ordenData, error: ordenError } = await supabase
         .schema('erp')
         .from('ordenes_compra')
@@ -91,40 +91,45 @@ export default function DetalleOrdenCompraPage() {
       if (ordenError) throw ordenError
       setOrden(ordenData)
 
-      // Cargar proveedor
-      const { data: proveedorData } = await supabase
-        .schema('erp')
-        .from('proveedores')
-        .select('*')
-        .eq('id', ordenData.proveedor_id)
-        .single()
+      // Parallel: load proveedor, almacen, items, and recepciones simultaneously
+      const [proveedorRes, almacenRes, itemsRes, recepcionesRes] = await Promise.all([
+        supabase
+          .schema('erp')
+          .from('proveedores')
+          .select('*')
+          .eq('id', ordenData.proveedor_id)
+          .single(),
+        supabase
+          .schema('erp')
+          .from('almacenes')
+          .select('*')
+          .eq('id', ordenData.almacen_destino_id)
+          .single(),
+        supabase
+          .schema('erp')
+          .from('orden_compra_items')
+          .select('*')
+          .eq('orden_compra_id', ordenId)
+          .order('created_at'),
+        supabase
+          .schema('erp')
+          .from('recepciones_orden')
+          .select('*')
+          .eq('orden_compra_id', ordenId)
+          .order('fecha_recepcion', { ascending: false }),
+      ])
 
-      setProveedor(proveedorData)
+      setProveedor(proveedorRes.data)
+      setAlmacen(almacenRes.data)
 
-      // Cargar almacen
-      const { data: almacenData } = await supabase
-        .schema('erp')
-        .from('almacenes')
-        .select('*')
-        .eq('id', ordenData.almacen_destino_id)
-        .single()
-
-      setAlmacen(almacenData)
-
-      // Cargar items con productos
-      const { data: itemsData } = await supabase
-        .schema('erp')
-        .from('orden_compra_items')
-        .select('*')
-        .eq('orden_compra_id', ordenId)
-        .order('created_at')
-
-      if (itemsData) {
+      const itemsData = itemsRes.data
+      if (itemsData && itemsData.length > 0) {
+        // Single productos fetch for both items and recepciones
         const productIds = itemsData.map((i) => i.producto_id)
         const { data: productosData } = await supabase
           .schema('erp')
           .from('productos')
-          .select('*')
+          .select('id, sku, nombre, unidad_medida')
           .in('id', productIds)
 
         const productosMap = new Map(productosData?.map((p) => [p.id, p]))
@@ -134,37 +139,21 @@ export default function DetalleOrdenCompraPage() {
             producto: productosMap.get(item.producto_id),
           }))
         )
-      }
 
-      // Cargar recepciones
-      const { data: recepcionesData } = await supabase
-        .schema('erp')
-        .from('recepciones_orden')
-        .select('*')
-        .eq('orden_compra_id', ordenId)
-        .order('fecha_recepcion', { ascending: false })
-
-      if (recepcionesData && itemsData) {
-        const productIds = itemsData.map((i) => i.producto_id)
-        const { data: productosData } = await supabase
-          .schema('erp')
-          .from('productos')
-          .select('*')
-          .in('id', productIds)
-
-        const productosMap = new Map(productosData?.map((p) => [p.id, p]))
-        const itemsMap = new Map(itemsData?.map((i) => [i.id, i]))
-
-        setRecepciones(
-          recepcionesData.map((rec) => {
-            const item = itemsMap.get(rec.orden_compra_item_id)
-            return {
-              ...rec,
-              item,
-              producto: item ? productosMap.get(item.producto_id) : undefined,
-            }
-          })
-        )
+        // Use same productos data for recepciones (no duplicate fetch)
+        if (recepcionesRes.data) {
+          const itemsMap = new Map(itemsData.map((i) => [i.id, i]))
+          setRecepciones(
+            recepcionesRes.data.map((rec) => {
+              const item = itemsMap.get(rec.orden_compra_item_id)
+              return {
+                ...rec,
+                item,
+                producto: item ? productosMap.get(item.producto_id) : undefined,
+              }
+            })
+          )
+        }
       }
     } catch (error) {
       console.error('Error loading orden:', error)

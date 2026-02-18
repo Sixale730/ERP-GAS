@@ -1,27 +1,37 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import type { ProductoStock } from '@/types/database'
+import type { PaginationParams, PaginatedResult } from './types'
 
 // Query keys factory
 export const productosKeys = {
   all: ['productos'] as const,
   lists: () => [...productosKeys.all, 'list'] as const,
-  list: (filters?: { search?: string }) => [...productosKeys.lists(), filters] as const,
+  list: (pagination?: PaginationParams) => [...productosKeys.lists(), pagination] as const,
   details: () => [...productosKeys.all, 'detail'] as const,
   detail: (id: string) => [...productosKeys.details(), id] as const,
 }
 
-// Fetch all productos with stock info
-async function fetchProductos(): Promise<ProductoStock[]> {
+// Columns for listing (avoid select *)
+// Fetch productos with server-side pagination
+async function fetchProductos(pagination?: PaginationParams): Promise<PaginatedResult<ProductoStock>> {
   const supabase = getSupabaseClient()
-  const { data, error } = await supabase
+  let query = supabase
     .schema('erp')
     .from('v_productos_stock')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('nombre')
 
+  if (pagination) {
+    const from = (pagination.page - 1) * pagination.pageSize
+    const to = from + pagination.pageSize - 1
+    query = query.range(from, to)
+  }
+
+  const { data, error, count } = await query
+
   if (error) throw error
-  return data || []
+  return { data: (data || []) as ProductoStock[], total: count || 0 }
 }
 
 // Fetch single producto
@@ -51,11 +61,11 @@ async function deleteProducto(id: string) {
   return id
 }
 
-// Hook: Lista de productos
-export function useProductos() {
+// Hook: Lista de productos with server-side pagination
+export function useProductos(pagination?: PaginationParams) {
   return useQuery({
-    queryKey: productosKeys.lists(),
-    queryFn: fetchProductos,
+    queryKey: productosKeys.list(pagination),
+    queryFn: () => fetchProductos(pagination),
   })
 }
 
@@ -74,32 +84,7 @@ export function useDeleteProducto() {
 
   return useMutation({
     mutationFn: deleteProducto,
-    // Optimistic update
-    onMutate: async (deletedId) => {
-      // Cancelar queries en curso
-      await queryClient.cancelQueries({ queryKey: productosKeys.lists() })
-
-      // Snapshot del estado anterior
-      const previousProductos = queryClient.getQueryData<ProductoStock[]>(productosKeys.lists())
-
-      // Actualizar optimísticamente
-      if (previousProductos) {
-        queryClient.setQueryData<ProductoStock[]>(
-          productosKeys.lists(),
-          previousProductos.filter((p) => p.id !== deletedId)
-        )
-      }
-
-      return { previousProductos }
-    },
-    // Rollback en caso de error
-    onError: (_err, _deletedId, context) => {
-      if (context?.previousProductos) {
-        queryClient.setQueryData(productosKeys.lists(), context.previousProductos)
-      }
-    },
-    // Invalidar cache al éxito
-    onSettled: () => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productosKeys.lists() })
     },
   })

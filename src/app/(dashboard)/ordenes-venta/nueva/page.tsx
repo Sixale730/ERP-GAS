@@ -157,7 +157,7 @@ export default function NuevaOrdenVentaPage() {
         supabase.schema('erp').from('clientes').select('*').eq('is_active', true).order('nombre_comercial'),
         supabase.schema('erp').from('almacenes').select('*').eq('is_active', true).order('nombre'),
         supabase.schema('erp').from('listas_precios').select('*').eq('is_active', true).order('nombre'),
-        supabase.schema('erp').from('productos').select('*').eq('is_active', true).order('nombre'),
+        supabase.schema('erp').from('productos').select('id, sku, nombre, unidad_medida, es_servicio, categoria_id').eq('is_active', true).order('nombre'),
       ])
 
       setClientes(clientesRes.data || [])

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import type { Almacen, MovimientoView } from '@/types/database'
+import type { PaginationParams, PaginatedResult } from './types'
 
 export interface InventarioRow {
   id: string
@@ -22,7 +23,7 @@ export interface InventarioRow {
 export const inventarioKeys = {
   all: ['inventario'] as const,
   lists: () => [...inventarioKeys.all, 'list'] as const,
-  list: (almacenId?: string | null) => [...inventarioKeys.lists(), almacenId] as const,
+  list: (almacenId?: string | null, pagination?: PaginationParams) => [...inventarioKeys.lists(), almacenId, pagination] as const,
   almacenes: () => [...inventarioKeys.all, 'almacenes'] as const,
   movimientos: () => [...inventarioKeys.all, 'movimientos'] as const,
   movimientosList: (almacenId?: string | null) => [...inventarioKeys.movimientos(), almacenId] as const,
@@ -42,25 +43,30 @@ async function fetchAlmacenes(): Promise<Almacen[]> {
   return data || []
 }
 
-// Fetch inventario con filtro opcional de almacén
-async function fetchInventario(almacenIds: string[], almacenFilter?: string | null): Promise<InventarioRow[]> {
+// Fetch inventario con filtro opcional de almacen y paginacion
+async function fetchInventario(almacenFilter?: string | null, pagination?: PaginationParams): Promise<PaginatedResult<InventarioRow>> {
   const supabase = getSupabaseClient()
 
   let query = supabase
     .schema('erp')
     .from('v_inventario_detalle')
-    .select('*')
-    .in('almacen_id', almacenIds)
+    .select('*', { count: 'exact' })
     .order('producto_nombre')
 
   if (almacenFilter) {
     query = query.eq('almacen_id', almacenFilter)
   }
 
-  const { data, error } = await query
+  if (pagination) {
+    const from = (pagination.page - 1) * pagination.pageSize
+    const to = from + pagination.pageSize - 1
+    query = query.range(from, to)
+  }
+
+  const { data, error, count } = await query
 
   if (error) throw error
-  return data || []
+  return { data: (data || []) as InventarioRow[], total: count || 0 }
 }
 
 // Fetch movimientos recientes
@@ -89,18 +95,15 @@ export function useAlmacenes() {
   return useQuery({
     queryKey: inventarioKeys.almacenes(),
     queryFn: fetchAlmacenes,
+    staleTime: 1000 * 60 * 5,
   })
 }
 
-// Hook: Lista de inventario
-export function useInventario(almacenFilter?: string | null) {
-  const { data: almacenes = [] } = useAlmacenes()
-  const almacenIds = almacenes.map(a => a.id)
-
+// Hook: Lista de inventario with optional pagination
+export function useInventario(almacenFilter?: string | null, pagination?: PaginationParams) {
   return useQuery({
-    queryKey: inventarioKeys.list(almacenFilter),
-    queryFn: () => fetchInventario(almacenIds, almacenFilter),
-    enabled: almacenIds.length > 0,
+    queryKey: inventarioKeys.list(almacenFilter, pagination),
+    queryFn: () => fetchInventario(almacenFilter, pagination),
   })
 }
 
@@ -122,31 +125,15 @@ interface AjusteInventarioParams {
 async function ajustarInventario({ item, cantidadFinal, nota }: AjusteInventarioParams) {
   const supabase = getSupabaseClient()
 
-  // Actualizar inventario
-  const { error: invError } = await supabase
+  const { error } = await supabase
     .schema('erp')
-    .from('inventario')
-    .update({ cantidad: cantidadFinal, updated_at: new Date().toISOString() })
-    .eq('id', item.id)
+    .rpc('ajustar_inventario' as any, {
+      p_inventario_id: item.id,
+      p_cantidad_final: cantidadFinal,
+      p_nota: nota || null,
+    })
 
-  if (invError) throw invError
-
-  // Registrar movimiento si hay diferencia
-  const diferencia = cantidadFinal - item.cantidad
-  if (diferencia !== 0) {
-    await supabase
-      .schema('erp')
-      .from('movimientos_inventario')
-      .insert({
-        producto_id: item.producto_id,
-        almacen_origen_id: diferencia < 0 ? item.almacen_id : null,
-        almacen_destino_id: diferencia > 0 ? item.almacen_id : null,
-        tipo: diferencia > 0 ? 'entrada' : 'salida',
-        cantidad: Math.abs(diferencia),
-        referencia_tipo: 'ajuste',
-        notas: nota || `Ajuste manual de inventario: ${item.cantidad} → ${cantidadFinal}`,
-      })
-  }
+  if (error) throw error
 
   return { itemId: item.id, cantidadFinal }
 }
@@ -164,7 +151,7 @@ export function useAjustarInventario() {
   })
 }
 
-// Actualizar límites min/max de producto
+// Actualizar limites min/max de producto
 interface ActualizarMinMaxParams {
   productoId: string
   stockMinimo: number

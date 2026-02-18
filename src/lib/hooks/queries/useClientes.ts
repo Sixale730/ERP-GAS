@@ -1,28 +1,37 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import type { Cliente } from '@/types/database'
+import type { PaginationParams, PaginatedResult } from './types'
 
 // Query keys factory
 export const clientesKeys = {
   all: ['clientes'] as const,
   lists: () => [...clientesKeys.all, 'list'] as const,
-  list: (filters?: { search?: string }) => [...clientesKeys.lists(), filters] as const,
+  list: (pagination?: PaginationParams) => [...clientesKeys.lists(), pagination] as const,
   details: () => [...clientesKeys.all, 'detail'] as const,
   detail: (id: string) => [...clientesKeys.details(), id] as const,
 }
 
-// Fetch all clientes
-async function fetchClientes(): Promise<Cliente[]> {
+// Fetch clientes with server-side pagination
+async function fetchClientes(pagination?: PaginationParams): Promise<PaginatedResult<Cliente>> {
   const supabase = getSupabaseClient()
-  const { data, error } = await supabase
+  let query = supabase
     .schema('erp')
     .from('clientes')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('is_active', true)
     .order('nombre_comercial')
 
+  if (pagination) {
+    const from = (pagination.page - 1) * pagination.pageSize
+    const to = from + pagination.pageSize - 1
+    query = query.range(from, to)
+  }
+
+  const { data, error, count } = await query
+
   if (error) throw error
-  return data || []
+  return { data: (data || []) as Cliente[], total: count || 0 }
 }
 
 // Fetch single cliente
@@ -52,11 +61,11 @@ async function deleteCliente(id: string) {
   return id
 }
 
-// Hook: Lista de clientes
-export function useClientes() {
+// Hook: Lista de clientes with server-side pagination
+export function useClientes(pagination?: PaginationParams) {
   return useQuery({
-    queryKey: clientesKeys.lists(),
-    queryFn: fetchClientes,
+    queryKey: clientesKeys.list(pagination),
+    queryFn: () => fetchClientes(pagination),
   })
 }
 
@@ -75,27 +84,7 @@ export function useDeleteCliente() {
 
   return useMutation({
     mutationFn: deleteCliente,
-    // Optimistic update
-    onMutate: async (deletedId) => {
-      await queryClient.cancelQueries({ queryKey: clientesKeys.lists() })
-
-      const previousClientes = queryClient.getQueryData<Cliente[]>(clientesKeys.lists())
-
-      if (previousClientes) {
-        queryClient.setQueryData<Cliente[]>(
-          clientesKeys.lists(),
-          previousClientes.filter((c) => c.id !== deletedId)
-        )
-      }
-
-      return { previousClientes }
-    },
-    onError: (_err, _deletedId, context) => {
-      if (context?.previousClientes) {
-        queryClient.setQueryData(clientesKeys.lists(), context.previousClientes)
-      }
-    },
-    onSettled: () => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: clientesKeys.lists() })
     },
   })

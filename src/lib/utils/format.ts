@@ -1,8 +1,13 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
 import 'dayjs/locale/es'
 import { MONEDAS, type CodigoMoneda } from '@/lib/config/moneda'
 
+dayjs.extend(utc)
+dayjs.extend(timezone)
 dayjs.locale('es')
+dayjs.tz.setDefault('America/Mexico_City')
 
 /**
  * Formatea un número como moneda (USD por defecto)
@@ -90,7 +95,7 @@ export function formatMoneySimple(amount: number | null | undefined): string {
  */
 export function formatDate(date: string | Date | null | undefined, format: string = 'DD/MM/YYYY'): string {
   if (!date) return '-'
-  return dayjs(date).format(format)
+  return dayjs.utc(date).tz().format(format)
 }
 
 /**
@@ -98,7 +103,7 @@ export function formatDate(date: string | Date | null | undefined, format: strin
  */
 export function formatDateTime(date: string | Date | null | undefined): string {
   if (!date) return '-'
-  return dayjs(date).format('DD/MM/YYYY HH:mm')
+  return dayjs.utc(date).tz().format('DD/MM/YYYY HH:mm')
 }
 
 /**

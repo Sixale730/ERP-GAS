@@ -34,7 +34,8 @@ export default function ReporteInventarioPage() {
   const [nivelFilter, setNivelFilter] = useState<string | undefined>(undefined)
 
   const { data: almacenes = [] } = useAlmacenes()
-  const { data: inventario = [], isLoading, refetch } = useInventario(almacenFilter || null)
+  const { data: inventarioResult, isLoading, refetch } = useInventario(almacenFilter || null)
+  const inventario = inventarioResult?.data ?? []
   const [generandoPDF, setGenerandoPDF] = useState(false)
 
   // Filtrar datos
@@ -147,8 +148,8 @@ export default function ReporteInventarioPage() {
   const handleDescargarPDF = async () => {
     setGenerandoPDF(true)
     try {
-      const { data: freshData } = await refetch()
-      const freshInventario = freshData || []
+      const { data: freshResult } = await refetch()
+      const freshInventario = freshResult?.data || []
 
       // Aplicar mismos filtros al dato fresco
       const freshFiltered = freshInventario.filter((item) => {

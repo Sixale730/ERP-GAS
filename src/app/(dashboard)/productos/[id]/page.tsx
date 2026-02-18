@@ -11,7 +11,7 @@ import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
 import PrecioProductoModal from '@/components/precios/PrecioProductoModal'
 import { usePreciosProducto, useDeletePrecioProducto, type PrecioConLista } from '@/lib/hooks/usePreciosProductos'
-import { useListasPrecios } from '@/lib/hooks/useQueries'
+import { useListasPrecios } from '@/lib/hooks/queries/useCatalogos'
 import type { MovimientoView } from '@/types/database'
 
 const { Title, Text } = Typography

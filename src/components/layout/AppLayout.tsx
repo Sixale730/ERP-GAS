@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid, Tag, Spin } from 'antd'
 import {
   MenuFoldOutlined,
@@ -103,23 +103,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
     },
   ]
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Spin size="large" tip="Cargando..." />
-      </div>
-    )
-  }
-
-  // Contenido del sidebar (reutilizable)
-  const sidebarContent = (
+  // Contenido del sidebar (memoizado para evitar re-renders innecesarios)
+  const sidebarContent = useMemo(() => (
     <>
       <div
         style={{
@@ -144,7 +129,22 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </div>
       <Sidebar onNavigate={() => isMobile && setDrawerOpen(false)} userRole={role} userPermisos={erpUser?.permisos ?? null} />
     </>
-  )
+  ), [isMobile, collapsed, role, erpUser?.permisos])
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Spin size="large" tip="Cargando..." />
+      </div>
+    )
+  }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

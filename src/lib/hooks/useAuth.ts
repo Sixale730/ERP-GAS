@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { getSupabaseClient } from '@/lib/supabase/client'
 
@@ -44,7 +44,22 @@ interface AuthState {
   orgId: string | null
 }
 
-export function useAuth() {
+interface AuthContextValue extends AuthState {
+  signOut: () => Promise<void>
+  refreshUser: () => Promise<void>
+  isSuperAdmin: boolean
+  isAdminCliente: boolean
+  isVendedor: boolean
+  isCompras: boolean
+  isContador: boolean
+  isAdmin: boolean
+  displayName: string
+  avatarUrl: string | null
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null)
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
     erpUser: null,
@@ -55,31 +70,22 @@ export function useAuth() {
     orgId: null,
   })
 
-  // Ref to deduplicate concurrent fetch requests
   const fetchInProgressRef = useRef<Promise<{erpUser: ERPUser | null, organizacion: Organizacion | null}> | null>(null)
-  // Ref to track if initial fetch is done (to skip redundant onAuthStateChange events)
   const initialFetchDoneRef = useRef(false)
 
   const fetchERPUser = useCallback(async () => {
-    // Deduplicate: return existing promise if fetch is in progress
     if (fetchInProgressRef.current) {
-      console.log('[useAuth] fetchERPUser - returning existing promise')
       return fetchInProgressRef.current
     }
 
     const fetchPromise = (async () => {
-      console.log('[useAuth] fetchERPUser called - using RPC')
       const supabase = getSupabaseClient()
-
-      // Retry logic optimizado - timeouts más cortos
       const maxRetries = 2
       const initialDelay = 500
-      const timeoutMs = 15000  // 15 segundos para evitar timeouts prematuros
+      const timeoutMs = 15000
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          console.log(`[useAuth] RPC attempt ${attempt + 1}/${maxRetries}...`)
-
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const rpcPromise = (supabase.rpc as any)('obtener_usuario_actual')
           const timeoutPromise = new Promise<never>((_, reject) =>
@@ -88,17 +94,12 @@ export function useAuth() {
           const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as { data: unknown; error: unknown }
 
           if (error) {
-            console.error(`[useAuth] RPC error (attempt ${attempt + 1}):`, error)
             if (attempt < maxRetries - 1) {
-              const delay = initialDelay * Math.pow(2, attempt)
-              console.log(`[useAuth] Retrying in ${delay}ms...`)
-              await new Promise(r => setTimeout(r, delay))
+              await new Promise(r => setTimeout(r, initialDelay * Math.pow(2, attempt)))
               continue
             }
             return { erpUser: null, organizacion: null }
           }
-
-          console.log('[useAuth] RPC result:', { data, error })
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if (data && (data as any).length > 0) {
@@ -122,19 +123,13 @@ export function useAuth() {
               is_sistema: row.org_is_sistema,
             } : null
 
-            console.log('[useAuth] Parsed user:', { erpUser, organizacion })
             return { erpUser, organizacion }
           }
 
-          console.log('[useAuth] No user found, returning nulls')
           return { erpUser: null, organizacion: null }
-
         } catch (err) {
-          console.error(`[useAuth] RPC exception (attempt ${attempt + 1}):`, err)
           if (attempt < maxRetries - 1) {
-            const delay = initialDelay * Math.pow(2, attempt)
-            console.log(`[useAuth] Retrying in ${delay}ms...`)
-            await new Promise(r => setTimeout(r, delay))
+            await new Promise(r => setTimeout(r, initialDelay * Math.pow(2, attempt)))
             continue
           }
           return { erpUser: null, organizacion: null }
@@ -150,7 +145,7 @@ export function useAuth() {
     return result
   }, [])
 
-  // Timeout de seguridad: si loading se queda en true por más de 6 segundos, forzar a false
+  // Safety timeout: force loading=false after 6 seconds
   useEffect(() => {
     const timeout = setTimeout(() => {
       setState(prev => {
@@ -166,15 +161,10 @@ export function useAuth() {
   }, [])
 
   useEffect(() => {
-    console.log('[useAuth] useEffect started')
     const supabase = getSupabaseClient()
 
-    // Obtener sesion inicial
-    console.log('[useAuth] Calling getSession...')
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log('[useAuth] getSession result:', { hasSession: !!session, userId: session?.user?.id })
       if (session) {
-        // Decodificar JWT para obtener claims
         let role: UserRole | null = null
         let orgId: string | null = null
 
@@ -182,18 +172,13 @@ export function useAuth() {
           const payload = JSON.parse(atob(session.access_token.split('.')[1]))
           role = payload.app_role || null
           orgId = payload.org_id || null
-          console.log('[useAuth] JWT claims:', { app_role: role, org_id: orgId })
-        } catch (e) {
-          console.log('[useAuth] Error decoding JWT:', e)
+        } catch {
+          // Error decoding JWT
         }
 
-        // Obtener datos del usuario ERP
-        console.log('[useAuth] Calling fetchERPUser...')
-        initialFetchDoneRef.current = true // Mark that we're handling initial fetch
+        initialFetchDoneRef.current = true
         const { erpUser, organizacion } = await fetchERPUser()
-        console.log('[useAuth] fetchERPUser returned:', { hasErpUser: !!erpUser, hasOrg: !!organizacion })
 
-        console.log('[useAuth] Setting state with loading: false')
         setState({
           user: session.user,
           erpUser,
@@ -204,23 +189,16 @@ export function useAuth() {
           orgId: erpUser?.organizacion_id || orgId,
         })
       } else {
-        console.log('[useAuth] No session, setting loading: false')
         setState((prev) => ({ ...prev, loading: false }))
       }
-    }).catch((err) => {
-      console.error('[useAuth] getSession error:', err)
+    }).catch(() => {
       setState((prev) => ({ ...prev, loading: false }))
     })
 
-    // Escuchar cambios de auth
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[useAuth] onAuthStateChange:', event)
-
-      // Skip initial auth events - we handle this via getSession()
       if (event === 'INITIAL_SESSION' || (event === 'SIGNED_IN' && !initialFetchDoneRef.current)) {
-        console.log(`[useAuth] Skipping ${event} (handled by getSession)`)
         return
       }
 
@@ -246,7 +224,7 @@ export function useAuth() {
           role = payload.app_role || null
           orgId = payload.org_id || null
         } catch {
-          // Error al decodificar JWT
+          // Error decoding JWT
         }
 
         const { erpUser, organizacion } = await fetchERPUser()
@@ -257,8 +235,8 @@ export function useAuth() {
           organizacion,
           session,
           loading: false,
-          role: erpUser?.rol || role || prev.role,  // Preservar rol anterior si el nuevo es null
-          orgId: erpUser?.organizacion_id || orgId || prev.orgId,  // Preservar orgId anterior
+          role: erpUser?.rol || role || prev.role,
+          orgId: erpUser?.organizacion_id || orgId || prev.orgId,
         }))
       }
     })
@@ -267,13 +245,12 @@ export function useAuth() {
   }, [fetchERPUser])
 
   const signOut = useCallback(async () => {
-    // Limpiar estado inmediatamente para evitar re-renders y mostrar spinner
     setState({
       user: null,
       erpUser: null,
       organizacion: null,
       session: null,
-      loading: true, // Mostrar loading mientras se cierra sesión
+      loading: true,
       role: null,
       orgId: null,
     })
@@ -285,7 +262,6 @@ export function useAuth() {
       console.error('[useAuth] Error signing out:', error)
     }
 
-    // Redirigir siempre, incluso si hay error
     window.location.href = '/login'
   }, [])
 
@@ -302,19 +278,28 @@ export function useAuth() {
     }
   }, [state.user, fetchERPUser])
 
-  return {
+  const value: AuthContextValue = {
     ...state,
     signOut,
     refreshUser,
-    // Helpers de rol
     isSuperAdmin: state.role === 'super_admin',
     isAdminCliente: state.role === 'admin_cliente',
     isVendedor: state.role === 'vendedor',
     isCompras: state.role === 'compras',
     isContador: state.role === 'contador',
     isAdmin: state.role === 'super_admin' || state.role === 'admin_cliente',
-    // Info de display
     displayName: state.erpUser?.nombre || state.user?.email || 'Usuario',
     avatarUrl: state.erpUser?.avatar_url || state.user?.user_metadata?.avatar_url || null,
   }
+
+  return React.createElement(AuthContext.Provider, { value }, children)
+}
+
+// Hook: consumes the shared context (single auth subscription for all consumers)
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
 }

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import type { PaginationParams, PaginatedResult } from './types'
 
 export interface CotizacionRow {
   id: string
@@ -20,32 +21,40 @@ export interface CotizacionRow {
 export const cotizacionesKeys = {
   all: ['cotizaciones'] as const,
   lists: () => [...cotizacionesKeys.all, 'list'] as const,
-  list: (filters?: { status?: string | null }) => [...cotizacionesKeys.lists(), filters] as const,
+  list: (filters?: { status?: string | null; pagination?: PaginationParams }) => [...cotizacionesKeys.lists(), filters] as const,
   details: () => [...cotizacionesKeys.all, 'detail'] as const,
   detail: (id: string) => [...cotizacionesKeys.details(), id] as const,
 }
 
-// Fetch cotizaciones with optional status filter
-async function fetchCotizaciones(statusFilter?: string | null): Promise<CotizacionRow[]> {
+const COTIZACIONES_LIST_COLUMNS = 'id, folio, fecha, vigencia_dias, status, total, moneda, cliente_nombre, cliente_rfc, almacen_nombre, created_at, updated_at'
+
+// Fetch cotizaciones with optional status filter and pagination
+async function fetchCotizaciones(statusFilter?: string | null, pagination?: PaginationParams): Promise<PaginatedResult<CotizacionRow>> {
   const supabase = getSupabaseClient()
   let query = supabase
     .schema('erp')
     .from('v_cotizaciones')
-    .select('*')
-    .like('folio', 'COT-%')  // Solo cotizaciones, excluir ordenes de venta (OV-)
+    .select(COTIZACIONES_LIST_COLUMNS, { count: 'exact' })
+    .like('folio', 'COT-%')
     .order('fecha', { ascending: false })
 
   if (statusFilter) {
     query = query.eq('status', statusFilter)
   }
 
-  const { data, error } = await query
+  if (pagination) {
+    const from = (pagination.page - 1) * pagination.pageSize
+    const to = from + pagination.pageSize - 1
+    query = query.range(from, to)
+  }
+
+  const { data, error, count } = await query
 
   if (error) throw error
-  return data || []
+  return { data: (data || []) as CotizacionRow[], total: count || 0 }
 }
 
-// Fetch single cotización with items
+// Fetch single cotizacion with items
 async function fetchCotizacion(id: string) {
   const supabase = getSupabaseClient()
 
@@ -75,7 +84,7 @@ async function fetchCotizacion(id: string) {
   }
 }
 
-// Delete cotización
+// Delete cotizacion using transactional RPC
 async function deleteCotizacion(cotizacion: CotizacionRow) {
   if (cotizacion.status !== 'propuesta') {
     throw new Error('Solo se pueden eliminar cotizaciones en status "Propuesta"')
@@ -83,36 +92,26 @@ async function deleteCotizacion(cotizacion: CotizacionRow) {
 
   const supabase = getSupabaseClient()
 
-  // Primero eliminar los items
-  const { error: itemsError } = await supabase
+  const { error } = await supabase
     .schema('erp')
-    .from('cotizacion_items')
-    .delete()
-    .eq('cotizacion_id', cotizacion.id)
+    .rpc('eliminar_cotizacion' as any, {
+      p_cotizacion_id: cotizacion.id,
+    })
 
-  if (itemsError) throw itemsError
-
-  // Luego eliminar la cotización
-  const { error: cotError } = await supabase
-    .schema('erp')
-    .from('cotizaciones')
-    .delete()
-    .eq('id', cotizacion.id)
-
-  if (cotError) throw cotError
+  if (error) throw error
 
   return cotizacion.id
 }
 
-// Hook: Lista de cotizaciones
-export function useCotizaciones(statusFilter?: string | null) {
+// Hook: Lista de cotizaciones with server-side pagination
+export function useCotizaciones(statusFilter?: string | null, pagination?: PaginationParams) {
   return useQuery({
-    queryKey: cotizacionesKeys.list({ status: statusFilter }),
-    queryFn: () => fetchCotizaciones(statusFilter),
+    queryKey: cotizacionesKeys.list({ status: statusFilter, pagination }),
+    queryFn: () => fetchCotizaciones(statusFilter, pagination),
   })
 }
 
-// Hook: Detalle de cotización
+// Hook: Detalle de cotizacion
 export function useCotizacion(id: string) {
   return useQuery({
     queryKey: cotizacionesKeys.detail(id),
@@ -121,42 +120,13 @@ export function useCotizacion(id: string) {
   })
 }
 
-// Hook: Eliminar cotización
+// Hook: Eliminar cotizacion
 export function useDeleteCotizacion() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: deleteCotizacion,
-    onMutate: async (cotizacion) => {
-      // Cancelar todas las queries de cotizaciones
-      await queryClient.cancelQueries({ queryKey: cotizacionesKeys.lists() })
-
-      // Obtener snapshots de todas las listas
-      const queriesData = queryClient.getQueriesData<CotizacionRow[]>({
-        queryKey: cotizacionesKeys.lists()
-      })
-
-      // Actualizar optimísticamente todas las listas
-      queriesData.forEach(([queryKey, data]) => {
-        if (data) {
-          queryClient.setQueryData<CotizacionRow[]>(
-            queryKey,
-            data.filter((c) => c.id !== cotizacion.id)
-          )
-        }
-      })
-
-      return { queriesData }
-    },
-    onError: (_err, _cotizacion, context) => {
-      // Restaurar todas las listas
-      context?.queriesData.forEach(([queryKey, data]) => {
-        if (data) {
-          queryClient.setQueryData(queryKey, data)
-        }
-      })
-    },
-    onSettled: () => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cotizacionesKeys.lists() })
     },
   })

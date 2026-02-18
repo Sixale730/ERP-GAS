@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import type { PaginationParams, PaginatedResult } from './types'
 
 export interface OrdenVentaRow {
   id: string
@@ -23,34 +24,41 @@ export type FiltroStatusOV = 'todas' | 'pendientes' | 'facturadas'
 export const ordenesVentaKeys = {
   all: ['ordenes-venta'] as const,
   lists: () => [...ordenesVentaKeys.all, 'list'] as const,
-  list: (filtro?: FiltroStatusOV) => [...ordenesVentaKeys.lists(), filtro] as const,
+  list: (filtro?: FiltroStatusOV, pagination?: PaginationParams) => [...ordenesVentaKeys.lists(), filtro, pagination] as const,
   details: () => [...ordenesVentaKeys.all, 'detail'] as const,
   detail: (id: string) => [...ordenesVentaKeys.details(), id] as const,
 }
 
-// Fetch ordenes de venta with optional status filter
-async function fetchOrdenesVenta(filtro?: FiltroStatusOV): Promise<OrdenVentaRow[]> {
+const OV_LIST_COLUMNS = 'id, folio, fecha, vigencia_dias, status, total, moneda, cliente_nombre, cliente_rfc, almacen_nombre, factura_id, created_at, updated_at'
+
+// Fetch ordenes de venta with optional status filter and pagination
+async function fetchOrdenesVenta(filtro?: FiltroStatusOV, pagination?: PaginationParams): Promise<PaginatedResult<OrdenVentaRow>> {
   const supabase = getSupabaseClient()
   let query = supabase
     .schema('erp')
     .from('v_cotizaciones')
-    .select('*')
+    .select(OV_LIST_COLUMNS, { count: 'exact' })
     .like('folio', 'OV-%')
     .order('fecha', { ascending: false })
 
-  // Filtrar por status según el filtro seleccionado
-  if (filtro === 'todas' || !filtro) {
-    query = query.in('status', ['orden_venta', 'factura'])
-  } else if (filtro === 'pendientes') {
+  if (filtro === 'pendientes') {
     query = query.eq('status', 'orden_venta')
   } else if (filtro === 'facturadas') {
     query = query.eq('status', 'factura')
+  } else {
+    query = query.in('status', ['orden_venta', 'factura'])
   }
 
-  const { data, error } = await query
+  if (pagination) {
+    const from = (pagination.page - 1) * pagination.pageSize
+    const to = from + pagination.pageSize - 1
+    query = query.range(from, to)
+  }
+
+  const { data, error, count } = await query
 
   if (error) throw error
-  return data || []
+  return { data: (data || []) as OrdenVentaRow[], total: count || 0 }
 }
 
 // Fetch single orden de venta with items
@@ -86,12 +94,11 @@ async function fetchOrdenVenta(id: string) {
 // Delete orden de venta
 async function deleteOrdenVenta(orden: OrdenVentaRow) {
   if (orden.status !== 'orden_venta') {
-    throw new Error('Solo se pueden eliminar órdenes de venta pendientes')
+    throw new Error('Solo se pueden eliminar ordenes de venta pendientes')
   }
 
   const supabase = getSupabaseClient()
 
-  // Primero eliminar los items
   const { error: itemsError } = await supabase
     .schema('erp')
     .from('cotizacion_items')
@@ -100,7 +107,6 @@ async function deleteOrdenVenta(orden: OrdenVentaRow) {
 
   if (itemsError) throw itemsError
 
-  // Luego eliminar la orden
   const { error: ovError } = await supabase
     .schema('erp')
     .from('cotizaciones')
@@ -112,11 +118,11 @@ async function deleteOrdenVenta(orden: OrdenVentaRow) {
   return orden.id
 }
 
-// Hook: Lista de ordenes de venta
-export function useOrdenesVenta(filtro?: FiltroStatusOV) {
+// Hook: Lista de ordenes de venta with server-side pagination
+export function useOrdenesVenta(filtro?: FiltroStatusOV, pagination?: PaginationParams) {
   return useQuery({
-    queryKey: ordenesVentaKeys.list(filtro),
-    queryFn: () => fetchOrdenesVenta(filtro),
+    queryKey: ordenesVentaKeys.list(filtro, pagination),
+    queryFn: () => fetchOrdenesVenta(filtro, pagination),
   })
 }
 
@@ -135,36 +141,7 @@ export function useDeleteOrdenVenta() {
 
   return useMutation({
     mutationFn: deleteOrdenVenta,
-    onMutate: async (orden) => {
-      // Cancelar todas las queries de ordenes
-      await queryClient.cancelQueries({ queryKey: ordenesVentaKeys.lists() })
-
-      // Obtener snapshots de todas las listas
-      const queriesData = queryClient.getQueriesData<OrdenVentaRow[]>({
-        queryKey: ordenesVentaKeys.lists()
-      })
-
-      // Actualizar optimísticamente todas las listas
-      queriesData.forEach(([queryKey, data]) => {
-        if (data) {
-          queryClient.setQueryData<OrdenVentaRow[]>(
-            queryKey,
-            data.filter((o) => o.id !== orden.id)
-          )
-        }
-      })
-
-      return { queriesData }
-    },
-    onError: (_err, _orden, context) => {
-      // Restaurar todas las listas
-      context?.queriesData.forEach(([queryKey, data]) => {
-        if (data) {
-          queryClient.setQueryData(queryKey, data)
-        }
-      })
-    },
-    onSettled: () => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ordenesVentaKeys.lists() })
     },
   })

@@ -14,7 +14,7 @@ import {
   FilePdfOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useReporteServicios, useMovimientosServicios } from '@/lib/hooks/useQueries'
+import { useReporteServicios, useMovimientosServicios } from '@/lib/hooks/queries/useServicios'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
 import { generarPDFReporte } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'

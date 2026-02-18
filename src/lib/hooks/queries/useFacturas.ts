@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import type { PaginationParams, PaginatedResult } from './types'
 
 export interface FacturaRow {
   id: string
@@ -18,28 +19,36 @@ export interface FacturaRow {
 export const facturasKeys = {
   all: ['facturas'] as const,
   lists: () => [...facturasKeys.all, 'list'] as const,
-  list: (filters?: { status?: string | null }) => [...facturasKeys.lists(), filters] as const,
+  list: (filters?: { status?: string | null; pagination?: PaginationParams }) => [...facturasKeys.lists(), filters] as const,
   details: () => [...facturasKeys.all, 'detail'] as const,
   detail: (id: string) => [...facturasKeys.details(), id] as const,
 }
 
-// Fetch facturas with optional status filter
-async function fetchFacturas(statusFilter?: string | null): Promise<FacturaRow[]> {
+const FACTURAS_LIST_COLUMNS = 'id, folio, fecha, status, total, saldo, moneda, dias_vencida, cliente_nombre, almacen_nombre'
+
+// Fetch facturas with optional status filter and pagination
+async function fetchFacturas(statusFilter?: string | null, pagination?: PaginationParams): Promise<PaginatedResult<FacturaRow>> {
   const supabase = getSupabaseClient()
   let query = supabase
     .schema('erp')
     .from('v_facturas')
-    .select('*')
+    .select(FACTURAS_LIST_COLUMNS, { count: 'exact' })
     .order('fecha', { ascending: false })
 
   if (statusFilter) {
     query = query.eq('status', statusFilter)
   }
 
-  const { data, error } = await query
+  if (pagination) {
+    const from = (pagination.page - 1) * pagination.pageSize
+    const to = from + pagination.pageSize - 1
+    query = query.range(from, to)
+  }
+
+  const { data, error, count } = await query
 
   if (error) throw error
-  return data || []
+  return { data: (data || []) as FacturaRow[], total: count || 0 }
 }
 
 // Fetch single factura with items
@@ -72,11 +81,11 @@ async function fetchFactura(id: string) {
   }
 }
 
-// Hook: Lista de facturas
-export function useFacturas(statusFilter?: string | null) {
+// Hook: Lista de facturas with server-side pagination
+export function useFacturas(statusFilter?: string | null, pagination?: PaginationParams) {
   return useQuery({
-    queryKey: facturasKeys.list({ status: statusFilter }),
-    queryFn: () => fetchFacturas(statusFilter),
+    queryKey: facturasKeys.list({ status: statusFilter, pagination }),
+    queryFn: () => fetchFacturas(statusFilter, pagination),
   })
 }
 
@@ -89,7 +98,7 @@ export function useFactura(id: string) {
   })
 }
 
-// Hook: Invalidar cache de facturas (para usar después de crear una factura)
+// Hook: Invalidar cache de facturas
 export function useInvalidateFacturas() {
   const queryClient = useQueryClient()
 

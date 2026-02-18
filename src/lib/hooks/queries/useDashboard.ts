@@ -80,9 +80,6 @@ async function fetchDashboardData(): Promise<DashboardData> {
       .limit(5),
   ])
 
-  // Debug: ver qué retorna la consulta de cotizaciones
-  console.log('Cotizaciones pendientes result:', cotizacionesPendientesResult)
-
   // Procesar resultados
   const totalProductos = totalProductosResult.count || 0
   const stockBajo = stockBajoResult.data || []

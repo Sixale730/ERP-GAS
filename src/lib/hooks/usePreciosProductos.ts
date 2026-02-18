@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { queryKeys } from './useQueries'
+import { catalogosKeys } from './queries/useCatalogos'
 
 // Query keys for precios productos
 export const preciosProductosKeys = {
@@ -88,7 +88,7 @@ export function useCreatePrecioProducto() {
       // Invalidar cache de precios del producto
       queryClient.invalidateQueries({ queryKey: preciosProductosKeys.byProducto(variables.producto_id) })
       // Invalidar cache del catálogo general
-      queryClient.invalidateQueries({ queryKey: queryKeys.preciosProductos })
+      queryClient.invalidateQueries({ queryKey: catalogosKeys.preciosProductos })
     },
   })
 }
@@ -122,7 +122,7 @@ export function useUpdatePrecioProducto() {
       // Invalidar cache de precios del producto
       queryClient.invalidateQueries({ queryKey: preciosProductosKeys.byProducto(variables.producto_id) })
       // Invalidar cache del catálogo general
-      queryClient.invalidateQueries({ queryKey: queryKeys.preciosProductos })
+      queryClient.invalidateQueries({ queryKey: catalogosKeys.preciosProductos })
     },
   })
 }
@@ -146,7 +146,7 @@ export function useDeletePrecioProducto() {
       // Invalidar cache de precios del producto
       queryClient.invalidateQueries({ queryKey: preciosProductosKeys.byProducto(variables.producto_id) })
       // Invalidar cache del catálogo general
-      queryClient.invalidateQueries({ queryKey: queryKeys.preciosProductos })
+      queryClient.invalidateQueries({ queryKey: catalogosKeys.preciosProductos })
     },
   })
 }
