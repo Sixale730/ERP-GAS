@@ -58,6 +58,31 @@ export async function GET() {
 // POST: Ejecutar reinicio del sistema
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient()
+
+    // Verificar que el usuario sea super_admin
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado' },
+        { status: 401 }
+      )
+    }
+
+    const { data: erpUser } = await supabase
+      .schema('erp')
+      .from('usuarios')
+      .select('rol')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (!erpUser || erpUser.rol !== 'super_admin') {
+      return NextResponse.json(
+        { success: false, error: 'Solo super_admin puede reiniciar el sistema' },
+        { status: 403 }
+      )
+    }
+
     const body: ReiniciarRequest = await request.json()
 
     // Validar confirmacion textual exacta
@@ -67,8 +92,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    const supabase = await createServerSupabaseClient()
 
     // Llamar a la funcion SQL que hace el reinicio atomico
     const { data, error } = await supabase.schema('erp').rpc('reiniciar_sistema_transaccional')

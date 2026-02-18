@@ -134,14 +134,17 @@ export async function POST(request: NextRequest) {
     }
 
     // TODO: Enviar email con el link de invitacion
-    // Por ahora solo devolvemos el token para testing
-    const inviteUrl = `${request.nextUrl.origin}/invitacion/${token}`
-
-    return NextResponse.json({
+    const response: Record<string, unknown> = {
       success: true,
       message: 'Invitacion creada',
-      inviteUrl, // Solo para desarrollo/testing
-    })
+    }
+
+    // Solo exponer URL de invitacion en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+      response.inviteUrl = `${request.nextUrl.origin}/invitacion/${token}`
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Error en API invitaciones:', error)
     return NextResponse.json(

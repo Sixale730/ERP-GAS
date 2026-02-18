@@ -1,19 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-
-// Permisos default por rol (duplicado de usePermisos.ts para uso server-side)
-const ALL = { ver: true, crear: true, editar: true, eliminar: true }
-const VIEW_ONLY = { ver: true, crear: false, editar: false, eliminar: false }
-const VCE = { ver: true, crear: true, editar: true, eliminar: false }
-const NONE = { ver: false, crear: false, editar: false, eliminar: false }
-
-const PERMISOS_DEFAULT: Record<string, Record<string, { ver: boolean; crear: boolean; editar: boolean; eliminar: boolean }>> = {
-  super_admin: { productos: ALL, inventario: ALL, clientes: ALL, cotizaciones: ALL, ordenes_venta: ALL, facturas: ALL, compras: ALL, reportes: ALL, catalogos: ALL, configuracion: ALL },
-  admin_cliente: { productos: ALL, inventario: ALL, clientes: ALL, cotizaciones: ALL, ordenes_venta: ALL, facturas: ALL, compras: ALL, reportes: ALL, catalogos: ALL, configuracion: VCE },
-  vendedor: { productos: VIEW_ONLY, inventario: VIEW_ONLY, clientes: VCE, cotizaciones: VCE, ordenes_venta: VCE, facturas: VIEW_ONLY, compras: NONE, reportes: VIEW_ONLY, catalogos: VIEW_ONLY, configuracion: NONE },
-  compras: { productos: ALL, inventario: ALL, clientes: VIEW_ONLY, cotizaciones: VIEW_ONLY, ordenes_venta: VIEW_ONLY, facturas: VIEW_ONLY, compras: ALL, reportes: VIEW_ONLY, catalogos: VCE, configuracion: NONE },
-  contador: { productos: VIEW_ONLY, inventario: VIEW_ONLY, clientes: VCE, cotizaciones: VIEW_ONLY, ordenes_venta: VIEW_ONLY, facturas: ALL, compras: VIEW_ONLY, reportes: ALL, catalogos: VIEW_ONLY, configuracion: NONE },
-}
+import { PERMISOS_DEFAULT } from '@/lib/permisos'
+import type { UserRole } from '@/lib/permisos'
 
 // GET: Obtener solicitudes de acceso (para admins)
 export async function GET() {
@@ -141,7 +129,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Determinar si los permisos son custom o default
-      const defaults = PERMISOS_DEFAULT[rolAsignado as keyof typeof PERMISOS_DEFAULT]
+      const defaults = PERMISOS_DEFAULT[rolAsignado as UserRole]
       const isDefaultPermisos = !permisos || JSON.stringify(permisos) === JSON.stringify(defaults)
       const permisosToSave = isDefaultPermisos ? null : permisos
 

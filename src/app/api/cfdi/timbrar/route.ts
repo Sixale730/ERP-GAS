@@ -89,6 +89,39 @@ export async function POST(request: NextRequest) {
     // Conectar a Supabase
     const supabase = await createServerSupabaseClient()
 
+    // Verificar permisos del usuario (facturas.editar)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado' },
+        { status: 401 }
+      )
+    }
+
+    const { data: erpUser } = await supabase
+      .schema('erp')
+      .from('usuarios')
+      .select('rol, permisos')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (!erpUser) {
+      return NextResponse.json(
+        { success: false, error: 'Usuario no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Verificar permiso facturas.editar
+    const { getPermisosEfectivos } = await import('@/lib/permisos')
+    const permisos = getPermisosEfectivos(erpUser.rol, erpUser.permisos)
+    if (!permisos.facturas?.editar) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para timbrar facturas' },
+        { status: 403 }
+      )
+    }
+
     // Obtener datos de la factura
     const { data: factura, error: errorFactura } = await supabase
       .schema('erp')

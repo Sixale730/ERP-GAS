@@ -5,21 +5,46 @@ const nextConfig = {
 
   // Optimizar imports para reducir bundle size
   modularizeImports: {
-    'antd': {
-      transform: 'antd/lib/{{member}}',
-      skipDefaultConversion: true,
-    },
     '@ant-design/icons': {
       transform: '@ant-design/icons/lib/icons/{{member}}',
     },
-    'dayjs': {
-      transform: 'dayjs/{{member}}',
-    },
   },
 
-  // Headers de cache para assets estáticos
+  // Headers de cache y seguridad
   async headers() {
+    const securityHeaders = [
+      {
+        key: 'X-Frame-Options',
+        value: 'DENY',
+      },
+      {
+        key: 'X-Content-Type-Options',
+        value: 'nosniff',
+      },
+      {
+        key: 'Referrer-Policy',
+        value: 'strict-origin-when-cross-origin',
+      },
+      {
+        key: 'X-DNS-Prefetch-Control',
+        value: 'on',
+      },
+      {
+        key: 'Strict-Transport-Security',
+        value: 'max-age=63072000; includeSubDomains; preload',
+      },
+      {
+        key: 'Permissions-Policy',
+        value: 'camera=(), microphone=(), geolocation=()',
+      },
+    ]
+
     return [
+      {
+        // Apply security headers to all routes
+        source: '/:path*',
+        headers: securityHeaders,
+      },
       {
         source: '/static/:path*',
         headers: [
