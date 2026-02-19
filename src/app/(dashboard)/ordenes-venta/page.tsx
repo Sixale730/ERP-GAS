@@ -15,12 +15,12 @@ const { Title } = Typography
 
 const statusColors: Record<string, string> = {
   orden_venta: 'success',
-  factura: 'purple',
+  facturada: 'purple',
 }
 
 const statusLabels: Record<string, string> = {
   orden_venta: 'Pendiente',
-  factura: 'Facturada',
+  facturada: 'Facturada',
 }
 
 export default function OrdenesVentaPage() {
@@ -91,7 +91,7 @@ export default function OrdenesVentaPage() {
   const conteos = useMemo(() => ({
     todas: ordenes.length,
     pendientes: ordenes.filter(o => o.status === 'orden_venta').length,
-    facturadas: ordenes.filter(o => o.status === 'factura').length,
+    facturadas: ordenes.filter(o => o.status === 'facturada').length,
   }), [ordenes])
 
   const columns: ColumnsType<OrdenVentaRow> = [
@@ -170,7 +170,7 @@ export default function OrdenesVentaPage() {
             loading={downloadingPdfId === record.id}
             title="Descargar PDF"
           />
-          {record.status === 'factura' && record.factura_id && (
+          {record.status === 'facturada' && record.factura_id && (
             <Button
               type="link"
               icon={<FileTextOutlined />}

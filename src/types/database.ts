@@ -1007,6 +1007,7 @@ export type Database = {
           tipo_cambio: number | null
           vigencia_dias: number
           notas: string | null
+          factura_id: string | null
           vendedor_id: string | null
           vendedor_nombre: string | null
           created_at: string

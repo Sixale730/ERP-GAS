@@ -44,9 +44,9 @@ async function fetchOrdenesVenta(filtro?: FiltroStatusOV, pagination?: Paginatio
   if (filtro === 'pendientes') {
     query = query.eq('status', 'orden_venta')
   } else if (filtro === 'facturadas') {
-    query = query.eq('status', 'factura')
+    query = query.eq('status', 'facturada')
   } else {
-    query = query.in('status', ['orden_venta', 'factura'])
+    query = query.in('status', ['orden_venta', 'facturada'])
   }
 
   if (pagination) {
