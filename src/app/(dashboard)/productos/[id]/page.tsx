@@ -5,14 +5,13 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Table, Modal, InputNumber, Form, Popconfirm
 } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, SettingOutlined, SwapOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, SettingOutlined, HistoryOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
-import MovimientosTable from '@/components/movimientos/MovimientosTable'
+import HistorialProductoTable from '@/components/productos/HistorialProductoTable'
 import PrecioProductoModal from '@/components/precios/PrecioProductoModal'
 import { usePreciosProducto, useDeletePrecioProducto, type PrecioConLista } from '@/lib/hooks/usePreciosProductos'
 import { useListasPrecios } from '@/lib/hooks/queries/useCatalogos'
-import type { MovimientoView } from '@/types/database'
 
 const { Title, Text } = Typography
 
@@ -55,8 +54,7 @@ export default function ProductoDetallePage() {
   const [loading, setLoading] = useState(true)
   const [producto, setProducto] = useState<ProductoDetalle | null>(null)
   const [inventario, setInventario] = useState<InventarioAlmacen[]>([])
-  const [movimientos, setMovimientos] = useState<MovimientoView[]>([])
-  const [loadingMovimientos, setLoadingMovimientos] = useState(false)
+
 
   // Modal para editar min/max
   const [stockModalOpen, setStockModalOpen] = useState(false)
@@ -128,37 +126,12 @@ export default function ProductoDetallePage() {
         }))
         setInventario(invFormatted)
       }
-
-      // Load movimientos for this product
-      loadMovimientos()
     } catch (error) {
       console.error('Error loading producto:', error)
       message.error('Error al cargar producto')
       router.push('/productos')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadMovimientos = async () => {
-    setLoadingMovimientos(true)
-    const supabase = getSupabaseClient()
-
-    try {
-      const { data, error } = await supabase
-        .schema('erp')
-        .from('v_movimientos')
-        .select('*')
-        .eq('producto_id', id)
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      if (error) throw error
-      setMovimientos(data || [])
-    } catch (error) {
-      console.error('Error loading movimientos:', error)
-    } finally {
-      setLoadingMovimientos(false)
     }
   }
 
@@ -419,22 +392,12 @@ export default function ProductoDetallePage() {
           <Card
             title={
               <Space>
-                <SwapOutlined />
-                <span>Historial de Movimientos</span>
+                <HistoryOutlined />
+                <span>Historial del Producto</span>
               </Space>
             }
-            extra={
-              <Button type="link" onClick={() => router.push(`/movimientos`)}>
-                Ver todos
-              </Button>
-            }
           >
-            <MovimientosTable
-              data={movimientos}
-              loading={loadingMovimientos}
-              compact
-              pageSize={10}
-            />
+            <HistorialProductoTable productoId={id} pageSize={10} />
           </Card>
         </Col>
 

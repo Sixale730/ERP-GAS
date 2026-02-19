@@ -1177,3 +1177,18 @@ export interface ConfigMargenesCategoria {
   global: number
   por_categoria: Record<string, number>
 }
+
+// Historial unificado del producto (RPC)
+export interface HistorialProductoItem {
+  id: string
+  fecha: string
+  tipo_documento: 'cotizacion' | 'orden_venta' | 'factura' | 'orden_compra' | 'movimiento'
+  documento_id: string
+  folio: string | null
+  entidad_nombre: string | null
+  cantidad: number
+  monto: number | null
+  status: string | null
+  moneda: string | null
+  notas: string | null
+}
