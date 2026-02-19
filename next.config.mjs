@@ -1,14 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ['antd', '@ant-design/icons', '@ant-design/cssinjs', 'rc-util', 'rc-pagination', 'rc-picker', 'rc-table', 'rc-tree', 'rc-select', 'rc-cascader', 'rc-checkbox', 'rc-dropdown', 'rc-menu', 'rc-slider', 'rc-steps', 'rc-switch', 'rc-tabs', 'rc-textarea', 'rc-trigger', 'rc-upload', 'rc-input'],
   // Habilitar compresión
   compress: true,
-
-  // Optimizar imports para reducir bundle size
-  modularizeImports: {
-    '@ant-design/icons': {
-      transform: '@ant-design/icons/lib/icons/{{member}}',
-    },
-  },
 
   // Headers de cache y seguridad
   async headers() {
@@ -73,3 +67,4 @@ const nextConfig = {
 }
 
 export default nextConfig
+
