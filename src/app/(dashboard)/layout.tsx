@@ -1,6 +1,5 @@
 import AppLayout from '@/components/layout/AppLayout'
-import { AuthProvider } from '@/lib/hooks/useAuth'
-import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
+import AuthProviderWrapper from '@/lib/providers/AuthProviderWrapper'
 
 export default function DashboardLayout({
   children,
@@ -8,10 +7,10 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <AuthProvider>
+    <AuthProviderWrapper>
       <AppLayout>
-        <ErrorBoundary>{children}</ErrorBoundary>
+        {children}
       </AppLayout>
-    </AuthProvider>
+    </AuthProviderWrapper>
   )
 }
