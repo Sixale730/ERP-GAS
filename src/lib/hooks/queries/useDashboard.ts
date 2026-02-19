@@ -52,8 +52,9 @@ async function fetchDashboardData(): Promise<DashboardData> {
     supabase
       .schema('erp')
       .from('productos')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true),
+      .select('id', { count: 'exact' })
+      .eq('is_active', true)
+      .limit(1),
 
     // Productos con stock bajo
     supabase
@@ -67,8 +68,9 @@ async function fetchDashboardData(): Promise<DashboardData> {
     supabase
       .schema('erp')
       .from('cotizaciones')
-      .select('*', { count: 'exact', head: true })
-      .in('status', ['propuesta']),
+      .select('id', { count: 'exact' })
+      .in('status', ['propuesta'])
+      .limit(1),
 
     // Facturas por cobrar
     supabase
