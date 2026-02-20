@@ -77,6 +77,7 @@ interface CotizacionItem {
   descuento_porcentaje: number
   subtotal: number
   sku?: string
+  es_servicio?: boolean
 }
 
 const statusColors: Record<string, string> = {
@@ -190,7 +191,7 @@ export default function CotizacionDetallePage() {
         .from('cotizacion_items')
         .select(`
           *,
-          productos:producto_id (sku)
+          productos:producto_id (sku, es_servicio)
         `)
         .eq('cotizacion_id', id)
         .order('created_at')
@@ -199,7 +200,8 @@ export default function CotizacionDetallePage() {
 
       const itemsWithSku = itemsData?.map(item => ({
         ...item,
-        sku: item.productos?.sku || '-'
+        sku: item.productos?.sku || '-',
+        es_servicio: item.productos?.es_servicio || false
       })) || []
 
       setItems(itemsWithSku)
@@ -720,6 +722,7 @@ export default function CotizacionDetallePage() {
           {/* Alerta de stock insuficiente - solo en propuesta */}
           {mostrarAlertaStock && cotizacion.status === 'propuesta' && items.length > 0 && (() => {
             const productosSinStock = items.filter(item => {
+              if (item.es_servicio) return false
               const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
               return stockDisponible < item.cantidad
             })
