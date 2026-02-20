@@ -779,6 +779,8 @@ export type Database = {
           iva: number
           total: number
           notas: string | null
+          creado_por: string | null
+          creado_por_nombre: string | null
           is_active: boolean
           created_at: string
           updated_at: string
@@ -797,6 +799,8 @@ export type Database = {
           iva?: number
           total?: number
           notas?: string | null
+          creado_por?: string | null
+          creado_por_nombre?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -815,6 +819,8 @@ export type Database = {
           iva?: number
           total?: number
           notas?: string | null
+          creado_por?: string | null
+          creado_por_nombre?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -1068,6 +1074,8 @@ export type Database = {
           almacen_id: string
           almacen_codigo: string
           almacen_nombre: string
+          creado_por: string | null
+          creado_por_nombre: string | null
           total_items: number
           items_completos: number
           created_at: string

@@ -438,6 +438,9 @@ export default function DetalleOrdenCompraPage() {
                       ${orden.tipo_cambio.toFixed(4)} USD/MXN
                     </Descriptions.Item>
                   )}
+                  <Descriptions.Item label="Generado por">
+                    {orden.creado_por_nombre || '-'}
+                  </Descriptions.Item>
                 </Descriptions>
               </Col>
             </Row>

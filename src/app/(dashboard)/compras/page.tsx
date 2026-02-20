@@ -30,6 +30,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatDate, formatDateTime } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useOrdenesCompra, useProveedoresCompra, useAlmacenesCompra } from '@/lib/hooks/queries/useOrdenesCompra'
@@ -73,6 +74,7 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 export default function ComprasPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { erpUser } = useAuth()
   const { getMargenParaCategoria } = useMargenesCategoria()
   const { tipoCambio } = useConfiguracion()
 
@@ -389,6 +391,8 @@ export default function ComprasPage() {
             iva,
             total,
             notas: 'Orden generada automaticamente por faltantes de inventario',
+            creado_por: erpUser?.id || null,
+            creado_por_nombre: erpUser?.nombre || erpUser?.email || null,
           })
           .select()
           .single()

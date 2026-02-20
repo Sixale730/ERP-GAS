@@ -29,6 +29,7 @@ import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { registrarHistorial } from '@/lib/utils/historial'
+import UsuarioComprasSelect from '@/components/common/UsuarioComprasSelect'
 import type { Proveedor, Almacen, Producto, OrdenCompra } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -73,6 +74,7 @@ export default function EditarOrdenCompraPage() {
   const [saving, setSaving] = useState(false)
   const [monedaSeleccionada, setMonedaSeleccionada] = useState<'USD' | 'MXN'>('USD')
   const [tipoCambioOrden, setTipoCambioOrden] = useState<number | null>(null)
+  const [creadoPorNombre, setCreadoPorNombre] = useState<string | null>(null)
 
   useEffect(() => {
     if (ordenId) {
@@ -146,7 +148,9 @@ export default function EditarOrdenCompraPage() {
         fecha_esperada: ordenData.fecha_esperada ? dayjs(ordenData.fecha_esperada) : null,
         moneda: ordenData.moneda || 'USD',
         notas: ordenData.notas,
+        creado_por: ordenData.creado_por,
       })
+      setCreadoPorNombre(ordenData.creado_por_nombre || null)
 
       // Pre-llenar items
       if (itemsData && productosRes.data) {
@@ -293,6 +297,8 @@ export default function EditarOrdenCompraPage() {
           iva,
           total,
           notas: values.notas || null,
+          creado_por: values.creado_por || null,
+          creado_por_nombre: creadoPorNombre || null,
         })
         .eq('id', ordenId)
 
@@ -571,6 +577,16 @@ export default function EditarOrdenCompraPage() {
                     </Form.Item>
                   </Col>
                 )}
+                <Col xs={24} md={8}>
+                  <Form.Item name="creado_por" label="Generado por">
+                    <UsuarioComprasSelect
+                      onChange={(id, nombre) => {
+                        setCreadoPorNombre(nombre || null)
+                        form.setFieldValue('creado_por', id)
+                      }}
+                    />
+                  </Form.Item>
+                </Col>
                 <Col xs={24}>
                   <Form.Item name="notas" label="Notas">
                     <Input.TextArea rows={2} placeholder="Notas o instrucciones especiales..." />

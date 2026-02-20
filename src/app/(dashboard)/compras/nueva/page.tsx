@@ -31,6 +31,7 @@ import { registrarHistorial } from '@/lib/utils/historial'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
+import UsuarioComprasSelect from '@/components/common/UsuarioComprasSelect'
 import type { Proveedor, Almacen, Producto } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -71,6 +72,7 @@ export default function NuevaOrdenCompraPage() {
   const [searchValue, setSearchValue] = useState('')
   const [saving, setSaving] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
+  const [creadoPorNombre, setCreadoPorNombre] = useState<string | null>(null)
   const [monedaSeleccionada, setMonedaSeleccionada] = useState<'USD' | 'MXN'>('USD')
   const [tipoCambioLocal, setTipoCambioLocal] = useState<number>(tipoCambio)
   const [stockBajoCargado, setStockBajoCargado] = useState(false)
@@ -312,6 +314,8 @@ export default function NuevaOrdenCompraPage() {
         iva,
         total,
         notas: values.notas || null,
+        creado_por: values.creado_por || erpUser?.id || null,
+        creado_por_nombre: creadoPorNombre || erpUser?.nombre || null,
       }
 
       const { data: orden, error: ordenError } = await supabase
@@ -592,6 +596,17 @@ export default function NuevaOrdenCompraPage() {
                     </Form.Item>
                   </Col>
                 )}
+                <Col xs={24} md={8}>
+                  <Form.Item name="creado_por" label="Generado por">
+                    <UsuarioComprasSelect
+                      autoAssignCurrent
+                      onChange={(id, nombre) => {
+                        setCreadoPorNombre(nombre || null)
+                        form.setFieldValue('creado_por', id)
+                      }}
+                    />
+                  </Form.Item>
+                </Col>
                 <Col xs={24}>
                   <Form.Item name="notas" label="Notas">
                     <Input.TextArea rows={2} placeholder="Notas o instrucciones especiales..." />
