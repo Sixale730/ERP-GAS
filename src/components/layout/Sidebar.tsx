@@ -97,6 +97,16 @@ const allMenuItems: MenuItemWithRoles[] = [
     modulo: 'reportes',
     children: [
       {
+        key: '/reportes/ordenes-venta',
+        icon: <ContainerOutlined />,
+        label: 'Ordenes de Venta',
+      },
+      {
+        key: '/reportes/ordenes-compra',
+        icon: <ShoppingCartOutlined />,
+        label: 'Ordenes de Compra',
+      },
+      {
         key: '/reportes/servicios',
         icon: <ToolOutlined />,
         label: 'Servicios',
