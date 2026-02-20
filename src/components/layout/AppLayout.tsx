@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation'
 import Sidebar from './Sidebar'
 import GlobalSearch from './GlobalSearch'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useInactivityLogout } from '@/lib/hooks/useInactivityLogout'
 import { useUIStore } from '@/store/uiStore'
 
 const { Header, Sider, Content } = Layout
@@ -45,6 +46,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }, [])
   const router = useRouter()
   const { loading, displayName, avatarUrl, role, signOut, isAdmin, organizacion, erpUser } = useAuth()
+  useInactivityLogout(signOut)
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
