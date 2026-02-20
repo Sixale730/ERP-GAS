@@ -11,6 +11,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons'
 import { useDashboard } from '@/lib/hooks/queries/useDashboard'
+import { useTipoCambioBanxico } from '@/lib/hooks/queries/useTipoCambioBanxico'
 import { DashboardSkeleton } from '@/components/common/Skeletons'
 import { formatMoney, formatMoneyMXN } from '@/lib/utils/format'
 
@@ -21,6 +22,9 @@ export default function DashboardPage() {
 
   // React Query hook
   const { data, isLoading, isError } = useDashboard()
+
+  // Auto-fetch tipo de cambio on dashboard mount (fire-and-forget)
+  useTipoCambioBanxico()
 
   const productosColumns = [
     {

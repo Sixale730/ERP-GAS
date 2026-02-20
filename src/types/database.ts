@@ -893,6 +893,32 @@ export type Database = {
           created_at?: string
         }
       }
+      tipo_cambio_diario: {
+        Row: {
+          id: string
+          fecha: string
+          valor: number
+          fuente: string
+          serie: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          fecha: string
+          valor: number
+          fuente?: string
+          serie?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          fecha?: string
+          valor?: number
+          fuente?: string
+          serie?: string | null
+          created_at?: string
+        }
+      }
       direcciones_envio: {
         Row: {
           id: string
@@ -1174,6 +1200,9 @@ export type MovimientoView = Views<'v_movimientos'>
 export type OrdenCompra = Tables<'ordenes_compra'>
 export type OrdenCompraItem = Tables<'orden_compra_items'>
 export type RecepcionOrden = Tables<'recepciones_orden'>
+
+// Tipo de cambio diario
+export type TipoCambioDiario = Tables<'tipo_cambio_diario'>
 
 // Direcciones de envio
 export type DireccionEnvio = Tables<'direcciones_envio'>

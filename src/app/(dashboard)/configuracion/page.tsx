@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin, Table, Input } from 'antd'
-import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined } from '@ant-design/icons'
+import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
+import { useTipoCambioBanxico } from '@/lib/hooks/queries/useTipoCambioBanxico'
 import { formatDate } from '@/lib/utils/format'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import type { Categoria } from '@/types/database'
@@ -19,6 +20,7 @@ interface CategoriaConMargen extends Categoria {
 export default function ConfiguracionPage() {
   const { tipoCambio, fechaTipoCambio, margenGanancia, loading, updateTipoCambio, updateMargenGanancia, reload } = useConfiguracion()
   const { config: margenesConfig, loading: loadingMargenes, updateConfig: updateMargenes, reload: reloadMargenes } = useMargenesCategoria()
+  const { data: tipoCambioData, fetchFromBanxico, isFetchingBanxico } = useTipoCambioBanxico()
 
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
@@ -227,7 +229,16 @@ export default function ConfiguracionPage() {
                 name="tipo_cambio"
                 label="Tipo de Cambio (MXN por 1 USD)"
                 rules={[{ required: true, message: 'Requerido' }]}
-                extra={`Ultima actualizacion: ${formatDate(fechaTipoCambio)}`}
+                extra={
+                  <>
+                    Ultima actualizacion: {formatDate(fechaTipoCambio)}
+                    {tipoCambioData?.fuente && (
+                      <span style={{ marginLeft: 8 }}>
+                        (Fuente: {tipoCambioData.fuente === 'banxico' ? 'Banxico FIX' : tipoCambioData.fuente})
+                      </span>
+                    )}
+                  </>
+                }
               >
                 <InputNumber
                   min={1}
@@ -239,6 +250,28 @@ export default function ConfiguracionPage() {
                   addonAfter="MXN"
                 />
               </Form.Item>
+
+              <Button
+                icon={<CloudDownloadOutlined />}
+                loading={isFetchingBanxico}
+                onClick={async () => {
+                  try {
+                    const result = await fetchFromBanxico()
+                    if (result.ok) {
+                      form.setFieldValue('tipo_cambio', result.tipo_cambio)
+                      setFormValues(prev => ({ ...prev, tipo_cambio: result.tipo_cambio }))
+                      message.success(`Tipo de cambio actualizado: $${result.tipo_cambio} MXN${result.mensaje ? ` - ${result.mensaje}` : ''}`)
+                    } else {
+                      message.warning(result.mensaje || 'No se pudo obtener el tipo de cambio')
+                    }
+                  } catch {
+                    message.error('Error al consultar Banxico')
+                  }
+                }}
+                style={{ marginBottom: 16 }}
+              >
+                Obtener de Banxico
+              </Button>
 
               <Form.Item
                 name="margen_ganancia"

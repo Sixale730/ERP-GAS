@@ -104,7 +104,7 @@ export default function SetupPage() {
           background: '#f0f2f5',
         }}
       >
-        <Spin size="large" tip="Verificando sistema..." />
+        <Spin size="large" />
       </div>
     )
   }

@@ -80,7 +80,7 @@ export default function InvitacionPage() {
           background: '#f0f2f5',
         }}
       >
-        <Spin size="large" tip="Verificando invitacion..." />
+        <Spin size="large" />
       </div>
     )
   }

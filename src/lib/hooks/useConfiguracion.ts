@@ -11,7 +11,7 @@ interface ConfiguracionData {
   margenGanancia: number
 }
 
-const configuracionKeys = {
+export const configuracionKeys = {
   all: ['configuracion'] as const,
 }
 

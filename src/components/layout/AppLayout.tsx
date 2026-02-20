@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid, Tag, Spin } from 'antd'
 import {
   MenuFoldOutlined,
@@ -36,8 +36,13 @@ const roleLabels: Record<string, { label: string; color: string }> = {
 export default function AppLayout({ children }: AppLayoutProps) {
   const { sidebarCollapsed: collapsed, setSidebarCollapsed: setCollapsed } = useUIStore()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const screens = useBreakpoint()
-  const isMobile = !screens.md // true si < 768px
+  const isMobile = mounted && !screens.md // solo después de mount para evitar hydration mismatch
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   const router = useRouter()
   const { loading, displayName, avatarUrl, role, signOut, isAdmin, organizacion, erpUser } = useAuth()
   const {
@@ -141,7 +146,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           justifyContent: 'center',
         }}
       >
-        <Spin size="large" tip="Cargando..." />
+        <Spin size="large" />
       </div>
     )
   }
