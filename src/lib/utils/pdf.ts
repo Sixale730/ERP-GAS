@@ -177,7 +177,7 @@ function generarDatosCliente(
 /**
  * Genera la tabla de productos
  */
-function generarTablaProductos(doc: jsPDF, y: number, items: ItemPDF[], opciones: OpcionesMoneda): number {
+function generarTablaProductos(doc: jsPDF, y: number, items: ItemPDF[], opciones: OpcionesMoneda, autoTable: any): number {
   const tableData = items.map(item => [
     item.sku || '-',
     item.descripcion,
@@ -187,7 +187,7 @@ function generarTablaProductos(doc: jsPDF, y: number, items: ItemPDF[], opciones
     formatMontoConMoneda(item.subtotal, opciones),
   ])
 
-  ;(doc as any).autoTable({
+  autoTable(doc, {
     startY: y,
     head: [['SKU', 'Descripcion', 'Cant.', 'P. Unitario', 'Desc.', 'Subtotal']],
     body: tableData,
@@ -306,7 +306,7 @@ export async function generarPDFCotizacion(
   opciones?: OpcionesMoneda
 ): Promise<void> {
   const { default: jsPDFLib } = await import('jspdf')
-  await import('jspdf-autotable')
+  const { default: autoTable } = await import('jspdf-autotable')
   // Si no se pasan opciones, usar la moneda de la cotización o MXN por defecto
   const opcionesFinales: OpcionesMoneda = opciones || {
     moneda: ((cotizacion as any).moneda as CodigoMoneda) || 'MXN'
@@ -316,7 +316,7 @@ export async function generarPDFCotizacion(
   let y = generarEncabezado(doc, 'COTIZACION', cotizacion.folio)
   y = generarDatosCliente(doc, y, cotizacion)
 
-  y = generarTablaProductos(doc, y, items, opcionesFinales)
+  y = generarTablaProductos(doc, y, items, opcionesFinales, autoTable)
   y = generarTotales(doc, y, cotizacion, opcionesFinales)
   generarNotas(doc, y, cotizacion.notas)
 
@@ -338,7 +338,7 @@ export async function generarPDFFactura(
   opciones?: OpcionesMoneda
 ): Promise<void> {
   const { default: jsPDFLib } = await import('jspdf')
-  await import('jspdf-autotable')
+  const { default: autoTable } = await import('jspdf-autotable')
   // Si no se pasan opciones, usar la moneda de la factura o MXN por defecto
   const opcionesFinales: OpcionesMoneda = opciones || {
     moneda: ((factura as any).moneda as CodigoMoneda) || 'MXN'
@@ -357,7 +357,7 @@ export async function generarPDFFactura(
     y += 5
   }
 
-  y = generarTablaProductos(doc, y, items, opcionesFinales)
+  y = generarTablaProductos(doc, y, items, opcionesFinales, autoTable)
   y = generarTotales(doc, y, { ...factura, saldo: factura.saldo }, opcionesFinales)
   generarNotas(doc, y, factura.notas)
 
@@ -459,7 +459,7 @@ function generarDatosProveedor(
 /**
  * Genera la tabla de productos para orden de compra
  */
-function generarTablaProductosOC(doc: jsPDF, y: number, items: ItemOrdenCompraPDF[], opciones: OpcionesMoneda): number {
+function generarTablaProductosOC(doc: jsPDF, y: number, items: ItemOrdenCompraPDF[], opciones: OpcionesMoneda, autoTable: any): number {
   const tableData = items.map(item => [
     item.sku || '-',
     item.descripcion,
@@ -469,7 +469,7 @@ function generarTablaProductosOC(doc: jsPDF, y: number, items: ItemOrdenCompraPD
     formatMontoConMoneda(item.subtotal, opciones),
   ])
 
-  ;(doc as any).autoTable({
+  autoTable(doc, {
     startY: y,
     head: [['SKU', 'Descripcion', 'Cant.', 'P. Unitario', 'Margen', 'Subtotal']],
     body: tableData,
@@ -600,7 +600,7 @@ export async function generarPDFOrdenCompra(
   opciones?: OpcionesMoneda
 ): Promise<void> {
   const { default: jsPDFLib } = await import('jspdf')
-  await import('jspdf-autotable')
+  const { default: autoTable } = await import('jspdf-autotable')
   // Si no se pasan opciones, usar la moneda de la orden o MXN por defecto
   const opcionesFinales: OpcionesMoneda = opciones || {
     moneda: (orden.moneda as CodigoMoneda) || 'MXN'
@@ -619,7 +619,7 @@ export async function generarPDFOrdenCompra(
     y += 5
   }
 
-  y = generarTablaProductosOC(doc, y, items, opcionesFinales)
+  y = generarTablaProductosOC(doc, y, items, opcionesFinales, autoTable)
   y = generarTotalesOC(doc, y, orden, opcionesFinales)
   generarNotas(doc, y, orden.notas)
 
@@ -708,7 +708,7 @@ function generarEncabezadoReporte(doc: jsPDF, titulo: string): number {
  */
 export async function generarPDFReporte(config: ReportePDFConfig): Promise<void> {
   const { default: jsPDFLib } = await import('jspdf')
-  await import('jspdf-autotable')
+  const { default: autoTable } = await import('jspdf-autotable')
   const { titulo, nombreArchivo, filtrosAplicados, estadisticas, columnas, datos, orientacion = 'portrait' } = config
 
   const doc = new jsPDFLib({ orientation: orientacion })
@@ -725,7 +725,7 @@ export async function generarPDFReporte(config: ReportePDFConfig): Promise<void>
 
   // Estadísticas como tabla compacta
   if (estadisticas && estadisticas.length > 0) {
-    ;(doc as any).autoTable({
+    autoTable(doc, {
       startY: y,
       head: [estadisticas.map(e => e.label)],
       body: [estadisticas.map(e => String(e.valor))],
@@ -771,7 +771,7 @@ export async function generarPDFReporte(config: ReportePDFConfig): Promise<void>
     columnStyles[i] = style
   })
 
-  ;(doc as any).autoTable({
+  autoTable(doc, {
     startY: y,
     head: [headers],
     body,

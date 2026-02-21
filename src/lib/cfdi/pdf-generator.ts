@@ -98,7 +98,7 @@ function formatMoneyPdf(amount: number, moneda: string = 'MXN'): string {
  */
 export async function generarPdfCfdi(data: PdfCfdiData): Promise<jsPDF> {
   const { default: jsPDFLib } = await import('jspdf')
-  await import('jspdf-autotable')
+  const { default: autoTable } = await import('jspdf-autotable')
   const QRCode = (await import('qrcode')).default
 
   const doc = new jsPDFLib('p', 'mm', 'letter')
@@ -206,7 +206,7 @@ export async function generarPdfCfdi(data: PdfCfdiData): Promise<jsPDF> {
     `$${c.importe.toFixed(2)}`,
   ])
 
-  ;(doc as any).autoTable({
+  autoTable(doc, {
     startY: y,
     head: [['Clave SAT', 'Descripcion', 'Cant.', 'Unidad', 'P. Unit.', 'Desc.', 'Importe']],
     body: tableBody,
