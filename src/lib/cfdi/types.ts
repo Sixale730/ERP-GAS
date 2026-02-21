@@ -349,3 +349,48 @@ export interface FinkokCustomersResponse {
   users: FinkokResellerUser[]
   error?: string
 }
+
+// === TIPOS PARA COMPLEMENTO DE PAGO (CFDI Tipo P) ===
+
+export interface DocumentoRelacionadoPago {
+  uuid_cfdi: string        // UUID de la factura original
+  folio: string
+  serie?: string
+  moneda: 'MXN' | 'USD'
+  tipo_cambio?: number
+  metodo_pago: 'PPD'       // Solo PPD requiere complemento
+  num_parcialidad: number  // 1, 2, 3...
+  saldo_anterior: number
+  monto_pagado: number
+  saldo_insoluto: number
+  // Impuestos del documento
+  base_iva?: number
+  importe_iva?: number
+}
+
+export interface DatosPagoCFDI {
+  fecha_pago: string
+  forma_pago: string       // catalogo SAT (01=Efectivo, 02=Cheque, 03=Transferencia...)
+  moneda: 'MXN' | 'USD'
+  tipo_cambio?: number
+  monto: number
+  // Documento relacionado (factura que se esta pagando)
+  documentos: DocumentoRelacionadoPago[]
+}
+
+export interface ComplementoPagoResult {
+  success: boolean
+  uuid?: string
+  xml?: string
+  fecha_timbrado?: string
+  error?: string
+}
+
+export interface CfdiErrorResponse {
+  codigo: string
+  titulo: string
+  descripcion: string
+  accion: string
+  campo?: string
+  detalles?: string
+}

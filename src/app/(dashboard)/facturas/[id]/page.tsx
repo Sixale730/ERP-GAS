@@ -1,18 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Modal, Select, InputNumber, Form, Alert
+  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin,
+  Row, Col, Modal, Select, InputNumber, Form, Alert, Input, DatePicker
 } from 'antd'
 import {
   ArrowLeftOutlined, CheckCircleOutlined, FilePdfOutlined, FileTextOutlined,
-  SafetyCertificateOutlined, CloseCircleOutlined, DownloadOutlined, ExclamationCircleOutlined, EditOutlined
+  SafetyCertificateOutlined, CloseCircleOutlined, DownloadOutlined,
+  ExclamationCircleOutlined, EditOutlined, PlusOutlined, ReloadOutlined,
+  DollarOutlined, EyeOutlined
 } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoney, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura, type OpcionesMoneda } from '@/lib/utils/pdf'
 import { type CodigoMoneda } from '@/lib/config/moneda'
+import TimbradoSuccessModal from '@/components/facturacion/TimbradoSuccessModal'
+import TimbradoErrorModal from '@/components/facturacion/TimbradoErrorModal'
+import CfdiPreview from '@/components/facturacion/CfdiPreview'
+import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 
@@ -42,11 +49,21 @@ interface FacturaDetalle {
   status_sat: string | null
   fecha_timbrado: string | null
   xml_cfdi: string | null
+  error_timbrado: any | null
+  // CFDI extra fields for PDF
+  sello_cfdi: string | null
+  sello_sat: string | null
+  certificado_sat: string | null
+  cadena_original: string | null
   // Campos moneda
   moneda: CodigoMoneda
   tipo_cambio: number | null
   // Vendedor
   vendedor_nombre: string | null
+  // Receptor data for PDF
+  cliente_regimen_fiscal: string | null
+  cliente_uso_cfdi: string | null
+  cliente_codigo_postal: string | null
 }
 
 interface FacturaItem {
@@ -58,6 +75,18 @@ interface FacturaItem {
   descuento_porcentaje: number
   subtotal: number
   sku?: string
+}
+
+interface PagoRecord {
+  id: string
+  folio: string
+  monto: number
+  fecha: string
+  metodo_pago: string
+  referencia: string | null
+  notas: string | null
+  uuid_complemento_pago: string | null
+  created_at: string
 }
 
 const statusColors: Record<string, string> = {
@@ -78,12 +107,14 @@ const statusSatColors: Record<string, string> = {
   pendiente: 'default',
   timbrado: 'success',
   cancelado: 'error',
+  error: 'warning',
 }
 
 const statusSatLabels: Record<string, string> = {
   pendiente: 'Sin timbrar',
   timbrado: 'Timbrado',
   cancelado: 'Cancelado',
+  error: 'Error',
 }
 
 const motivosCancelacion = [
@@ -91,6 +122,15 @@ const motivosCancelacion = [
   { value: '02', label: '02 - Comprobante emitido con errores sin relacion' },
   { value: '03', label: '03 - No se llevo a cabo la operacion' },
   { value: '04', label: '04 - Operacion nominativa en factura global' },
+]
+
+const FORMAS_PAGO_OPTIONS = [
+  { value: '01', label: '01 - Efectivo' },
+  { value: '02', label: '02 - Cheque nominativo' },
+  { value: '03', label: '03 - Transferencia electronica' },
+  { value: '04', label: '04 - Tarjeta de credito' },
+  { value: '28', label: '28 - Tarjeta de debito' },
+  { value: '99', label: '99 - Por definir' },
 ]
 
 export default function FacturaDetallePage() {
@@ -108,49 +148,43 @@ export default function FacturaDetallePage() {
   const [cancelLoading, setCancelLoading] = useState(false)
   const [motivoCancelacion, setMotivoCancelacion] = useState<string>('02')
   const [uuidSustitucion, setUuidSustitucion] = useState<string>('')
-  const [cambioEstadoLoading, setCambioEstadoLoading] = useState(false)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (id) {
-      loadFactura()
-    }
-  }, [id])
+  // Preview modal
+  const [previewModalOpen, setPreviewModalOpen] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewData, setPreviewData] = useState<any>(null)
 
-  const loadFactura = async () => {
+  // Timbrado result modals
+  const [successModalOpen, setSuccessModalOpen] = useState(false)
+  const [successUuid, setSuccessUuid] = useState('')
+  const [errorModalOpen, setErrorModalOpen] = useState(false)
+  const [timbradoError, setTimbradoError] = useState<any>(null)
+
+  // Pagos
+  const [pagos, setPagos] = useState<PagoRecord[]>([])
+  const [pagosLoading, setPagosLoading] = useState(false)
+  const [pagoModalOpen, setPagoModalOpen] = useState(false)
+  const [pagoForm] = Form.useForm()
+  const [registrandoPago, setRegistrandoPago] = useState(false)
+  const [complementoLoading, setComplementoLoading] = useState<string | null>(null)
+
+  const loadFactura = useCallback(async () => {
     const supabase = getSupabaseClient()
     setLoading(true)
 
     try {
-      // Load factura from table (not view) to get CFDI fields
       const { data: facData, error: facError } = await supabase
         .schema('erp')
         .from('facturas')
         .select(`
-          id,
-          folio,
-          fecha,
-          fecha_vencimiento,
-          status,
-          subtotal,
-          descuento_monto,
-          iva,
-          total,
-          saldo,
-          notas,
-          cliente_id,
-          cliente_rfc,
-          cliente_razon_social,
-          almacen_id,
-          cotizacion_id,
-          uuid_cfdi,
-          status_sat,
-          fecha_timbrado,
-          xml_cfdi,
-          moneda,
-          tipo_cambio,
-          vendedor_nombre,
-          clientes:cliente_id (nombre_comercial, razon_social),
+          id, folio, fecha, fecha_vencimiento, status,
+          subtotal, descuento_monto, iva, total, saldo, notas,
+          cliente_id, cliente_rfc, cliente_razon_social, cliente_regimen_fiscal, cliente_uso_cfdi,
+          almacen_id, cotizacion_id,
+          uuid_cfdi, status_sat, fecha_timbrado, xml_cfdi, error_timbrado,
+          sello_cfdi, sello_sat, certificado_sat, cadena_original,
+          moneda, tipo_cambio, vendedor_nombre,
+          clientes:cliente_id (nombre_comercial, razon_social, codigo_postal_fiscal),
           almacenes:almacen_id (nombre),
           cotizaciones:cotizacion_id (folio)
         `)
@@ -159,7 +193,10 @@ export default function FacturaDetallePage() {
 
       if (facError) throw facError
 
-      // Transform data to expected format
+      const clienteObj = Array.isArray(facData.clientes) ? facData.clientes[0] : facData.clientes
+      const almacenObj = Array.isArray(facData.almacenes) ? facData.almacenes[0] : facData.almacenes
+      const cotizacionObj = Array.isArray(facData.cotizaciones) ? facData.cotizaciones[0] : facData.cotizaciones
+
       const facturaData: FacturaDetalle = {
         id: facData.id,
         folio: facData.folio,
@@ -167,40 +204,37 @@ export default function FacturaDetallePage() {
         fecha_vencimiento: facData.fecha_vencimiento || '',
         status: facData.status,
         subtotal: facData.subtotal,
-        descuento_porcentaje: 0, // Calculate if needed
+        descuento_porcentaje: 0,
         descuento_monto: facData.descuento_monto,
         iva: facData.iva,
         total: facData.total,
         saldo: facData.saldo,
-        dias_vencida: 0, // Calculate if needed
+        dias_vencida: 0,
         notas: facData.notas,
         cliente_id: facData.cliente_id,
-        cliente_nombre: Array.isArray(facData.clientes)
-          ? (facData.clientes[0] as { nombre_comercial: string; razon_social: string } | undefined)?.nombre_comercial
-            || (facData.clientes[0] as { nombre_comercial: string; razon_social: string } | undefined)?.razon_social
-            || 'Sin cliente'
-          : (facData.clientes as { nombre_comercial: string; razon_social: string } | null)?.nombre_comercial
-            || (facData.clientes as { nombre_comercial: string; razon_social: string } | null)?.razon_social
-            || 'Sin cliente',
+        cliente_nombre: (clienteObj as any)?.nombre_comercial || (clienteObj as any)?.razon_social || 'Sin cliente',
         cliente_rfc: facData.cliente_rfc,
         cliente_razon_social: facData.cliente_razon_social,
+        cliente_regimen_fiscal: facData.cliente_regimen_fiscal,
+        cliente_uso_cfdi: facData.cliente_uso_cfdi,
+        cliente_codigo_postal: (clienteObj as any)?.codigo_postal_fiscal || null,
         almacen_id: facData.almacen_id,
-        almacen_nombre: Array.isArray(facData.almacenes)
-          ? (facData.almacenes[0] as { nombre: string } | undefined)?.nombre || 'Sin almacen'
-          : (facData.almacenes as { nombre: string } | null)?.nombre || 'Sin almacen',
-        cotizacion_folio: Array.isArray(facData.cotizaciones)
-          ? (facData.cotizaciones[0] as { folio: string } | undefined)?.folio || null
-          : (facData.cotizaciones as { folio: string } | null)?.folio || null,
+        almacen_nombre: (almacenObj as any)?.nombre || 'Sin almacen',
+        cotizacion_folio: (cotizacionObj as any)?.folio || null,
         uuid_cfdi: facData.uuid_cfdi,
         status_sat: facData.status_sat || 'pendiente',
         fecha_timbrado: facData.fecha_timbrado,
         xml_cfdi: facData.xml_cfdi,
+        error_timbrado: facData.error_timbrado,
+        sello_cfdi: facData.sello_cfdi,
+        sello_sat: facData.sello_sat,
+        certificado_sat: facData.certificado_sat,
+        cadena_original: facData.cadena_original,
         moneda: (facData.moneda as CodigoMoneda) || 'USD',
         tipo_cambio: facData.tipo_cambio,
         vendedor_nombre: facData.vendedor_nombre,
       }
 
-      // Calculate dias_vencida
       if (facturaData.fecha_vencimiento) {
         const hoy = new Date()
         const vencimiento = new Date(facturaData.fecha_vencimiento)
@@ -214,21 +248,17 @@ export default function FacturaDetallePage() {
       const { data: itemsData, error: itemsError } = await supabase
         .schema('erp')
         .from('factura_items')
-        .select(`
-          *,
-          productos:producto_id (sku)
-        `)
+        .select(`*, productos:producto_id (sku)`)
         .eq('factura_id', id)
         .order('created_at')
 
       if (itemsError) throw itemsError
 
-      const itemsWithSku = itemsData?.map(item => ({
+      setItems(itemsData?.map(item => ({
         ...item,
         sku: (item.productos as { sku: string } | null)?.sku || '-'
-      })) || []
+      })) || [])
 
-      setItems(itemsWithSku)
     } catch (error) {
       console.error('Error loading factura:', error)
       message.error('Error al cargar factura')
@@ -236,169 +266,246 @@ export default function FacturaDetallePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [id, router])
+
+  const loadPagos = useCallback(async () => {
+    setPagosLoading(true)
+    try {
+      const response = await fetch(`/api/pagos?factura_id=${id}`)
+      const result = await response.json()
+      if (result.success) {
+        setPagos(result.pagos || [])
+      }
+    } catch (error) {
+      console.error('Error loading pagos:', error)
+    } finally {
+      setPagosLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => {
+    if (id) {
+      loadFactura()
+      loadPagos()
+    }
+  }, [id, loadFactura, loadPagos])
+
+  // === PDF ===
 
   const handleDescargarPDF = async () => {
     if (!factura) return
 
+    // Si esta timbrada, usar el generador SAT con QR
+    if (factura.uuid_cfdi && factura.status_sat === 'timbrado') {
+      try {
+        const { generarPdfCfdi } = await import('@/lib/cfdi/pdf-generator')
+        const pdfData: import('@/lib/cfdi/pdf-generator').PdfCfdiData = {
+          folio: factura.folio,
+          fecha: factura.fecha,
+          emisor: {
+            // These will be filled by the PDF generator from config
+            rfc: '', nombre: '', regimenFiscal: '', codigoPostal: '',
+          },
+          receptor: {
+            rfc: factura.cliente_rfc || '',
+            nombre: factura.cliente_razon_social || factura.cliente_nombre,
+            codigoPostal: factura.cliente_codigo_postal || '',
+            regimenFiscal: factura.cliente_regimen_fiscal || '616',
+            usoCfdi: factura.cliente_uso_cfdi || 'G03',
+          },
+          conceptos: items.map(item => ({
+            descripcion: item.descripcion,
+            cantidad: item.cantidad,
+            valorUnitario: item.precio_unitario,
+            importe: item.cantidad * item.precio_unitario,
+            descuento: item.descuento_porcentaje > 0
+              ? (item.cantidad * item.precio_unitario * item.descuento_porcentaje / 100)
+              : undefined,
+          })),
+          subtotal: factura.subtotal,
+          descuento: factura.descuento_monto > 0 ? factura.descuento_monto : undefined,
+          iva: factura.iva,
+          total: factura.total,
+          moneda: factura.moneda || 'MXN',
+          metodoPago: 'PUE',
+          formaPago: '99',
+          uuid: factura.uuid_cfdi || undefined,
+          fechaTimbrado: factura.fecha_timbrado || undefined,
+          selloCfdi: factura.sello_cfdi || undefined,
+          selloSat: factura.sello_sat || undefined,
+          certificadoSat: factura.certificado_sat || undefined,
+          cadenaOriginal: factura.cadena_original || undefined,
+        }
+
+        // Fill emisor from preview data if available, otherwise use defaults
+        try {
+          const previewResp = await fetch('/api/cfdi/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ factura_id: factura.id }),
+          })
+          const previewResult = await previewResp.json()
+          if (previewResult.success && previewResult.emisor) {
+            pdfData.emisor = {
+              ...previewResult.emisor,
+              codigoPostal: previewResult.emisor.codigoPostal || '',
+            }
+            pdfData.formaPago = previewResult.formaPago || '99'
+            pdfData.metodoPago = previewResult.metodoPago || 'PUE'
+          }
+        } catch {
+          // Use defaults if preview fails
+          pdfData.emisor = { rfc: 'N/A', nombre: 'N/A', regimenFiscal: '601', codigoPostal: '00000' }
+        }
+
+        const doc = await generarPdfCfdi(pdfData)
+        doc.save(`${factura.folio}_CFDI.pdf`)
+        message.success('PDF CFDI descargado')
+        return
+      } catch (e) {
+        console.error('Error generando PDF CFDI:', e)
+        // Fallback to basic PDF
+      }
+    }
+
+    // Fallback: PDF basico sin datos SAT
     const opciones: OpcionesMoneda = {
       moneda: factura.moneda || 'USD',
       tipoCambio: factura.moneda === 'MXN' ? (factura.tipo_cambio || undefined) : undefined
     }
-
-    // Incluir vendedor_nombre en los datos del PDF
-    const facturaConVendedor = {
-      ...factura,
-      vendedor_nombre: factura.vendedor_nombre
-    }
-
-    await generarPDFFactura(facturaConVendedor, items, opciones)
+    await generarPDFFactura({ ...factura, vendedor_nombre: factura.vendedor_nombre }, items, opciones)
     message.success('PDF descargado')
   }
 
-  // === FUNCION CAMBIAR ESTADO ===
+  // === CFDI PREVIEW + TIMBRAR ===
 
-  const handleCambiarEstado = async (nuevoEstado: 'pendiente' | 'pagada' | 'cancelada') => {
+  const handlePreviewTimbrar = async () => {
     if (!factura) return
 
-    setCambioEstadoLoading(true)
-    const supabase = getSupabaseClient()
-
-    try {
-      // Calcular nuevo saldo segun estado
-      let nuevoSaldo = factura.total
-      let montoPagado = 0
-
-      if (nuevoEstado === 'pagada') {
-        nuevoSaldo = 0
-        montoPagado = factura.total
-      } else if (nuevoEstado === 'cancelada') {
-        nuevoSaldo = 0
-        montoPagado = 0
-      }
-
-      const diferenciaSaldo = factura.saldo - nuevoSaldo
-
-      // Actualizar factura
-      const { error: updateError } = await supabase
-        .schema('erp')
-        .from('facturas')
-        .update({
-          status: nuevoEstado,
-          saldo: nuevoSaldo,
-          monto_pagado: montoPagado,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', factura.id)
-
-      if (updateError) throw updateError
-
-      // Actualizar saldo del cliente
-      if (factura.cliente_id && diferenciaSaldo !== 0) {
-        const { data: clienteData } = await supabase
-          .schema('erp')
-          .from('clientes')
-          .select('saldo_pendiente')
-          .eq('id', factura.cliente_id)
-          .single()
-
-        if (clienteData) {
-          const nuevoSaldoCliente = Math.max(0, (clienteData.saldo_pendiente || 0) - diferenciaSaldo)
-          await supabase
-            .schema('erp')
-            .from('clientes')
-            .update({ saldo_pendiente: nuevoSaldoCliente })
-            .eq('id', factura.cliente_id)
-        }
-      }
-
-      const mensajes: Record<string, string> = {
-        pagada: 'Factura marcada como pagada',
-        pendiente: 'Factura reabierta',
-        cancelada: 'Factura cancelada',
-      }
-      message.success(mensajes[nuevoEstado])
-      loadFactura()
-    } catch (error) {
-      console.error('Error al cambiar estado:', error)
-      message.error('Error al cambiar estado de la factura')
-    } finally {
-      setCambioEstadoLoading(false)
-    }
-  }
-
-  // === FUNCIONES CFDI ===
-
-  const handleTimbrar = async () => {
-    if (!factura) return
-
-    // Validar datos minimos
     if (!factura.cliente_rfc) {
       message.error('El cliente no tiene RFC configurado')
       return
     }
 
-    Modal.confirm({
-      title: 'Confirmar Timbrado CFDI',
-      icon: <SafetyCertificateOutlined />,
-      content: (
-        <div>
-          <p>Se va a timbrar la factura <strong>{factura.folio}</strong> ante el SAT.</p>
-          <p>Esta operacion no se puede deshacer facilmente.</p>
-          <Alert
-            type="info"
-            message="Ambiente Demo"
-            description="Esta factura se timbrara en el ambiente de pruebas de Finkok. No tiene validez fiscal real."
-            showIcon
-            style={{ marginTop: 16 }}
-          />
-        </div>
-      ),
-      okText: 'Timbrar',
-      cancelText: 'Cancelar',
-      onOk: async () => {
-        setTimbrandoLoading(true)
-        try {
-          const response = await fetch('/api/cfdi/timbrar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ factura_id: factura.id }),
+    setPreviewLoading(true)
+    try {
+      const response = await fetch('/api/cfdi/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ factura_id: factura.id }),
+      })
+      const result = await response.json()
+
+      if (result.success) {
+        setPreviewData(result)
+        setPreviewModalOpen(true)
+      } else {
+        message.error(result.error || 'Error al generar preview')
+        if (result.detalles) {
+          Modal.error({
+            title: 'Errores de validacion',
+            content: (
+              <ul>
+                {(Array.isArray(result.detalles) ? result.detalles : []).map((e: string, i: number) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
+            ),
           })
-
-          const result = await response.json()
-
-          if (result.success) {
-            message.success(`CFDI timbrado exitosamente. UUID: ${result.uuid}`)
-            loadFactura() // Recargar datos
-          } else {
-            message.error(result.error || 'Error al timbrar')
-            if (result.detalles) {
-              Modal.error({
-                title: 'Errores de validacion',
-                content: (
-                  <ul>
-                    {result.detalles.map((e: string, i: number) => (
-                      <li key={i}>{e}</li>
-                    ))}
-                  </ul>
-                ),
-              })
-            }
-          }
-        } catch (error) {
-          console.error('Error al timbrar:', error)
-          message.error('Error de conexion al timbrar')
-        } finally {
-          setTimbrandoLoading(false)
         }
-      },
-    })
+      }
+    } catch (error) {
+      console.error('Error en preview:', error)
+      message.error('Error de conexion')
+    } finally {
+      setPreviewLoading(false)
+    }
   }
+
+  const handleConfirmarTimbrado = async () => {
+    if (!factura) return
+
+    setPreviewModalOpen(false)
+    setTimbrandoLoading(true)
+
+    try {
+      const response = await fetch('/api/cfdi/timbrar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ factura_id: factura.id }),
+      })
+      const result = await response.json()
+
+      if (result.success) {
+        setSuccessUuid(result.uuid)
+        setSuccessModalOpen(true)
+        loadFactura()
+      } else {
+        setTimbradoError({
+          codigo: result.codigo,
+          titulo: result.errorInfo?.titulo || result.error || 'Error al timbrar',
+          descripcion: result.errorInfo?.descripcion || result.error || '',
+          accion: result.errorInfo?.accion || result.sugerencias?.[0] || 'Revisar los datos de la factura',
+          detalles: result.detalles || result.error,
+        })
+        setErrorModalOpen(true)
+        loadFactura()
+      }
+    } catch (error) {
+      console.error('Error al timbrar:', error)
+      setTimbradoError({
+        titulo: 'Error de conexion',
+        descripcion: 'No se pudo conectar con el servicio de timbrado',
+        accion: 'Verificar la conexion e intentar nuevamente',
+      })
+      setErrorModalOpen(true)
+    } finally {
+      setTimbrandoLoading(false)
+    }
+  }
+
+  const handleReintentar = async () => {
+    if (!factura) return
+
+    setErrorModalOpen(false)
+    setTimbrandoLoading(true)
+
+    try {
+      const response = await fetch('/api/cfdi/reintentar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ factura_id: factura.id }),
+      })
+      const result = await response.json()
+
+      if (result.success) {
+        setSuccessUuid(result.uuid)
+        setSuccessModalOpen(true)
+        loadFactura()
+      } else {
+        setTimbradoError({
+          codigo: result.codigo,
+          titulo: result.errorInfo?.titulo || result.error || 'Error al reintentar',
+          descripcion: result.errorInfo?.descripcion || result.error || '',
+          accion: result.errorInfo?.accion || result.sugerencias?.[0] || 'Contactar soporte',
+          detalles: result.detalles || result.error,
+        })
+        setErrorModalOpen(true)
+        loadFactura()
+      }
+    } catch (error) {
+      console.error('Error al reintentar:', error)
+      message.error('Error de conexion al reintentar')
+    } finally {
+      setTimbrandoLoading(false)
+    }
+  }
+
+  // === CANCELAR CFDI ===
 
   const handleCancelar = async () => {
     if (!factura || !factura.uuid_cfdi) return
 
-    // Validar motivo 01 requiere UUID sustitucion
     if (motivoCancelacion === '01' && !uuidSustitucion) {
       message.error('El motivo 01 requiere el UUID de la factura que sustituye')
       return
@@ -415,7 +522,6 @@ export default function FacturaDetallePage() {
           uuid_sustitucion: motivoCancelacion === '01' ? uuidSustitucion : undefined,
         }),
       })
-
       const result = await response.json()
 
       if (result.success) {
@@ -433,6 +539,8 @@ export default function FacturaDetallePage() {
     }
   }
 
+  // === DESCARGAR XML ===
+
   const handleDescargarXML = async () => {
     if (!factura) return
 
@@ -442,11 +550,9 @@ export default function FacturaDetallePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ factura_id: factura.id }),
       })
-
       const result = await response.json()
 
       if (result.success && result.xml) {
-        // Crear archivo y descargar
         const blob = new Blob([result.xml], { type: 'application/xml' })
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -466,48 +572,133 @@ export default function FacturaDetallePage() {
     }
   }
 
+  // === PAGOS ===
+
+  const handleRegistrarPago = async () => {
+    if (!factura) return
+
+    try {
+      const values = await pagoForm.validateFields()
+      setRegistrandoPago(true)
+
+      const response = await fetch('/api/pagos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          factura_id: factura.id,
+          monto: values.monto,
+          fecha: values.fecha.format('YYYY-MM-DD'),
+          metodo_pago: values.metodo_pago,
+          referencia: values.referencia || null,
+          notas: values.notas || null,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        message.success(result.message || 'Pago registrado')
+        setPagoModalOpen(false)
+        pagoForm.resetFields()
+        loadFactura()
+        loadPagos()
+      } else {
+        message.error(result.error || 'Error al registrar pago')
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message)
+      }
+    } finally {
+      setRegistrandoPago(false)
+    }
+  }
+
+  const handleGenerarComplemento = async (pagoId: string) => {
+    setComplementoLoading(pagoId)
+    try {
+      const response = await fetch('/api/cfdi/complemento-pago', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pago_id: pagoId }),
+      })
+      const result = await response.json()
+
+      if (result.success) {
+        message.success(`Complemento timbrado. UUID: ${result.uuid}`)
+        loadPagos()
+      } else {
+        message.error(result.error || 'Error al generar complemento')
+      }
+    } catch (error) {
+      console.error('Error complemento:', error)
+      message.error('Error de conexion')
+    } finally {
+      setComplementoLoading(null)
+    }
+  }
+
+  // === COLUMNS ===
+
   const columns = [
+    { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 100 },
+    { title: 'Descripcion', dataIndex: 'descripcion', key: 'descripcion' },
+    { title: 'Cantidad', dataIndex: 'cantidad', key: 'cantidad', width: 100, align: 'right' as const },
     {
-      title: 'SKU',
-      dataIndex: 'sku',
-      key: 'sku',
-      width: 100,
+      title: 'Precio Unit.', dataIndex: 'precio_unitario', key: 'precio_unitario',
+      width: 130, align: 'right' as const, render: (val: number) => formatMoney(val),
     },
     {
-      title: 'Descripcion',
-      dataIndex: 'descripcion',
-      key: 'descripcion',
+      title: 'Desc. %', dataIndex: 'descuento_porcentaje', key: 'descuento_porcentaje',
+      width: 80, align: 'right' as const, render: (val: number) => val > 0 ? `${val}%` : '-',
     },
     {
-      title: 'Cantidad',
-      dataIndex: 'cantidad',
-      key: 'cantidad',
-      width: 100,
-      align: 'right' as const,
+      title: 'Subtotal', dataIndex: 'subtotal', key: 'subtotal',
+      width: 130, align: 'right' as const, render: (val: number) => formatMoney(val),
+    },
+  ]
+
+  const pagosColumns = [
+    { title: 'Folio', dataIndex: 'folio', key: 'folio', width: 100 },
+    {
+      title: 'Fecha', dataIndex: 'fecha', key: 'fecha', width: 100,
+      render: (val: string) => formatDate(val),
     },
     {
-      title: 'Precio Unit.',
-      dataIndex: 'precio_unitario',
-      key: 'precio_unitario',
-      width: 130,
-      align: 'right' as const,
-      render: (val: number) => formatMoney(val),
+      title: 'Monto', dataIndex: 'monto', key: 'monto', width: 120,
+      align: 'right' as const, render: (val: number) => formatMoney(val),
     },
     {
-      title: 'Desc. %',
-      dataIndex: 'descuento_porcentaje',
-      key: 'descuento_porcentaje',
-      width: 80,
-      align: 'right' as const,
-      render: (val: number) => val > 0 ? `${val}%` : '-',
+      title: 'Metodo', dataIndex: 'metodo_pago', key: 'metodo_pago', width: 80,
+      render: (val: string) => {
+        const labels: Record<string, string> = { '01': 'Efectivo', '02': 'Cheque', '03': 'Transfer.', '04': 'T. Credito', '28': 'T. Debito', '99': 'Otro' }
+        return labels[val] || val
+      },
     },
+    { title: 'Referencia', dataIndex: 'referencia', key: 'referencia', ellipsis: true, render: (val: string | null) => val || '-' },
     {
-      title: 'Subtotal',
-      dataIndex: 'subtotal',
-      key: 'subtotal',
-      width: 130,
-      align: 'right' as const,
-      render: (val: number) => formatMoney(val),
+      title: 'Complemento',
+      key: 'complemento',
+      width: 140,
+      render: (_: any, record: PagoRecord) => {
+        if (record.uuid_complemento_pago) {
+          return <Tag color="green" style={{ fontSize: 10 }}>{record.uuid_complemento_pago.substring(0, 8)}...</Tag>
+        }
+        // Only show button if factura is PPD and timbrada
+        if (factura?.status_sat === 'timbrado' && factura?.uuid_cfdi) {
+          return (
+            <Button
+              size="small"
+              type="link"
+              loading={complementoLoading === record.id}
+              onClick={() => handleGenerarComplemento(record.id)}
+            >
+              Generar
+            </Button>
+          )
+        }
+        return <Text type="secondary">-</Text>
+      },
     },
   ]
 
@@ -519,41 +710,30 @@ export default function FacturaDetallePage() {
     )
   }
 
-  if (!factura) {
-    return null
-  }
+  if (!factura) return null
 
   const statusSat = factura.status_sat || 'pendiente'
 
   return (
     <div>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Space wrap>
           <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/facturas')}>
             Volver
           </Button>
-          <Title level={2} style={{ margin: 0 }}>
-            Factura {factura.folio}
-          </Title>
+          <Title level={2} style={{ margin: 0 }}>Factura {factura.folio}</Title>
           <Tag color={statusColors[factura.status]} style={{ fontSize: 14, padding: '4px 12px' }}>
             {statusLabels[factura.status] || factura.status}
           </Tag>
         </Space>
 
         <Space wrap>
-          <Button
-            icon={<FilePdfOutlined />}
-            onClick={handleDescargarPDF}
-            size="large"
-          >
+          <Button icon={<FilePdfOutlined />} onClick={handleDescargarPDF} size="large">
             Descargar PDF
           </Button>
           {factura.status_sat !== 'timbrado' && (
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => router.push(`/facturas/${id}/editar`)}
-              size="large"
-            >
+            <Button icon={<EditOutlined />} onClick={() => router.push(`/facturas/${id}/editar`)} size="large">
               Editar
             </Button>
           )}
@@ -572,6 +752,7 @@ export default function FacturaDetallePage() {
 
       <Row gutter={16}>
         <Col xs={24} lg={16}>
+          {/* Datos de la factura */}
           <Card title="Datos de la Factura" style={{ marginBottom: 16 }}>
             <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
               <Descriptions.Item label="Folio">{factura.folio}</Descriptions.Item>
@@ -582,9 +763,7 @@ export default function FacturaDetallePage() {
               <Descriptions.Item label="Vencimiento">{formatDate(factura.fecha_vencimiento)}</Descriptions.Item>
               <Descriptions.Item label="Vendedor">{factura.vendedor_nombre || '-'}</Descriptions.Item>
               {factura.cotizacion_folio && (
-                <Descriptions.Item label="Cotizacion origen">
-                  {factura.cotizacion_folio}
-                </Descriptions.Item>
+                <Descriptions.Item label="Cotizacion origen">{factura.cotizacion_folio}</Descriptions.Item>
               )}
             </Descriptions>
             {factura.notas && (
@@ -595,7 +774,8 @@ export default function FacturaDetallePage() {
             )}
           </Card>
 
-          <Card title="Productos">
+          {/* Productos */}
+          <Card title="Productos" style={{ marginBottom: 16 }}>
             <Table
               dataSource={items}
               columns={columns}
@@ -644,94 +824,118 @@ export default function FacturaDetallePage() {
               )}
             />
           </Card>
+
+          {/* Pagos */}
+          <Card
+            title={
+              <Space>
+                <DollarOutlined />
+                Historial de Pagos
+              </Space>
+            }
+            extra={
+              factura.saldo > 0 && factura.status !== 'cancelada' && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  size="small"
+                  onClick={() => {
+                    pagoForm.setFieldsValue({
+                      monto: factura.saldo,
+                      fecha: dayjs(),
+                      metodo_pago: '03',
+                    })
+                    setPagoModalOpen(true)
+                  }}
+                >
+                  Registrar Pago
+                </Button>
+              )
+            }
+          >
+            <Table
+              dataSource={pagos}
+              columns={pagosColumns}
+              rowKey="id"
+              pagination={false}
+              size="small"
+              loading={pagosLoading}
+              locale={{ emptyText: 'Sin pagos registrados' }}
+            />
+          </Card>
         </Col>
 
         <Col xs={24} lg={8}>
           {/* Card de Timbrado CFDI */}
           <Card
-            title={
-              <Space>
-                <FileTextOutlined />
-                Timbrado CFDI
-              </Space>
-            }
+            title={<Space><FileTextOutlined /> Timbrado CFDI</Space>}
             style={{ marginBottom: 16 }}
-            extra={
-              <Tag color={statusSatColors[statusSat]}>
-                {statusSatLabels[statusSat]}
-              </Tag>
-            }
+            extra={<Tag color={statusSatColors[statusSat]}>{statusSatLabels[statusSat] || statusSat}</Tag>}
           >
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
-              {/* Mostrar UUID si esta timbrado */}
               {factura.uuid_cfdi && (
                 <div>
                   <Text type="secondary">UUID:</Text>
                   <div style={{ wordBreak: 'break-all' }}>
-                    <Text code copyable style={{ fontSize: 11 }}>
-                      {factura.uuid_cfdi}
-                    </Text>
+                    <Text code copyable style={{ fontSize: 11 }}>{factura.uuid_cfdi}</Text>
                   </div>
                 </div>
               )}
 
-              {/* Mostrar fecha de timbrado */}
               {factura.fecha_timbrado && (
                 <div>
                   <Text type="secondary">Fecha de timbrado:</Text>
-                  <div>
-                    <Text>{new Date(factura.fecha_timbrado).toLocaleString('es-MX')}</Text>
-                  </div>
+                  <div><Text>{new Date(factura.fecha_timbrado).toLocaleString('es-MX')}</Text></div>
                 </div>
+              )}
+
+              {/* Mostrar error si hay */}
+              {factura.error_timbrado && statusSat === 'error' && (
+                <Alert
+                  type="warning"
+                  message={factura.error_timbrado.info?.titulo || 'Error de timbrado'}
+                  description={factura.error_timbrado.info?.descripcion || factura.error_timbrado.mensaje}
+                  showIcon
+                  action={
+                    <Button size="small" icon={<ReloadOutlined />} onClick={handleReintentar} loading={timbrandoLoading}>
+                      Reintentar
+                    </Button>
+                  }
+                />
               )}
 
               <Divider style={{ margin: '8px 0' }} />
 
-              {/* Botones segun estado */}
-              {statusSat === 'pendiente' && factura.status !== 'cancelada' && (
+              {/* Boton Timbrar con Preview */}
+              {(statusSat === 'pendiente' || statusSat === 'error') && factura.status !== 'cancelada' && (
                 <Button
                   type="primary"
-                  icon={<SafetyCertificateOutlined />}
+                  icon={<EyeOutlined />}
                   block
                   size="large"
-                  loading={timbrandoLoading}
-                  onClick={handleTimbrar}
+                  loading={timbrandoLoading || previewLoading}
+                  onClick={handlePreviewTimbrar}
                 >
-                  Timbrar CFDI
+                  {statusSat === 'error' ? 'Reintentar Timbrado' : 'Timbrar CFDI'}
                 </Button>
               )}
 
               {statusSat === 'timbrado' && (
                 <>
-                  <Button
-                    icon={<DownloadOutlined />}
-                    block
-                    onClick={handleDescargarXML}
-                  >
+                  <Button icon={<DownloadOutlined />} block onClick={handleDescargarXML}>
                     Descargar XML
                   </Button>
-                  <Button
-                    danger
-                    icon={<CloseCircleOutlined />}
-                    block
-                    onClick={() => setCancelModalOpen(true)}
-                  >
+                  <Button danger icon={<CloseCircleOutlined />} block onClick={() => setCancelModalOpen(true)}>
                     Cancelar CFDI
                   </Button>
                 </>
               )}
 
               {statusSat === 'cancelado' && (
-                <Alert
-                  type="error"
-                  message="CFDI Cancelado"
-                  description="Este comprobante fue cancelado ante el SAT"
-                  showIcon
-                />
+                <Alert type="error" message="CFDI Cancelado" description="Este comprobante fue cancelado ante el SAT" showIcon />
               )}
 
-              {/* Aviso de ambiente demo */}
-              {statusSat === 'pendiente' && (
+              {(statusSat === 'pendiente' || statusSat === 'error') && (
                 <Alert
                   type="info"
                   message="Ambiente de Pruebas"
@@ -743,7 +947,7 @@ export default function FacturaDetallePage() {
             </Space>
           </Card>
 
-          {/* Card de Pago */}
+          {/* Card de Resumen de Pago */}
           <Card title="Resumen de Pago" style={{ position: 'sticky', top: 88 }}>
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -762,37 +966,13 @@ export default function FacturaDetallePage() {
                 </Title>
               </div>
 
-              {factura.saldo > 0 && factura.status !== 'cancelada' && factura.status !== 'pagada' && (
-                <>
-                  <Divider />
-                  <Button
-                    type="primary"
-                    block
-                    size="large"
-                    loading={cambioEstadoLoading}
-                    onClick={() => handleCambiarEstado('pagada')}
-                  >
-                    Marcar como Pagada
-                  </Button>
-                </>
-              )}
-
               {factura.status === 'pagada' && (
-                <>
-                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                    <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
-                    <div style={{ marginTop: 8 }}>
-                      <Text type="success" strong>Factura Pagada</Text>
-                    </div>
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+                  <div style={{ marginTop: 8 }}>
+                    <Text type="success" strong>Factura Pagada</Text>
                   </div>
-                  <Button
-                    block
-                    loading={cambioEstadoLoading}
-                    onClick={() => handleCambiarEstado('pendiente')}
-                  >
-                    Reabrir Factura
-                  </Button>
-                </>
+                </div>
               )}
 
               {factura.status === 'cancelada' && (
@@ -810,8 +990,22 @@ export default function FacturaDetallePage() {
                   <Button
                     danger
                     block
-                    loading={cambioEstadoLoading}
-                    onClick={() => handleCambiarEstado('cancelada')}
+                    onClick={() => {
+                      Modal.confirm({
+                        title: 'Cancelar Factura',
+                        content: 'Esta accion cancelara la factura. ¿Continuar?',
+                        okText: 'Cancelar Factura',
+                        okButtonProps: { danger: true },
+                        onOk: async () => {
+                          const supabase = getSupabaseClient()
+                          await supabase.schema('erp').from('facturas')
+                            .update({ status: 'cancelada', saldo: 0, monto_pagado: 0 })
+                            .eq('id', factura.id)
+                          message.success('Factura cancelada')
+                          loadFactura()
+                        },
+                      })
+                    }}
                   >
                     Cancelar Factura
                   </Button>
@@ -822,14 +1016,70 @@ export default function FacturaDetallePage() {
         </Col>
       </Row>
 
-      {/* Modal para cancelar CFDI */}
+      {/* Modal Preview CFDI */}
       <Modal
-        title={
-          <Space>
-            <ExclamationCircleOutlined style={{ color: '#faad14' }} />
-            Cancelar CFDI
-          </Space>
-        }
+        title={<Space><SafetyCertificateOutlined /> Preview del CFDI</Space>}
+        open={previewModalOpen}
+        onCancel={() => setPreviewModalOpen(false)}
+        width={720}
+        footer={[
+          <Button key="cancel" onClick={() => setPreviewModalOpen(false)}>
+            Cancelar
+          </Button>,
+          <Button
+            key="timbrar"
+            type="primary"
+            icon={<SafetyCertificateOutlined />}
+            loading={timbrandoLoading}
+            disabled={previewData?.validaciones?.length > 0}
+            onClick={handleConfirmarTimbrado}
+          >
+            Confirmar Timbrado
+          </Button>,
+        ]}
+        destroyOnClose
+      >
+        {previewData && (
+          <CfdiPreview
+            emisor={previewData.emisor}
+            receptor={previewData.receptor}
+            conceptos={previewData.conceptos}
+            totales={previewData.totales}
+            validaciones={previewData.validaciones}
+            moneda={previewData.moneda}
+            metodoPago={previewData.metodoPago}
+            formaPago={previewData.formaPago}
+          />
+        )}
+      </Modal>
+
+      {/* Modal Timbrado Exitoso */}
+      <TimbradoSuccessModal
+        open={successModalOpen}
+        uuid={successUuid}
+        onClose={() => setSuccessModalOpen(false)}
+        onDownloadPdf={handleDescargarPDF}
+        onDownloadXml={handleDescargarXML}
+      />
+
+      {/* Modal Error Timbrado */}
+      {timbradoError && (
+        <TimbradoErrorModal
+          open={errorModalOpen}
+          error={timbradoError}
+          onClose={() => setErrorModalOpen(false)}
+          onRetry={handleReintentar}
+          onEdit={() => {
+            setErrorModalOpen(false)
+            router.push(`/facturas/${id}/editar`)
+          }}
+          retryLoading={timbrandoLoading}
+        />
+      )}
+
+      {/* Modal Cancelar CFDI */}
+      <Modal
+        title={<Space><ExclamationCircleOutlined style={{ color: '#faad14' }} /> Cancelar CFDI</Space>}
         open={cancelModalOpen}
         onCancel={() => setCancelModalOpen(false)}
         onOk={handleCancelar}
@@ -845,30 +1095,63 @@ export default function FacturaDetallePage() {
           showIcon
           style={{ marginBottom: 16 }}
         />
-
         <Form layout="vertical">
           <Form.Item label="Motivo de Cancelacion" required>
-            <Select
-              value={motivoCancelacion}
-              onChange={(value) => setMotivoCancelacion(value)}
-              options={motivosCancelacion}
-            />
+            <Select value={motivoCancelacion} onChange={setMotivoCancelacion} options={motivosCancelacion} />
           </Form.Item>
-
           {motivoCancelacion === '01' && (
-            <Form.Item
-              label="UUID de la Factura que Sustituye"
-              required
-              help="Ingresa el UUID de la nueva factura que reemplaza a esta"
-            >
-              <InputNumber
+            <Form.Item label="UUID de la Factura que Sustituye" required help="Ingresa el UUID de la nueva factura que reemplaza a esta">
+              <Input
                 value={uuidSustitucion}
-                onChange={(value) => setUuidSustitucion(String(value || ''))}
-                style={{ width: '100%' }}
+                onChange={(e) => setUuidSustitucion(e.target.value)}
                 placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               />
             </Form.Item>
           )}
+        </Form>
+      </Modal>
+
+      {/* Modal Registrar Pago */}
+      <Modal
+        title={<Space><DollarOutlined /> Registrar Pago</Space>}
+        open={pagoModalOpen}
+        onCancel={() => { setPagoModalOpen(false); pagoForm.resetFields() }}
+        onOk={handleRegistrarPago}
+        okText="Registrar Pago"
+        okButtonProps={{ loading: registrandoPago }}
+        cancelText="Cancelar"
+        destroyOnClose
+      >
+        <Form form={pagoForm} layout="vertical">
+          <Form.Item
+            name="monto"
+            label="Monto"
+            rules={[
+              { required: true, message: 'Ingrese el monto' },
+              { type: 'number', min: 0.01, message: 'El monto debe ser mayor a 0' },
+              { type: 'number', max: factura.saldo, message: `Maximo: $${factura.saldo.toFixed(2)}` },
+            ]}
+          >
+            <InputNumber
+              prefix="$"
+              style={{ width: '100%' }}
+              precision={2}
+              min={0.01}
+              max={factura.saldo}
+            />
+          </Form.Item>
+          <Form.Item name="fecha" label="Fecha del Pago" rules={[{ required: true, message: 'Seleccione la fecha' }]}>
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+          </Form.Item>
+          <Form.Item name="metodo_pago" label="Forma de Pago" rules={[{ required: true, message: 'Seleccione la forma' }]}>
+            <Select options={FORMAS_PAGO_OPTIONS} />
+          </Form.Item>
+          <Form.Item name="referencia" label="Referencia (opcional)">
+            <Input placeholder="Numero de cheque, referencia bancaria, etc." />
+          </Form.Item>
+          <Form.Item name="notas" label="Notas (opcional)">
+            <Input.TextArea rows={2} />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

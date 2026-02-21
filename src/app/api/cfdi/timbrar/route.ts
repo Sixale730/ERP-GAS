@@ -15,6 +15,7 @@ import {
 import { signStamp } from '@/lib/cfdi/finkok/stamp'
 import { DatosFacturaCFDI, ItemFacturaCFDI } from '@/lib/cfdi/types'
 import { isFinkokConfigured, getFinkokConfigError, getFinkokConfig } from '@/lib/config/finkok'
+import { parsearErrorCfdi, generarRespuestaError } from '@/lib/cfdi/error-catalog'
 
 interface TimbrarRequest {
   factura_id: string
@@ -295,17 +296,41 @@ export async function POST(request: NextRequest) {
     }
 
     if (!resultadoTimbrado.success) {
+      // Parsear error con el catalogo
+      const errorParsed = parsearErrorCfdi(resultadoTimbrado.error || 'Error desconocido')
+      const respuesta = generarRespuestaError(resultadoTimbrado.error || '')
+
+      // Guardar error en la factura para retry
+      const errorData = {
+        codigo: resultadoTimbrado.codigo_error || errorParsed.codigo,
+        mensaje: resultadoTimbrado.error,
+        fecha: new Date().toISOString(),
+        info: errorParsed.info,
+      }
+
+      await supabase
+        .schema('erp')
+        .from('facturas')
+        .update({
+          error_timbrado: errorData,
+          status_sat: 'error',
+        })
+        .eq('id', factura_id)
+
       return NextResponse.json(
         {
           success: false,
-          error: resultadoTimbrado.error || 'Error al timbrar',
-          codigo: resultadoTimbrado.codigo_error,
+          error: respuesta.errores[0]?.titulo || resultadoTimbrado.error || 'Error al timbrar',
+          errorInfo: respuesta.errores[0],
+          sugerencias: respuesta.sugerencias,
+          detalles: resultadoTimbrado.error,
+          codigo: resultadoTimbrado.codigo_error || errorParsed.codigo,
         },
         { status: 500 }
       )
     }
 
-    // 6. Guardar en base de datos
+    // Guardar en base de datos y limpiar error_timbrado
     const { error: errorUpdate } = await supabase
       .schema('erp')
       .from('facturas')
@@ -320,12 +345,11 @@ export async function POST(request: NextRequest) {
         sello_sat: resultadoTimbrado.sello_sat,
         cadena_original: resultadoTimbrado.cadena_original,
         status_sat: 'timbrado',
+        error_timbrado: null, // Limpiar error previo
       })
       .eq('id', factura_id)
 
     if (errorUpdate) {
-      // El timbrado fue exitoso pero fallo guardar en BD
-      // Retornar los datos para que se puedan guardar manualmente
       console.error('Error al guardar timbrado en BD:', errorUpdate)
       return NextResponse.json({
         success: true,
