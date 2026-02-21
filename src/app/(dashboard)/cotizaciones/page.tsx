@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined } from '@ant-design/icons'
@@ -41,7 +41,7 @@ export default function CotizacionesPage() {
   const cotizaciones = cotizacionesResult?.data ?? []
   const deleteCotizacion = useDeleteCotizacion()
 
-  const handleDescargarPDF = async (cotizacionId: string) => {
+  const handleDescargarPDF = useCallback(async (cotizacionId: string) => {
     const supabase = getSupabaseClient()
     try {
       // Cargar cotizacion completa
@@ -69,15 +69,15 @@ export default function CotizacionesPage() {
       })) || []
 
       const { cotizacion, opciones } = prepararDatosCotizacionPDF(cotData)
-      generarPDFCotizacion(cotizacion, items, opciones)
+      await generarPDFCotizacion(cotizacion, items, opciones)
       message.success('PDF descargado')
     } catch (error) {
       console.error('Error generando PDF:', error)
       message.error('Error al generar PDF')
     }
-  }
+  }, [])
 
-  const handleEliminar = async (cotizacion: CotizacionRow) => {
+  const handleEliminar = useCallback(async (cotizacion: CotizacionRow) => {
     if (cotizacion.status !== 'propuesta') {
       message.error('Solo se pueden eliminar cotizaciones en status "Propuesta"')
       return
@@ -90,15 +90,18 @@ export default function CotizacionesPage() {
       console.error('Error eliminando cotizacion:', error)
       message.error('Error al eliminar la cotizacion')
     }
-  }
+  }, [deleteCotizacion])
 
-  const filteredCotizaciones = cotizaciones.filter(
-    (c) =>
-      c.folio.toLowerCase().includes(searchText.toLowerCase()) ||
-      (c.cliente_nombre && c.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
+  const filteredCotizaciones = useMemo(() =>
+    cotizaciones.filter(
+      (c) =>
+        c.folio.toLowerCase().includes(searchText.toLowerCase()) ||
+        (c.cliente_nombre && c.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
+    ),
+    [cotizaciones, searchText]
   )
 
-  const columns: ColumnsType<CotizacionRow> = [
+  const columns: ColumnsType<CotizacionRow> = useMemo(() => [
     {
       title: 'Folio',
       dataIndex: 'folio',
@@ -209,7 +212,7 @@ export default function CotizacionesPage() {
         </Space>
       ),
     },
-  ]
+  ], [router, handleDescargarPDF, handleEliminar, deleteCotizacion.isPending])
 
   if (isError) {
     message.error(`Error al cargar cotizaciones: ${error?.message}`)

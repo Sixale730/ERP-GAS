@@ -68,7 +68,7 @@ export default function FacturasPage() {
       })) || []
 
       const { factura, opciones } = prepararDatosFacturaPDF(facData)
-      generarPDFFactura(factura, items, opciones)
+      await generarPDFFactura(factura, items, opciones)
       message.success('PDF descargado')
     } catch (error) {
       console.error('Error generando PDF:', error)
@@ -88,7 +88,7 @@ export default function FacturasPage() {
     [facturas, searchText]
   )
 
-  const columns: ColumnsType<FacturaRow> = [
+  const columns: ColumnsType<FacturaRow> = useMemo(() => [
     {
       title: 'Folio',
       dataIndex: 'folio',
@@ -176,17 +176,29 @@ export default function FacturasPage() {
         </Space>
       ),
     },
-  ]
+  ], [router, downloadingPdf])
 
-  // Summary stats - separar por moneda
-  const facturasActivas = filteredFacturas.filter(f => f.status !== 'cancelada')
-  const totalPorCobrarUSD = facturasActivas
-    .filter(f => f.moneda === 'USD' || !f.moneda)
-    .reduce((sum, f) => sum + f.saldo, 0)
-  const totalPorCobrarMXN = facturasActivas
-    .filter(f => f.moneda === 'MXN')
-    .reduce((sum, f) => sum + f.saldo, 0)
-  const facturasVencidas = filteredFacturas.filter(f => f.dias_vencida > 0 && f.status !== 'pagada').length
+  // Summary stats - memoized para evitar recalculos en cada render
+  const { totalPorCobrarUSD, totalPorCobrarMXN, facturasVencidas } = useMemo(() => {
+    let porCobrarUSD = 0
+    let porCobrarMXN = 0
+    let vencidas = 0
+
+    for (const f of filteredFacturas) {
+      if (f.status !== 'cancelada') {
+        if (f.moneda === 'MXN') {
+          porCobrarMXN += f.saldo
+        } else {
+          porCobrarUSD += f.saldo
+        }
+      }
+      if (f.dias_vencida > 0 && f.status !== 'pagada') {
+        vencidas++
+      }
+    }
+
+    return { totalPorCobrarUSD: porCobrarUSD, totalPorCobrarMXN: porCobrarMXN, facturasVencidas: vencidas }
+  }, [filteredFacturas])
 
   if (isError) {
     message.error(`Error al cargar facturas: ${error?.message}`)

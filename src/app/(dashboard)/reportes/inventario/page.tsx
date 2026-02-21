@@ -188,7 +188,7 @@ export default function ReporteInventarioPage() {
         filtrosAplicados.push(`Busqueda: ${searchText}`)
       }
 
-      generarPDFReporte({
+      await generarPDFReporte({
         titulo: 'Reporte de Inventario',
         nombreArchivo: `reporte-inventario-${dayjs().format('YYYY-MM-DD')}`,
         orientacion: 'landscape',

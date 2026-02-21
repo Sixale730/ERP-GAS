@@ -43,7 +43,7 @@ export default function ClientesPage() {
     [clientes, searchText]
   )
 
-  const columns: ColumnsType<Cliente> = [
+  const columns: ColumnsType<Cliente> = useMemo(() => [
     {
       title: 'Codigo',
       dataIndex: 'codigo',
@@ -123,7 +123,7 @@ export default function ClientesPage() {
         </Space>
       ),
     },
-  ]
+  ], [router, deleteCliente.isPending])
 
   if (isError) {
     message.error(`Error al cargar clientes: ${error?.message}`)

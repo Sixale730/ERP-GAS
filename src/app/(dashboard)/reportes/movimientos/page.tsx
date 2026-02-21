@@ -115,7 +115,7 @@ export default function MovimientosPage() {
         filtrosAplicados.push(`Busqueda: ${searchText}`)
       }
 
-      generarPDFReporte({
+      await generarPDFReporte({
         titulo: 'Historial de Movimientos',
         nombreArchivo: `reporte-movimientos-${dayjs().format('YYYY-MM-DD')}`,
         orientacion: 'landscape',

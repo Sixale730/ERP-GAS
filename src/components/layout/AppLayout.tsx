@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid, Tag, Spin } from 'antd'
 import {
   MenuFoldOutlined,
@@ -51,18 +51,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
 
-  const handleMenuClick: MenuProps['onClick'] = async ({ key }) => {
+  const handleMenuClick: MenuProps['onClick'] = useCallback(async ({ key }: { key: string }) => {
     if (key === 'logout') {
-      // Ejecutar signOut inmediatamente sin esperar
       signOut()
     } else if (key === 'settings') {
       router.push('/configuracion')
     } else if (key === 'usuarios' && isAdmin) {
       router.push('/configuracion/usuarios')
     }
-  }
+  }, [signOut, router, isAdmin])
 
-  const userMenuItems: MenuProps['items'] = [
+  const userMenuItems: MenuProps['items'] = useMemo(() => [
     {
       key: 'user-info',
       label: (
@@ -108,7 +107,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       label: 'Cerrar Sesion',
       danger: true,
     },
-  ]
+  ], [displayName, role, organizacion, isAdmin])
+
+  // Callback estable para el sidebar
+  const handleSidebarNavigate = useCallback(() => {
+    if (isMobile) setDrawerOpen(false)
+  }, [isMobile])
 
   // Contenido del sidebar (memoizado para evitar re-renders innecesarios)
   const sidebarContent = useMemo(() => (
@@ -134,9 +138,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
           {isMobile ? 'CUANTY' : (collapsed ? 'ERP' : 'CUANTY ERP')}
         </h1>
       </div>
-      <Sidebar onNavigate={() => isMobile && setDrawerOpen(false)} userRole={role} userPermisos={erpUser?.permisos ?? null} />
+      <Sidebar onNavigate={handleSidebarNavigate} userRole={role} userPermisos={erpUser?.permisos ?? null} />
     </>
-  ), [isMobile, collapsed, role, erpUser?.permisos])
+  ), [isMobile, collapsed, role, erpUser?.permisos, handleSidebarNavigate])
 
   if (loading) {
     return (

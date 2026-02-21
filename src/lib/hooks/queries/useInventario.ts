@@ -95,7 +95,7 @@ export function useAlmacenes() {
   return useQuery({
     queryKey: inventarioKeys.almacenes(),
     queryFn: fetchAlmacenes,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 10, // Catalogo estatico
   })
 }
 

@@ -1,7 +1,21 @@
+import bundleAnalyzer from '@next/bundle-analyzer'
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+})
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Habilitar compresión
   compress: true,
+
+  // Paquetes server-only: no incluir en bundle del cliente
+  serverExternalPackages: ['soap', 'node-forge', 'xmlbuilder2', 'xml2js', 'xslt-processor'],
+
+  experimental: {
+    // Tree-shake barrel exports de antd, icons y dayjs
+    optimizePackageImports: ['antd', '@ant-design/icons', 'dayjs'],
+  },
 
   // Headers de cache y seguridad
   async headers() {
@@ -65,5 +79,4 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
-
+export default withBundleAnalyzer(nextConfig)

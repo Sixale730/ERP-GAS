@@ -207,7 +207,7 @@ export default function DetalleOrdenCompraPage() {
     }
   }
 
-  const handleDescargarPDF = () => {
+  const handleDescargarPDF = async () => {
     if (!orden || !proveedor || !almacen) return
 
     // La OC ya tiene los precios en la moneda seleccionada
@@ -239,7 +239,7 @@ export default function DetalleOrdenCompraPage() {
       subtotal: item.subtotal,
     }))
 
-    generarPDFOrdenCompra(ordenPDF, itemsPDF, opciones)
+    await generarPDFOrdenCompra(ordenPDF, itemsPDF, opciones)
     message.success('PDF descargado')
   }
 

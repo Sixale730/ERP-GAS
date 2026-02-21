@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Alert, Collapse
@@ -237,9 +237,9 @@ export default function NuevaCotizacionPage() {
   }
 
   // Formatear dinero segun moneda seleccionada
-  const formatMoney = (amount: number) => {
+  const formatMoney = useCallback((amount: number) => {
     return moneda === 'USD' ? formatMoneyUSD(amount) : formatMoneyMXN(amount)
-  }
+  }, [moneda])
 
   const handleProductSearch = (value: string) => {
     setProductSearch(value)
@@ -297,7 +297,7 @@ export default function NuevaCotizacionPage() {
     setProductOptions([])
   }
 
-  const handleUpdateItem = (key: string, field: string, value: number | string) => {
+  const handleUpdateItem = useCallback((key: string, field: string, value: number | string) => {
     setItems(items.map(item => {
       if (item.key === key) {
         const updated = { ...item, [field]: value }
@@ -315,11 +315,11 @@ export default function NuevaCotizacionPage() {
       }
       return item
     }))
-  }
+  }, [calcularPrecioFinal])
 
-  const handleRemoveItem = (key: string) => {
-    setItems(items.filter(i => i.key !== key))
-  }
+  const handleRemoveItem = useCallback((key: string) => {
+    setItems(prev => prev.filter(i => i.key !== key))
+  }, [])
 
   // Recalcular todos los precios cuando cambia el tipo de cambio
   const handleTipoCambioChange = (value: number | null) => {
@@ -358,6 +358,15 @@ export default function NuevaCotizacionPage() {
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0)
   const descuentoMonto = subtotal * (descuentoGlobal / 100)
   const { iva, total } = calcularTotal(subtotal, descuentoMonto)
+
+  // Productos sin stock (memoizado para evitar recalculo en cada render)
+  const productosSinStock = useMemo(() =>
+    items.filter(item => {
+      const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
+      return stockDisponible < item.cantidad
+    }),
+    [items, inventarioMap]
+  )
 
   const handleSave = async () => {
     const status = 'propuesta'
@@ -458,7 +467,7 @@ export default function NuevaCotizacionPage() {
     }
   }
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -556,7 +565,7 @@ export default function NuevaCotizacionPage() {
         <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleRemoveItem(record.key)} size="small" />
       ),
     },
-  ]
+  ], [moneda, handleUpdateItem, handleRemoveItem, formatMoney])
 
   return (
     <div>
@@ -679,33 +688,26 @@ export default function NuevaCotizacionPage() {
               />
 
               {/* Alerta de productos sin stock */}
-              {mostrarAlertaStock && almacenId && items.length > 0 && (() => {
-                const productosSinStock = items.filter(item => {
-                  const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
-                  return stockDisponible < item.cantidad
-                })
-                if (productosSinStock.length === 0) return null
-                return (
-                  <Alert
-                    type="warning"
-                    closable
-                    onClose={() => setMostrarAlertaStock(false)}
-                    message="Productos sin stock disponible"
-                    description={
-                      <ul style={{ margin: 0, paddingLeft: 20 }}>
-                        {productosSinStock.map(p => {
-                          const stock = inventarioMap.get(p.producto_id) ?? 0
-                          return (
-                            <li key={p.key}>
-                              <strong>{p.sku}</strong>: Stock {stock}, Solicitado {p.cantidad}
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    }
-                  />
-                )
-              })()}
+              {mostrarAlertaStock && almacenId && productosSinStock.length > 0 && (
+                <Alert
+                  type="warning"
+                  closable
+                  onClose={() => setMostrarAlertaStock(false)}
+                  message="Productos sin stock disponible"
+                  description={
+                    <ul style={{ margin: 0, paddingLeft: 20 }}>
+                      {productosSinStock.map(p => {
+                        const stock = inventarioMap.get(p.producto_id) ?? 0
+                        return (
+                          <li key={p.key}>
+                            <strong>{p.sku}</strong>: Stock {stock}, Solicitado {p.cantidad}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  }
+                />
+              )}
 
               <Table
                 dataSource={items}

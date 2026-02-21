@@ -66,7 +66,7 @@ export default function OrdenesVentaPage() {
       })) || []
 
       const { cotizacion, opciones } = prepararDatosCotizacionPDF(cotData)
-      generarPDFCotizacion(cotizacion, items, opciones)
+      await generarPDFCotizacion(cotizacion, items, opciones)
       message.success('PDF descargado')
     } catch (error) {
       console.error('Error generando PDF:', error)

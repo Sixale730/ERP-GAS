@@ -1,5 +1,4 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import type jsPDF from 'jspdf'
 import dayjs from 'dayjs'
 import { EMPRESA } from '@/lib/config/empresa'
 import { formatMoneyCurrency, formatDate } from './format'
@@ -188,7 +187,7 @@ function generarTablaProductos(doc: jsPDF, y: number, items: ItemPDF[], opciones
     formatMontoConMoneda(item.subtotal, opciones),
   ])
 
-  autoTable(doc, {
+  ;(doc as any).autoTable({
     startY: y,
     head: [['SKU', 'Descripcion', 'Cant.', 'P. Unitario', 'Desc.', 'Subtotal']],
     body: tableData,
@@ -301,16 +300,18 @@ function generarNotas(doc: jsPDF, y: number, notas: string | null | undefined): 
 /**
  * Genera PDF de cotización
  */
-export function generarPDFCotizacion(
+export async function generarPDFCotizacion(
   cotizacion: CotizacionPDF,
   items: ItemPDF[],
   opciones?: OpcionesMoneda
-): void {
+): Promise<void> {
+  const { default: jsPDFLib } = await import('jspdf')
+  await import('jspdf-autotable')
   // Si no se pasan opciones, usar la moneda de la cotización o MXN por defecto
   const opcionesFinales: OpcionesMoneda = opciones || {
     moneda: ((cotizacion as any).moneda as CodigoMoneda) || 'MXN'
   }
-  const doc = new jsPDF()
+  const doc = new jsPDFLib()
 
   let y = generarEncabezado(doc, 'COTIZACION', cotizacion.folio)
   y = generarDatosCliente(doc, y, cotizacion)
@@ -331,16 +332,18 @@ export function generarPDFCotizacion(
 /**
  * Genera PDF de factura
  */
-export function generarPDFFactura(
+export async function generarPDFFactura(
   factura: FacturaPDF,
   items: ItemPDF[],
   opciones?: OpcionesMoneda
-): void {
+): Promise<void> {
+  const { default: jsPDFLib } = await import('jspdf')
+  await import('jspdf-autotable')
   // Si no se pasan opciones, usar la moneda de la factura o MXN por defecto
   const opcionesFinales: OpcionesMoneda = opciones || {
     moneda: ((factura as any).moneda as CodigoMoneda) || 'MXN'
   }
-  const doc = new jsPDF()
+  const doc = new jsPDFLib()
 
   let y = generarEncabezado(doc, 'FACTURA', factura.folio)
   y = generarDatosCliente(doc, y, factura)
@@ -466,7 +469,7 @@ function generarTablaProductosOC(doc: jsPDF, y: number, items: ItemOrdenCompraPD
     formatMontoConMoneda(item.subtotal, opciones),
   ])
 
-  autoTable(doc, {
+  ;(doc as any).autoTable({
     startY: y,
     head: [['SKU', 'Descripcion', 'Cant.', 'P. Unitario', 'Margen', 'Subtotal']],
     body: tableData,
@@ -591,16 +594,18 @@ function generarEncabezadoOC(doc: jsPDF, folio: string): number {
 /**
  * Genera PDF de orden de compra
  */
-export function generarPDFOrdenCompra(
+export async function generarPDFOrdenCompra(
   orden: OrdenCompraPDF,
   items: ItemOrdenCompraPDF[],
   opciones?: OpcionesMoneda
-): void {
+): Promise<void> {
+  const { default: jsPDFLib } = await import('jspdf')
+  await import('jspdf-autotable')
   // Si no se pasan opciones, usar la moneda de la orden o MXN por defecto
   const opcionesFinales: OpcionesMoneda = opciones || {
     moneda: (orden.moneda as CodigoMoneda) || 'MXN'
   }
-  const doc = new jsPDF()
+  const doc = new jsPDFLib()
 
   let y = generarEncabezadoOC(doc, orden.folio)
   y = generarDatosProveedor(doc, y, orden)
@@ -701,10 +706,12 @@ function generarEncabezadoReporte(doc: jsPDF, titulo: string): number {
 /**
  * Genera un PDF de reporte genérico con encabezado, filtros, estadísticas y tabla de datos
  */
-export function generarPDFReporte(config: ReportePDFConfig): void {
+export async function generarPDFReporte(config: ReportePDFConfig): Promise<void> {
+  const { default: jsPDFLib } = await import('jspdf')
+  await import('jspdf-autotable')
   const { titulo, nombreArchivo, filtrosAplicados, estadisticas, columnas, datos, orientacion = 'portrait' } = config
 
-  const doc = new jsPDF({ orientation: orientacion })
+  const doc = new jsPDFLib({ orientation: orientacion })
   let y = generarEncabezadoReporte(doc, titulo)
 
   // Filtros aplicados
@@ -718,7 +725,7 @@ export function generarPDFReporte(config: ReportePDFConfig): void {
 
   // Estadísticas como tabla compacta
   if (estadisticas && estadisticas.length > 0) {
-    autoTable(doc, {
+    ;(doc as any).autoTable({
       startY: y,
       head: [estadisticas.map(e => e.label)],
       body: [estadisticas.map(e => String(e.valor))],
@@ -764,7 +771,7 @@ export function generarPDFReporte(config: ReportePDFConfig): void {
     columnStyles[i] = style
   })
 
-  autoTable(doc, {
+  ;(doc as any).autoTable({
     startY: y,
     head: [headers],
     body,

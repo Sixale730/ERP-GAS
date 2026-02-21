@@ -168,7 +168,7 @@ export default function ReporteServiciosPage() {
           s.sku.toLowerCase().includes(searchText.toLowerCase())
       )
 
-      generarPDFReporte({
+      await generarPDFReporte({
         titulo: 'Reporte de Servicios',
         nombreArchivo: `reporte-servicios-${dayjs().format('YYYY-MM-DD')}`,
         estadisticas: [

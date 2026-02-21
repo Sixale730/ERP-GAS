@@ -232,7 +232,7 @@ interface SidebarProps {
   userPermisos?: PermisosUsuario | null
 }
 
-export default function Sidebar({ onNavigate, userRole, userPermisos }: SidebarProps) {
+function SidebarInner({ onNavigate, userRole, userPermisos }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -278,3 +278,6 @@ export default function Sidebar({ onNavigate, userRole, userPermisos }: SidebarP
     />
   )
 }
+
+const Sidebar = React.memo(SidebarInner)
+export default Sidebar

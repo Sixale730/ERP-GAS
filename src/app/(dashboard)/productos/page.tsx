@@ -41,7 +41,7 @@ export default function ProductosPage() {
     [productos, searchText]
   )
 
-  const columns: ColumnsType<ProductoStock> = [
+  const columns: ColumnsType<ProductoStock> = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -111,7 +111,7 @@ export default function ProductosPage() {
         </Space>
       ),
     },
-  ]
+  ], [router, deleteProducto.isPending])
 
   if (isError) {
     message.error(`Error al cargar productos: ${error?.message}`)

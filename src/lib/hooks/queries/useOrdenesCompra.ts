@@ -71,20 +71,20 @@ export function useOrdenesCompra(pagination?: PaginationParams) {
   })
 }
 
-// Hook: Proveedores para filtros
+// Hook: Proveedores para filtros (catalogo estatico)
 export function useProveedoresCompra() {
   return useQuery({
     queryKey: ordenesCompraKeys.proveedores(),
     queryFn: fetchProveedores,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 10,
   })
 }
 
-// Hook: Almacenes para filtros
+// Hook: Almacenes para filtros (catalogo estatico)
 export function useAlmacenesCompra() {
   return useQuery({
     queryKey: ordenesCompraKeys.almacenes(),
     queryFn: fetchAlmacenes,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 10,
   })
 }

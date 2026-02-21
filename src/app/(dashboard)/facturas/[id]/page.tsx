@@ -238,7 +238,7 @@ export default function FacturaDetallePage() {
     }
   }
 
-  const handleDescargarPDF = () => {
+  const handleDescargarPDF = async () => {
     if (!factura) return
 
     const opciones: OpcionesMoneda = {
@@ -252,7 +252,7 @@ export default function FacturaDetallePage() {
       vendedor_nombre: factura.vendedor_nombre
     }
 
-    generarPDFFactura(facturaConVendedor, items, opciones)
+    await generarPDFFactura(facturaConVendedor, items, opciones)
     message.success('PDF descargado')
   }
 

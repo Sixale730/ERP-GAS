@@ -11,6 +11,9 @@ export const catalogosKeys = {
   preciosProductos: ['precios-productos'] as const,
 }
 
+// Catalogos estáticos: 10 minutos de staleTime
+const CATALOG_STALE_TIME = 1000 * 60 * 10
+
 // ============ CATEGORIAS ============
 
 export function useCategorias() {
@@ -28,7 +31,7 @@ export function useCategorias() {
       if (error) throw error
       return data || []
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: CATALOG_STALE_TIME,
   })
 }
 
@@ -49,7 +52,7 @@ export function useListasPrecios() {
       if (error) throw error
       return data || []
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: CATALOG_STALE_TIME,
   })
 }
 
@@ -70,7 +73,7 @@ export function useProveedores() {
       if (error) throw error
       return data || []
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: CATALOG_STALE_TIME,
   })
 }
 

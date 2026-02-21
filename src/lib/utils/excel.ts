@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs'
+import type ExcelJS from 'exceljs'
 
 // ── Interfaces ──────────────────────────────────────────────
 
@@ -67,7 +67,8 @@ export async function exportarExcel({
   statusDataIndex,
   mapaColorStatus,
 }: ExportarExcelParams) {
-  const wb = new ExcelJS.Workbook()
+  const ExcelJSLib = (await import('exceljs')).default
+  const wb = new ExcelJSLib.Workbook()
   wb.creator = 'CUANTY ERP'
   wb.created = new Date()
 

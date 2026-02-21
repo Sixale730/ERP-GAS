@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Alert, Collapse, Input
@@ -289,7 +289,7 @@ export default function CotizacionDetallePage() {
     })
   }
 
-  const handleDescargarPDF = () => {
+  const handleDescargarPDF = async () => {
     if (!cotizacion) return
 
     // Usar la moneda y tipo de cambio guardados en la cotizacion
@@ -305,7 +305,7 @@ export default function CotizacionDetallePage() {
       vendedor_nombre: cotizacion.vendedor_nombre
     }
 
-    generarPDFCotizacion(cotizacionConVigencia, items, opciones)
+    await generarPDFCotizacion(cotizacionConVigencia, items, opciones)
     message.success(`PDF descargado en ${cotizacion.moneda}`)
   }
 
@@ -412,7 +412,7 @@ export default function CotizacionDetallePage() {
     })
   }
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -502,7 +502,7 @@ export default function CotizacionDetallePage() {
       align: 'right' as const,
       render: (val: number) => formatMoney(val),
     },
-  ]
+  ], [cotizacion?.status, editingItems, savingItem, formatMoney])
 
   if (loading) {
     return (

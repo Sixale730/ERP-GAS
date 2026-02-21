@@ -74,18 +74,35 @@ export function useReporteServicios() {
       inicioMes.setDate(1)
       inicioMes.setHours(0, 0, 0, 0)
 
+      // Construir mapa de movimientos por producto_id (O(M) en vez de O(N*M))
+      const movsPorProducto = new Map<string, typeof movimientos>()
+      for (const m of movimientos || []) {
+        const arr = movsPorProducto.get(m.producto_id)
+        if (arr) {
+          arr.push(m)
+        } else {
+          movsPorProducto.set(m.producto_id, [m])
+        }
+      }
+
       const serviciosConUso: ServicioConUso[] = servicios.map(servicio => {
-        const movsServicio = (movimientos || []).filter(m => m.producto_id === servicio.id)
+        const movsServicio = movsPorProducto.get(servicio.id) || []
 
-        const totalUsado = movsServicio
-          .filter(m => m.tipo === 'salida')
-          .reduce((sum, m) => sum + m.cantidad, 0)
+        let totalUsado = 0
+        let usadoMes = 0
+        let ultimaFechaUso: string | null = null
 
-        const usadoMes = movsServicio
-          .filter(m => m.tipo === 'salida' && new Date(m.created_at) >= inicioMes)
-          .reduce((sum, m) => sum + m.cantidad, 0)
-
-        const ultimoMov = movsServicio.find(m => m.tipo === 'salida')
+        for (const m of movsServicio) {
+          if (m.tipo === 'salida') {
+            totalUsado += m.cantidad
+            if (new Date(m.created_at) >= inicioMes) {
+              usadoMes += m.cantidad
+            }
+            if (!ultimaFechaUso) {
+              ultimaFechaUso = m.created_at
+            }
+          }
+        }
 
         return {
           id: servicio.id,
@@ -95,7 +112,7 @@ export function useReporteServicios() {
           unidad_medida: servicio.unidad_medida,
           total_usado: totalUsado,
           usado_mes: usadoMes,
-          ultima_fecha_uso: ultimoMov?.created_at || null,
+          ultima_fecha_uso: ultimaFechaUso,
         }
       })
 

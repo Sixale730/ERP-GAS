@@ -154,7 +154,7 @@ export default function PreciosProductosPage() {
       if (monedaFilter) filtrosAplicados.push(`Moneda: ${monedaFilter}`)
       if (searchText) filtrosAplicados.push(`Busqueda: "${searchText}"`)
 
-      generarPDFReporte({
+      await generarPDFReporte({
         titulo: 'Catalogo de Precios de Productos',
         nombreArchivo: `reporte-precios-productos-${dayjs().format('YYYY-MM-DD')}`,
         filtrosAplicados: filtrosAplicados.length > 0 ? filtrosAplicados : undefined,

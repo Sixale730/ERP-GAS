@@ -162,10 +162,7 @@ body {
   }
 }
 
-/* Aplicar animación al contenido */
-.ant-layout-content > div {
-  animation: fadeIn 0.25s ease-out;
-}
+/* Animación solo para skeletons, no para contenido de ruta */
 
 /* Transiciones suaves en tablas */
 .ant-table-tbody > tr {
@@ -173,15 +170,16 @@ body {
 }
 
 .ant-table-tbody > tr:hover > td {
-  background-color: #fafafa !important;
+  background-color: #fafafa;
 }
 
-/* Transiciones en cards */
-.ant-card {
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+/* Transiciones en cards - solo para stat cards del dashboard */
+.stat-card {
+  transition: box-shadow 0.2s ease;
+  will-change: box-shadow;
 }
 
-.ant-card:hover {
+.stat-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
@@ -223,9 +221,9 @@ body {
 
 /* Transiciones en sidebar */
 .ant-layout-sider {
-  transition: all 0.2s ease !important;
+  transition: all 0.2s ease;
 }
 
 .ant-menu-item {
-  transition: background-color 0.2s ease, color 0.2s ease !important;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
