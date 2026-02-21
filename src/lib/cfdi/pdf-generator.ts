@@ -3,9 +3,7 @@
  * Incluye QR code, sellos digitales y cadena original
  */
 
-import jsPDF from 'jspdf'
-import 'jspdf-autotable'
-import QRCode from 'qrcode'
+import type jsPDF from 'jspdf'
 
 // Catalogos SAT para labels legibles
 const FORMAS_PAGO: Record<string, string> = {
@@ -99,7 +97,11 @@ function formatMoneyPdf(amount: number, moneda: string = 'MXN'): string {
  * Genera el PDF SAT-compliant del CFDI
  */
 export async function generarPdfCfdi(data: PdfCfdiData): Promise<jsPDF> {
-  const doc = new jsPDF('p', 'mm', 'letter')
+  const { default: jsPDFLib } = await import('jspdf')
+  await import('jspdf-autotable')
+  const QRCode = (await import('qrcode')).default
+
+  const doc = new jsPDFLib('p', 'mm', 'letter')
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 15
   const contentWidth = pageWidth - margin * 2
