@@ -171,7 +171,7 @@ const allMenuItems: MenuItemWithRoles[] = [
         key: '/configuracion/cfdi',
         icon: <SafetyCertificateOutlined />,
         label: 'CFDI / Timbrado',
-        roles: ['super_admin'],
+        modulo: 'cfdi',
       },
       {
         key: '/configuracion/usuarios',
@@ -188,19 +188,26 @@ const allMenuItems: MenuItemWithRoles[] = [
   },
 ]
 
-// Filtra items de menu segun los permisos efectivos del usuario
+// Filtra items de menu segun modulos activos y permisos efectivos del usuario
 function filterMenuByPermisos(
   items: MenuItemWithRoles[],
   userRole: UserRole | null,
-  permisos: PermisosUsuario
+  permisos: PermisosUsuario,
+  modulosActivos?: Modulo[]
 ): MenuItem[] {
   if (!userRole) return []
+
+  const activosSet = modulosActivos ? new Set(modulosActivos) : null
 
   return items
     .filter((item) => {
       if (!item) return false
       // Dividers siempre visibles
       if (item.type === 'divider') return true
+      // Module-level check first: if module is disabled globally/org, hide it
+      if (item.modulo && activosSet && !activosSet.has(item.modulo)) {
+        return false
+      }
       // Si tiene modulo, verificar permiso "ver"
       if (item.modulo) {
         return permisos[item.modulo]?.ver === true
@@ -214,7 +221,7 @@ function filterMenuByPermisos(
     })
     .map((item) => {
       if ('children' in item && item.children) {
-        const filteredChildren = filterMenuByPermisos(item.children, userRole, permisos)
+        const filteredChildren = filterMenuByPermisos(item.children, userRole, permisos, modulosActivos)
         if (filteredChildren.length === 0) return null
         return {
           ...item,
@@ -230,9 +237,10 @@ interface SidebarProps {
   onNavigate?: () => void
   userRole?: UserRole | null
   userPermisos?: PermisosUsuario | null
+  modulosActivos?: Modulo[]
 }
 
-function SidebarInner({ onNavigate, userRole, userPermisos }: SidebarProps) {
+function SidebarInner({ onNavigate, userRole, userPermisos, modulosActivos }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -242,10 +250,10 @@ function SidebarInner({ onNavigate, userRole, userPermisos }: SidebarProps) {
     [userRole, userPermisos]
   )
 
-  // Filtrar menu segun permisos
+  // Filtrar menu segun modulos activos y permisos
   const menuItems = useMemo(
-    () => filterMenuByPermisos(allMenuItems, userRole || null, permisosEfectivos),
-    [userRole, permisosEfectivos]
+    () => filterMenuByPermisos(allMenuItems, userRole || null, permisosEfectivos, modulosActivos),
+    [userRole, permisosEfectivos, modulosActivos]
   )
 
 

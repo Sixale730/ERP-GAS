@@ -17,6 +17,7 @@ import Sidebar from './Sidebar'
 import GlobalSearch from './GlobalSearch'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useInactivityLogout } from '@/lib/hooks/useInactivityLogout'
+import { useModulos } from '@/lib/hooks/useModulos'
 import { useUIStore } from '@/store/uiStore'
 
 const { Header, Sider, Content } = Layout
@@ -47,6 +48,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter()
   const { loading, displayName, avatarUrl, role, signOut, isAdmin, organizacion, erpUser } = useAuth()
   useInactivityLogout(signOut)
+  const { modulosActivos } = useModulos()
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
@@ -138,9 +140,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
           {isMobile ? 'CUANTY' : (collapsed ? 'ERP' : 'CUANTY ERP')}
         </h1>
       </div>
-      <Sidebar onNavigate={handleSidebarNavigate} userRole={role} userPermisos={erpUser?.permisos ?? null} />
+      <Sidebar onNavigate={handleSidebarNavigate} userRole={role} userPermisos={erpUser?.permisos ?? null} modulosActivos={modulosActivos} />
     </>
-  ), [isMobile, collapsed, role, erpUser?.permisos, handleSidebarNavigate])
+  ), [isMobile, collapsed, role, erpUser?.permisos, handleSidebarNavigate, modulosActivos])
 
   if (loading) {
     return (

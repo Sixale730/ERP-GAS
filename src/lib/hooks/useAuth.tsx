@@ -32,6 +32,7 @@ export interface Organizacion {
   nombre: string
   codigo: string
   is_sistema: boolean
+  modulos_deshabilitados: string[]
 }
 
 interface AuthState {
@@ -121,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               nombre: row.org_nombre,
               codigo: row.org_codigo,
               is_sistema: row.org_is_sistema,
+              modulos_deshabilitados: row.org_modulos_deshabilitados || [],
             } : null
 
             return { erpUser, organizacion }

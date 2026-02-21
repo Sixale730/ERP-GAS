@@ -20,6 +20,7 @@ export const PERMISOS_DEFAULT: Record<UserRole, PermisosUsuario> = {
     cotizaciones: ALL,
     ordenes_venta: ALL,
     facturas: ALL,
+    cfdi: ALL,
     compras: ALL,
     reportes: ALL,
     catalogos: ALL,
@@ -32,6 +33,7 @@ export const PERMISOS_DEFAULT: Record<UserRole, PermisosUsuario> = {
     cotizaciones: ALL,
     ordenes_venta: ALL,
     facturas: ALL,
+    cfdi: ALL,
     compras: ALL,
     reportes: ALL,
     catalogos: ALL,
@@ -44,6 +46,7 @@ export const PERMISOS_DEFAULT: Record<UserRole, PermisosUsuario> = {
     cotizaciones: VCE,
     ordenes_venta: VCE,
     facturas: VIEW_ONLY,
+    cfdi: NONE,
     compras: NONE,
     reportes: VIEW_ONLY,
     catalogos: VIEW_ONLY,
@@ -56,6 +59,7 @@ export const PERMISOS_DEFAULT: Record<UserRole, PermisosUsuario> = {
     cotizaciones: VIEW_ONLY,
     ordenes_venta: VIEW_ONLY,
     facturas: VIEW_ONLY,
+    cfdi: NONE,
     compras: ALL,
     reportes: VIEW_ONLY,
     catalogos: VCE,
@@ -68,6 +72,7 @@ export const PERMISOS_DEFAULT: Record<UserRole, PermisosUsuario> = {
     cotizaciones: VIEW_ONLY,
     ordenes_venta: VIEW_ONLY,
     facturas: ALL,
+    cfdi: ALL,
     compras: VIEW_ONLY,
     reportes: ALL,
     catalogos: VIEW_ONLY,
@@ -98,6 +103,7 @@ export type Modulo =
   | 'cotizaciones'
   | 'ordenes_venta'
   | 'facturas'
+  | 'cfdi'
   | 'compras'
   | 'reportes'
   | 'catalogos'
@@ -112,6 +118,7 @@ export const MODULOS: { key: Modulo; label: string }[] = [
   { key: 'cotizaciones', label: 'Cotizaciones' },
   { key: 'ordenes_venta', label: 'Ordenes de Venta' },
   { key: 'facturas', label: 'Facturas' },
+  { key: 'cfdi', label: 'CFDI / Timbrado' },
   { key: 'compras', label: 'Compras' },
   { key: 'reportes', label: 'Reportes' },
   { key: 'catalogos', label: 'Catalogos' },

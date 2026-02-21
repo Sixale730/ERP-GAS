@@ -1,14 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin, Table, Input } from 'antd'
-import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined } from '@ant-design/icons'
+import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin, Table, Input, Switch, List, Tag } from 'antd'
+import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined, AppstoreOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useTipoCambioBanxico } from '@/lib/hooks/queries/useTipoCambioBanxico'
 import { formatDate } from '@/lib/utils/format'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { useModulos } from '@/lib/hooks/useModulos'
+import { MODULOS_REGISTRO, TODOS_LOS_MODULOS } from '@/lib/config/modulos'
+import type { Modulo } from '@/lib/hooks/usePermisos'
 import type { Categoria } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -21,6 +25,8 @@ export default function ConfiguracionPage() {
   const { tipoCambio, fechaTipoCambio, margenGanancia, loading, updateTipoCambio, updateMargenGanancia, reload } = useConfiguracion()
   const { config: margenesConfig, loading: loadingMargenes, updateConfig: updateMargenes, reload: reloadMargenes } = useMargenesCategoria()
   const { data: tipoCambioData, fetchFromBanxico, isFetchingBanxico } = useTipoCambioBanxico()
+  const { isAdmin, organizacion, refreshUser } = useAuth()
+  const { modulosGlobales, orgDeshabilitados, loading: loadingModulos } = useModulos()
 
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
@@ -30,6 +36,10 @@ export default function ConfiguracionPage() {
   const [loadingCategorias, setLoadingCategorias] = useState(true)
   const [margenGlobal, setMargenGlobal] = useState(30)
   const [margenesPorCategoria, setMargenesPorCategoria] = useState<Record<string, number | null>>({})
+
+  // Per-org module management
+  const [deshabilitadosLocal, setDeshabilitadosLocal] = useState<Set<string>>(new Set())
+  const [savingOrgModulos, setSavingOrgModulos] = useState(false)
 
   useEffect(() => {
     if (!loading) {
@@ -89,6 +99,59 @@ export default function ConfiguracionPage() {
       })))
     }
   }, [loadingMargenes, margenesConfig])
+
+  // Sync org disabled modules from server
+  useEffect(() => {
+    if (!loadingModulos) {
+      setDeshabilitadosLocal(new Set(orgDeshabilitados))
+    }
+  }, [loadingModulos, orgDeshabilitados])
+
+  const handleOrgModuloToggle = (modulo: Modulo, habilitar: boolean) => {
+    setDeshabilitadosLocal((prev) => {
+      const next = new Set(prev)
+      if (habilitar) {
+        next.delete(modulo)
+      } else {
+        next.add(modulo)
+      }
+      return next
+    })
+  }
+
+  const handleGuardarOrgModulos = async () => {
+    if (!organizacion) return
+    setSavingOrgModulos(true)
+    try {
+      const supabase = getSupabaseClient()
+      const { error } = await supabase
+        .schema('erp')
+        .from('organizaciones')
+        .update({ modulos_deshabilitados: Array.from(deshabilitadosLocal) })
+        .eq('id', organizacion.id)
+
+      if (error) throw error
+
+      await refreshUser()
+      message.success('Modulos de la organizacion actualizados')
+    } catch (err) {
+      console.error('Error saving org modules:', err)
+      message.error('Error al guardar modulos')
+    } finally {
+      setSavingOrgModulos(false)
+    }
+  }
+
+  const hasOrgModuloChanges = (() => {
+    if (loadingModulos) return false
+    const currentSet = new Set(orgDeshabilitados)
+    if (currentSet.size !== deshabilitadosLocal.size) return true
+    const localArr = Array.from(deshabilitadosLocal)
+    for (let i = 0; i < localArr.length; i++) {
+      if (!currentSet.has(localArr[i])) return true
+    }
+    return false
+  })()
 
   const handleValuesChange = (_: any, allValues: any) => {
     setFormValues(allValues)
@@ -396,6 +459,88 @@ export default function ConfiguracionPage() {
           Guardar Margenes
         </Button>
       </Card>
+
+      {/* ==================== MODULOS DE LA ORGANIZACION ==================== */}
+      {isAdmin && organizacion && (
+        <Card
+          title={
+            <Space>
+              <AppstoreOutlined style={{ color: '#1890ff' }} />
+              Modulos de la Organizacion
+            </Space>
+          }
+          style={{ marginTop: 16 }}
+          loading={loadingModulos}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            Habilita o deshabilita modulos para tu organizacion. Solo puedes gestionar modulos que estan habilitados globalmente.
+          </Text>
+
+          <List
+            dataSource={TODOS_LOS_MODULOS.filter((m) => m !== 'configuracion')}
+            renderItem={(modulo) => {
+              const info = MODULOS_REGISTRO[modulo]
+              const globalmenteDisponible = modulosGlobales.includes(modulo)
+              const deshabilitadoOrg = deshabilitadosLocal.has(modulo)
+              const activo = globalmenteDisponible && !deshabilitadoOrg
+
+              return (
+                <List.Item
+                  actions={[
+                    globalmenteDisponible ? (
+                      <Switch
+                        key="switch"
+                        checked={activo}
+                        onChange={(checked) => handleOrgModuloToggle(modulo, checked)}
+                      />
+                    ) : (
+                      <Tag key="tag" color="default">No disponible</Tag>
+                    ),
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={
+                      <Space>
+                        <span style={{ color: globalmenteDisponible ? undefined : '#bfbfbf' }}>
+                          {info.label}
+                        </span>
+                        {!globalmenteDisponible && (
+                          <Tag color="default">Deshabilitado globalmente</Tag>
+                        )}
+                        {globalmenteDisponible && deshabilitadoOrg && (
+                          <Tag color="orange">Deshabilitado</Tag>
+                        )}
+                      </Space>
+                    }
+                    description={
+                      <span style={{ color: globalmenteDisponible ? undefined : '#d9d9d9' }}>
+                        {info.descripcion}
+                      </span>
+                    }
+                  />
+                </List.Item>
+              )
+            }}
+          />
+
+          <Divider />
+
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handleGuardarOrgModulos}
+            loading={savingOrgModulos}
+            disabled={!hasOrgModuloChanges}
+          >
+            Guardar Modulos
+          </Button>
+          {hasOrgModuloChanges && (
+            <Text type="warning" style={{ marginLeft: 12 }}>
+              Hay cambios sin guardar
+            </Text>
+          )}
+        </Card>
+      )}
     </div>
   )
 }
