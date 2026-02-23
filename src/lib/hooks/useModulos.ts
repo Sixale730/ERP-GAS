@@ -60,6 +60,7 @@ export function useModulos() {
     isModuloActivo,
     modulosGlobales: modulosGlobales ?? [...TODOS_LOS_MODULOS],
     orgDeshabilitados,
-    loading: authLoading || loadingGlobales,
+    // No bloquear si ya hay datos en cache — mostrar contenido inmediatamente
+    loading: authLoading || (loadingGlobales && !modulosGlobales),
   }
 }

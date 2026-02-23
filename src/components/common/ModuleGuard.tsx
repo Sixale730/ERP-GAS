@@ -11,9 +11,11 @@ interface ModuleGuardProps {
 }
 
 export function ModuleGuard({ modulo, children }: ModuleGuardProps) {
-  const { isModuloActivo, loading } = useModulos()
+  const { isModuloActivo, loading, modulosGlobales } = useModulos()
 
-  if (loading) {
+  // Solo mostrar spinner en la primera carga (sin datos en cache)
+  // Si ya tenemos datos cacheados, renderizar inmediatamente
+  if (loading && !modulosGlobales?.length) {
     return (
       <div style={{ textAlign: 'center', padding: 50 }}>
         <Spin size="large" />

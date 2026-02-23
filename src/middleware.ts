@@ -90,91 +90,45 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Si hay usuario pero no tiene rol en el ERP, verificar en BD antes de redirigir
+  // Para rutas protegidas, verificar que el usuario tiene rol en el ERP
+  // Usamos el JWT para evitar queries a BD en cada navegación
   if (user && !isPublicRoute) {
+    // getSession() lee de cookies (local, sin network call) - seguro tras getUser()
     const { data: { session } } = await supabase.auth.getSession()
-
-    if (session?.access_token) {
-      try {
-        const payload = JSON.parse(atob(session.access_token.split('.')[1]))
-        const role = payload?.app_role
-
-        // Si no tiene rol en JWT, verificar directamente en la base de datos
-        if (!role) {
-          // Consultar si el usuario existe en erp.usuarios
-          const { data: erpUser } = await supabase
-            .schema('erp' as 'public')
-            .from('usuarios')
-            .select('id, rol, is_active')
-            .eq('auth_user_id', user.id)
-            .single()
-
-          // Si existe y está activo, permitir acceso
-          if (erpUser && erpUser.is_active) {
-            return response
-          }
-
-          // No existe en erp.usuarios - verificar si está autorizado para auto-registro
-          const autoRegistered = await tryAutoRegister(supabase, user)
-          if (autoRegistered) {
-            return response
-          }
-
-          // No autorizado, redirigir a solicitud pendiente (la solicitud se crea en auth callback)
-          return NextResponse.redirect(new URL('/solicitud-pendiente', request.url))
-        }
-      } catch {
-        // Error al decodificar, verificar en BD como fallback
-        const { data: erpUser } = await supabase
-          .schema('erp' as 'public')
-          .from('usuarios')
-          .select('id, rol, is_active')
-          .eq('auth_user_id', user.id)
-          .single()
-
-        if (erpUser && erpUser.is_active) {
-          return response
-        }
-
-        // Intentar auto-registro como fallback
-        const autoRegistered = await tryAutoRegister(supabase, user)
-        if (autoRegistered) {
-          return response
-        }
-
-        return NextResponse.redirect(new URL('/solicitud-pendiente', request.url))
-      }
-    }
-  }
-
-  // Proteger rutas de admin - verificar rol en el JWT o BD
-  if (user && request.nextUrl.pathname.startsWith('/configuracion/admin')) {
-    const { data: { session } } = await supabase.auth.getSession()
-
     let role: string | null = null
 
     if (session?.access_token) {
       try {
         const payload = JSON.parse(atob(session.access_token.split('.')[1]))
-        role = payload?.app_role
+        role = payload?.app_role || null
       } catch {
         // Ignorar error de decodificación
       }
     }
 
-    // Si no hay rol en JWT, verificar en BD
+    // Si no hay rol en el JWT, el usuario podría ser nuevo (primer login)
+    // Solo en este caso hacemos query a BD
     if (!role) {
       const { data: erpUser } = await supabase
         .schema('erp' as 'public')
         .from('usuarios')
-        .select('rol')
+        .select('id, rol, is_active')
         .eq('auth_user_id', user.id)
         .single()
 
-      role = erpUser?.rol || null
+      if (erpUser && erpUser.is_active) {
+        role = erpUser.rol
+      } else {
+        // No existe en erp.usuarios - intentar auto-registro
+        const autoRegistered = await tryAutoRegister(supabase, user)
+        if (!autoRegistered) {
+          return NextResponse.redirect(new URL('/solicitud-pendiente', request.url))
+        }
+      }
     }
 
-    if (role !== 'super_admin') {
+    // Proteger rutas de admin
+    if (request.nextUrl.pathname.startsWith('/configuracion/admin') && role !== 'super_admin') {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Menu, type MenuProps } from 'antd'
 import {
@@ -256,6 +256,22 @@ function SidebarInner({ onNavigate, userRole, userPermisos, modulosActivos }: Si
     [userRole, permisosEfectivos, modulosActivos]
   )
 
+
+  // Prefetch rutas visibles del menú para navegación instantánea
+  useEffect(() => {
+    const paths = menuItems
+      .flatMap(item => {
+        if (item && 'children' in item && Array.isArray(item.children)) {
+          return item.children
+            .filter((c): c is MenuItem & { key: string } => c !== null && 'key' in c)
+            .map(c => c.key as string)
+        }
+        return item && 'key' in item ? [item.key as string] : []
+      })
+      .filter(key => key.startsWith('/'))
+
+    paths.forEach(path => router.prefetch(path))
+  }, [menuItems, router])
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
     router.push(e.key)
