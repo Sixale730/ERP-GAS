@@ -11,8 +11,10 @@
       "Bash(cat:*)",
       "mcp__supabase__get_logs",
       "mcp__supabase__list_migrations",
+      "Bash(find:*)",
+      "Bash(grep:*)",
       "Bash(tail:*)",
-      "Bash(grep:*)"
+      "Bash(cd:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
