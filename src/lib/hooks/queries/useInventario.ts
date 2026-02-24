@@ -23,7 +23,7 @@ export interface InventarioRow {
 export const inventarioKeys = {
   all: ['inventario'] as const,
   lists: () => [...inventarioKeys.all, 'list'] as const,
-  list: (almacenId?: string | null, pagination?: PaginationParams) => [...inventarioKeys.lists(), almacenId, pagination] as const,
+  list: (almacenId?: string | null, pagination?: PaginationParams, search?: string) => [...inventarioKeys.lists(), almacenId, pagination, search] as const,
   almacenes: () => [...inventarioKeys.all, 'almacenes'] as const,
   movimientos: () => [...inventarioKeys.all, 'movimientos'] as const,
   movimientosList: (almacenId?: string | null) => [...inventarioKeys.movimientos(), almacenId] as const,
@@ -43,8 +43,8 @@ async function fetchAlmacenes(): Promise<Almacen[]> {
   return data || []
 }
 
-// Fetch inventario con filtro opcional de almacen y paginacion
-async function fetchInventario(almacenFilter?: string | null, pagination?: PaginationParams): Promise<PaginatedResult<InventarioRow>> {
+// Fetch inventario con filtro opcional de almacen, paginacion y búsqueda
+async function fetchInventario(almacenFilter?: string | null, pagination?: PaginationParams, search?: string): Promise<PaginatedResult<InventarioRow>> {
   const supabase = getSupabaseClient()
 
   let query = supabase
@@ -55,6 +55,10 @@ async function fetchInventario(almacenFilter?: string | null, pagination?: Pagin
 
   if (almacenFilter) {
     query = query.eq('almacen_id', almacenFilter)
+  }
+
+  if (search) {
+    query = query.or(`sku.ilike.%${search}%,producto_nombre.ilike.%${search}%`)
   }
 
   if (pagination) {
@@ -99,11 +103,11 @@ export function useAlmacenes() {
   })
 }
 
-// Hook: Lista de inventario with optional pagination
-export function useInventario(almacenFilter?: string | null, pagination?: PaginationParams) {
+// Hook: Lista de inventario with optional pagination and search
+export function useInventario(almacenFilter?: string | null, pagination?: PaginationParams, search?: string) {
   return useQuery({
-    queryKey: inventarioKeys.list(almacenFilter, pagination),
-    queryFn: () => fetchInventario(almacenFilter, pagination),
+    queryKey: inventarioKeys.list(almacenFilter, pagination, search),
+    queryFn: () => fetchInventario(almacenFilter, pagination, search),
   })
 }
 

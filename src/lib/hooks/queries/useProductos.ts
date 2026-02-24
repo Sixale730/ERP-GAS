@@ -7,20 +7,23 @@ import type { PaginationParams, PaginatedResult } from './types'
 export const productosKeys = {
   all: ['productos'] as const,
   lists: () => [...productosKeys.all, 'list'] as const,
-  list: (pagination?: PaginationParams) => [...productosKeys.lists(), pagination] as const,
+  list: (pagination?: PaginationParams, search?: string) => [...productosKeys.lists(), pagination, search] as const,
   details: () => [...productosKeys.all, 'detail'] as const,
   detail: (id: string) => [...productosKeys.details(), id] as const,
 }
 
-// Columns for listing (avoid select *)
-// Fetch productos with server-side pagination
-async function fetchProductos(pagination?: PaginationParams): Promise<PaginatedResult<ProductoStock>> {
+// Fetch productos with server-side pagination and search
+async function fetchProductos(pagination?: PaginationParams, search?: string): Promise<PaginatedResult<ProductoStock>> {
   const supabase = getSupabaseClient()
   let query = supabase
     .schema('erp')
     .from('v_productos_stock')
     .select('*', { count: 'exact' })
     .order('nombre')
+
+  if (search) {
+    query = query.or(`sku.ilike.%${search}%,nombre.ilike.%${search}%`)
+  }
 
   if (pagination) {
     const from = (pagination.page - 1) * pagination.pageSize
@@ -61,11 +64,11 @@ async function deleteProducto(id: string) {
   return id
 }
 
-// Hook: Lista de productos with server-side pagination
-export function useProductos(pagination?: PaginationParams) {
+// Hook: Lista de productos with server-side pagination and search
+export function useProductos(pagination?: PaginationParams, search?: string) {
   return useQuery({
-    queryKey: productosKeys.list(pagination),
-    queryFn: () => fetchProductos(pagination),
+    queryKey: productosKeys.list(pagination, search),
+    queryFn: () => fetchProductos(pagination, search),
   })
 }
 

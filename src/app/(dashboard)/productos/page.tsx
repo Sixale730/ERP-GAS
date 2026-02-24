@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
@@ -14,10 +14,20 @@ const { Title } = Typography
 export default function ProductosPage() {
   const router = useRouter()
   const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
-  // React Query hooks with server-side pagination
-  const { data: productosResult, isLoading, isError, error } = useProductos(pagination)
+  // Debounce search text and reset to page 1
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText)
+      setPagination(prev => ({ ...prev, page: 1 }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // React Query hooks with server-side pagination and search
+  const { data: productosResult, isLoading, isError, error } = useProductos(pagination, debouncedSearch)
   const productos = productosResult?.data ?? []
   const deleteProducto = useDeleteProducto()
 
@@ -30,16 +40,6 @@ export default function ProductosPage() {
       message.error('Error al eliminar producto')
     }
   }
-
-  // Filtrar con useMemo para evitar recálculos innecesarios
-  const filteredProductos = useMemo(() =>
-    productos.filter(
-      (p) =>
-        p.nombre.toLowerCase().includes(searchText.toLowerCase()) ||
-        p.sku.toLowerCase().includes(searchText.toLowerCase())
-    ),
-    [productos, searchText]
-  )
 
   const columns: ColumnsType<ProductoStock> = useMemo(() => [
     {
@@ -146,7 +146,7 @@ export default function ProductosPage() {
           <TableSkeleton rows={8} columns={6} />
         ) : (
           <Table
-            dataSource={filteredProductos}
+            dataSource={productos}
             columns={columns}
             rowKey="id"
             scroll={{ x: 800 }}

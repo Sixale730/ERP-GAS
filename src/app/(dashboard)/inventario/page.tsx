@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Select, Input, Space, Tag, Card, Typography, message, Row, Col, Statistic, Button, Modal, InputNumber, Form } from 'antd'
 import { SearchOutlined, InboxOutlined, WarningOutlined, EditOutlined, SettingOutlined, SwapOutlined } from '@ant-design/icons'
@@ -22,11 +22,21 @@ export default function InventarioPage() {
   const router = useRouter()
   const [almacenFilter, setAlmacenFilter] = useState<string | null>(null)
   const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [pagination, setPagination] = useState({ page: 1, pageSize: 15 })
 
-  // React Query hooks - datos cacheados automáticamente with server-side pagination
+  // Debounce search text and reset to page 1
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText)
+      setPagination(prev => ({ ...prev, page: 1 }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // React Query hooks - datos cacheados automáticamente with server-side pagination and search
   const { data: almacenes = [] } = useAlmacenes()
-  const { data: inventarioResult, isLoading } = useInventario(almacenFilter, pagination)
+  const { data: inventarioResult, isLoading } = useInventario(almacenFilter, pagination, debouncedSearch)
   const inventario = inventarioResult?.data ?? []
   const { data: movimientos = [], isLoading: loadingMovimientos } = useMovimientos(almacenFilter)
 
@@ -111,23 +121,12 @@ export default function InventarioPage() {
     }
   }
 
-  // Filtrar localmente por búsqueda
-  const filteredInventario = useMemo(() => {
-    if (!searchText) return inventario
-    const search = searchText.toLowerCase()
-    return inventario.filter(
-      (i) =>
-        i.producto_nombre.toLowerCase().includes(search) ||
-        i.sku.toLowerCase().includes(search)
-    )
-  }, [inventario, searchText])
-
-  // Stats calculados de datos cacheados
+  // Stats calculados de datos del servidor
   const stats = useMemo(() => ({
-    totalItems: filteredInventario.length,
-    stockBajo: filteredInventario.filter(i => i.nivel_stock === 'bajo').length,
-    stockExceso: filteredInventario.filter(i => i.nivel_stock === 'exceso').length,
-  }), [filteredInventario])
+    totalItems: inventarioResult?.total ?? 0,
+    stockBajo: inventario.filter(i => i.nivel_stock === 'bajo').length,
+    stockExceso: inventario.filter(i => i.nivel_stock === 'exceso').length,
+  }), [inventarioResult?.total, inventario])
 
   const columns: ColumnsType<InventarioRow> = [
     {
@@ -277,7 +276,7 @@ export default function InventarioPage() {
           <TableSkeleton rows={8} columns={9} />
         ) : (
           <Table
-            dataSource={filteredInventario}
+            dataSource={inventario}
             columns={columns}
             rowKey="id"
             scroll={{ x: 900 }}
