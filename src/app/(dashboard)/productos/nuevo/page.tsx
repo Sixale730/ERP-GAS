@@ -68,6 +68,12 @@ export default function NuevoProductoPage() {
     setSaving(true)
     const supabase = getSupabaseClient()
 
+    // Safety timeout: desbloquear botón si la operación tarda más de 15s
+    const safetyTimeout = setTimeout(() => {
+      setSaving(false)
+      message.error('La operación tardó demasiado. Intenta de nuevo.')
+    }, 15000)
+
     try {
       const { data, error } = await supabase
         .schema('erp')
@@ -103,6 +109,7 @@ export default function NuevoProductoPage() {
         message.error(error.message || 'Error al crear producto')
       }
     } finally {
+      clearTimeout(safetyTimeout)
       setSaving(false)
     }
   }

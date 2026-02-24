@@ -247,6 +247,12 @@ export default function UsuariosPage() {
     const supabase = getSupabaseClient()
     const normalizedEmail = values.email.toLowerCase()
 
+    // Safety timeout: desbloquear botón si la operación tarda más de 15s
+    const safetyTimeout = setTimeout(() => {
+      setAdding(false)
+      message.error('La operación tardó demasiado. Intenta de nuevo.')
+    }, 15000)
+
     try {
       // Verificar que el email no exista ya
       const { data: existingUser } = await supabase
@@ -295,6 +301,7 @@ export default function UsuariosPage() {
     } catch (error) {
       message.error(error instanceof Error ? error.message : 'Error al autorizar email')
     } finally {
+      clearTimeout(safetyTimeout)
       setAdding(false)
     }
   }
@@ -362,25 +369,37 @@ export default function UsuariosPage() {
     setSavingPermisos(true)
     const supabase = getSupabaseClient()
 
-    // Verificar si los permisos son iguales a los defaults del rol
-    const defaults = PERMISOS_DEFAULT[editingUsuario.rol]
-    const isDefault = JSON.stringify(editPermisos) === JSON.stringify(defaults)
+    // Safety timeout: desbloquear botón si la operación tarda más de 15s
+    const safetyTimeout = setTimeout(() => {
+      setSavingPermisos(false)
+      message.error('La operación tardó demasiado. Intenta de nuevo.')
+    }, 15000)
 
-    const { error } = await supabase
-      .schema('erp')
-      .from('usuarios')
-      .update({ permisos: isDefault ? null : editPermisos })
-      .eq('id', editingUsuario.id)
+    try {
+      // Verificar si los permisos son iguales a los defaults del rol
+      const defaults = PERMISOS_DEFAULT[editingUsuario.rol]
+      const isDefault = JSON.stringify(editPermisos) === JSON.stringify(defaults)
 
-    if (error) {
-      message.error('Error al guardar permisos')
-    } else {
-      message.success('Permisos actualizados')
-      setPermisosModalOpen(false)
-      setEditingUsuario(null)
-      fetchData()
+      const { error } = await supabase
+        .schema('erp')
+        .from('usuarios')
+        .update({ permisos: isDefault ? null : editPermisos })
+        .eq('id', editingUsuario.id)
+
+      if (error) {
+        message.error('Error al guardar permisos')
+      } else {
+        message.success('Permisos actualizados')
+        setPermisosModalOpen(false)
+        setEditingUsuario(null)
+        fetchData()
+      }
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Error al guardar permisos')
+    } finally {
+      clearTimeout(safetyTimeout)
+      setSavingPermisos(false)
     }
-    setSavingPermisos(false)
   }
 
   const handleOpenApproval = (solicitud: SolicitudAcceso) => {
@@ -396,8 +415,16 @@ export default function UsuariosPage() {
   }
 
   const handleSolicitud = async (solicitudId: string, accion: 'aprobar' | 'rechazar', rol?: string, permisos?: PermisosUsuario) => {
+    // Safety timeout: desbloquear botón si la operación tarda más de 15s
+    let safetyTimeout: ReturnType<typeof setTimeout> | undefined
     try {
-      if (accion === 'aprobar') setApproving(true)
+      if (accion === 'aprobar') {
+        setApproving(true)
+        safetyTimeout = setTimeout(() => {
+          setApproving(false)
+          message.error('La operación tardó demasiado. Intenta de nuevo.')
+        }, 15000)
+      }
 
       const response = await fetch('/api/solicitudes-acceso', {
         method: 'POST',
@@ -418,6 +445,7 @@ export default function UsuariosPage() {
     } catch (error) {
       message.error(error instanceof Error ? error.message : 'Error')
     } finally {
+      if (safetyTimeout) clearTimeout(safetyTimeout)
       setApproving(false)
     }
   }

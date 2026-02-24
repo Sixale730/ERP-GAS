@@ -54,6 +54,12 @@ export default function EditarListaPrecioPage() {
     setSaving(true)
     const supabase = getSupabaseClient()
 
+    // Safety timeout: desbloquear botón si la operación tarda más de 15s
+    const safetyTimeout = setTimeout(() => {
+      setSaving(false)
+      message.error('La operación tardó demasiado. Intenta de nuevo.')
+    }, 15000)
+
     try {
       // If setting as default, unset other defaults first
       if (values.is_default) {
@@ -84,6 +90,7 @@ export default function EditarListaPrecioPage() {
       console.error('Error:', error)
       message.error(error.message || 'Error al guardar')
     } finally {
+      clearTimeout(safetyTimeout)
       setSaving(false)
     }
   }

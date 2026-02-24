@@ -117,9 +117,16 @@ export default function NuevoClientePage() {
     setSaving(true)
     const supabase = getSupabaseClient()
 
+    // Safety timeout: desbloquear botón si la operación tarda más de 15s
+    const safetyTimeout = setTimeout(() => {
+      setSaving(false)
+      message.error('La operación tardó demasiado. Intenta de nuevo.')
+    }, 15000)
+
     try {
       // Generate codigo
-      const { data: codigoData } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'cliente' })
+      const { data: codigoData, error: folioError } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'cliente' })
+      if (folioError) throw folioError
       const codigo = codigoData as string || `CLI-${Date.now()}`
 
       const { error } = await supabase
@@ -179,6 +186,7 @@ export default function NuevoClientePage() {
       console.error('Error saving cliente:', error)
       message.error(error.message || 'Error al guardar cliente')
     } finally {
+      clearTimeout(safetyTimeout)
       setSaving(false)
     }
   }

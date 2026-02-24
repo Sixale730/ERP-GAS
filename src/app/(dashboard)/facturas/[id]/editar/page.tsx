@@ -259,6 +259,7 @@ export default function EditarFacturaPage() {
   const total = Math.round((subtotal - descuentoMonto + iva) * 100) / 100
 
   const handleSave = async () => {
+    let safetyTimeout: ReturnType<typeof setTimeout> | undefined
     try {
       await form.validateFields()
 
@@ -270,6 +271,12 @@ export default function EditarFacturaPage() {
       setSaving(true)
       const supabase = getSupabaseClient()
       const values = form.getFieldsValue()
+
+      // Safety timeout: desbloquear botón si la operación tarda más de 15s
+      safetyTimeout = setTimeout(() => {
+        setSaving(false)
+        message.error('La operación tardó demasiado. Intenta de nuevo.')
+      }, 15000)
 
       // Actualizar factura
       const { error: updateError } = await supabase
@@ -340,6 +347,7 @@ export default function EditarFacturaPage() {
       console.error('Error saving factura:', error)
       message.error(error.message || 'Error al guardar la factura')
     } finally {
+      if (safetyTimeout) clearTimeout(safetyTimeout)
       setSaving(false)
     }
   }

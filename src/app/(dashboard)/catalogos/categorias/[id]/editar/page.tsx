@@ -60,6 +60,12 @@ export default function EditarCategoriaPage() {
     setSaving(true)
     const supabase = getSupabaseClient()
 
+    // Safety timeout: desbloquear botón si la operación tarda más de 15s
+    const safetyTimeout = setTimeout(() => {
+      setSaving(false)
+      message.error('La operación tardó demasiado. Intenta de nuevo.')
+    }, 15000)
+
     try {
       const { error } = await supabase
         .schema('erp')
@@ -79,6 +85,7 @@ export default function EditarCategoriaPage() {
       console.error('Error saving:', error)
       message.error(error.message || 'Error al guardar')
     } finally {
+      clearTimeout(safetyTimeout)
       setSaving(false)
     }
   }

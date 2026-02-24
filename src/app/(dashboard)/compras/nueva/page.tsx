@@ -276,6 +276,7 @@ export default function NuevaOrdenCompraPage() {
   const total = subtotal + iva
 
   const handleSave = async (enviar: boolean) => {
+    let safetyTimeout: ReturnType<typeof setTimeout> | undefined
     try {
       await form.validateFields()
 
@@ -287,6 +288,12 @@ export default function NuevaOrdenCompraPage() {
       setSaving(true)
       const supabase = getSupabaseClient()
       const values = form.getFieldsValue()
+
+      // Safety timeout: desbloquear botón si la operación tarda más de 15s
+      safetyTimeout = setTimeout(() => {
+        setSaving(false)
+        message.error('La operación tardó demasiado. Intenta de nuevo.')
+      }, 15000)
 
       // Generar folio
       const { data: folioData, error: folioError } = await supabase
@@ -362,6 +369,7 @@ export default function NuevaOrdenCompraPage() {
       console.error('Error saving orden:', error)
       message.error(error.message || 'Error al guardar la orden')
     } finally {
+      if (safetyTimeout) clearTimeout(safetyTimeout)
       setSaving(false)
     }
   }

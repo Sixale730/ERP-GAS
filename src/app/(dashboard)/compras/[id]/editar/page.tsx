@@ -270,6 +270,7 @@ export default function EditarOrdenCompraPage() {
   const total = subtotal + iva
 
   const handleSave = async () => {
+    let safetyTimeout: ReturnType<typeof setTimeout> | undefined
     try {
       await form.validateFields()
 
@@ -281,6 +282,12 @@ export default function EditarOrdenCompraPage() {
       setSaving(true)
       const supabase = getSupabaseClient()
       const values = form.getFieldsValue()
+
+      // Safety timeout: desbloquear botón si la operación tarda más de 15s
+      safetyTimeout = setTimeout(() => {
+        setSaving(false)
+        message.error('La operación tardó demasiado. Intenta de nuevo.')
+      }, 15000)
 
       // Actualizar orden
       const { error: ordenError } = await supabase
@@ -346,6 +353,7 @@ export default function EditarOrdenCompraPage() {
       console.error('Error saving orden:', error)
       message.error(error.message || 'Error al guardar la orden')
     } finally {
+      if (safetyTimeout) clearTimeout(safetyTimeout)
       setSaving(false)
     }
   }

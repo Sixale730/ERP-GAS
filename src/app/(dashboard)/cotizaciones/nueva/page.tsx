@@ -378,8 +378,15 @@ export default function NuevaCotizacionPage() {
     setSaving(true)
     const supabase = getSupabaseClient()
 
+    // Safety timeout: desbloquear botón si la operación tarda más de 15s
+    const safetyTimeout = setTimeout(() => {
+      setSaving(false)
+      message.error('La operación tardó demasiado. Intenta de nuevo.')
+    }, 15000)
+
     try {
-      const { data: folioData } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'cotizacion' })
+      const { data: folioData, error: folioError } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'cotizacion' })
+      if (folioError) throw folioError
       const folio = folioData as string
 
       const formValues = form.getFieldsValue()
@@ -463,6 +470,7 @@ export default function NuevaCotizacionPage() {
       console.error('Error saving cotizacion:', error)
       message.error(error.message || 'Error al guardar cotizacion')
     } finally {
+      clearTimeout(safetyTimeout)
       setSaving(false)
     }
   }
