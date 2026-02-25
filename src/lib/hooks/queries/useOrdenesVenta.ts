@@ -14,6 +14,7 @@ export interface OrdenVentaRow {
   cliente_rfc?: string
   almacen_nombre?: string
   factura_id?: string
+  oc_cliente?: string | null
   created_at?: string
   updated_at?: string
 }
@@ -29,7 +30,7 @@ export const ordenesVentaKeys = {
   detail: (id: string) => [...ordenesVentaKeys.details(), id] as const,
 }
 
-const OV_LIST_COLUMNS = 'id, folio, fecha, vigencia_dias, status, total, moneda, cliente_nombre, cliente_rfc, almacen_nombre, factura_id, created_at, updated_at'
+const OV_LIST_COLUMNS = 'id, folio, fecha, vigencia_dias, status, total, moneda, cliente_nombre, cliente_rfc, almacen_nombre, factura_id, oc_cliente, created_at, updated_at'
 
 // Fetch ordenes de venta with optional status filter and pagination
 async function fetchOrdenesVenta(filtro?: FiltroStatusOV, pagination?: PaginationParams): Promise<PaginatedResult<OrdenVentaRow>> {

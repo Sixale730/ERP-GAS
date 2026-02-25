@@ -391,6 +391,7 @@ export default function NuevaOrdenVentaPage() {
           // Vendedor
           vendedor_id: erpUser?.id || null,
           vendedor_nombre: vendedorNombre || null,
+          oc_cliente: formValues.oc_cliente || null,
           organizacion_id: orgId,
         })
         .select()
@@ -638,6 +639,11 @@ export default function NuevaOrdenVentaPage() {
                       value={vendedorNombre}
                       onChange={(e) => setVendedorNombre(e.target.value)}
                     />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="oc_cliente" label="OC del Cliente">
+                    <Input placeholder="Numero de orden de compra del cliente" />
                   </Form.Item>
                 </Col>
               </Row>

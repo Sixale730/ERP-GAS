@@ -56,6 +56,8 @@ interface CotizacionDetalle {
   cliente_dias_credito?: number
   // Vendedor
   vendedor_nombre: string | null
+  // OC Cliente
+  oc_cliente: string | null
 }
 
 // Helpers para vigencia
@@ -180,7 +182,9 @@ export default function CotizacionDetallePage() {
         condiciones_pago: cotData.condiciones_pago,
         cliente_dias_credito: cotData.clientes?.dias_credito || 0,
         // Vendedor
-        vendedor_nombre: cotData.vendedor_nombre
+        vendedor_nombre: cotData.vendedor_nombre,
+        // OC Cliente
+        oc_cliente: cotData.oc_cliente
       }
 
       setCotizacion(cotizacionData)
@@ -648,6 +652,7 @@ export default function CotizacionDetallePage() {
                 )}
               </Descriptions.Item>
               <Descriptions.Item label="Vendedor">{cotizacion.vendedor_nombre || '-'}</Descriptions.Item>
+              <Descriptions.Item label="OC Cliente">{cotizacion.oc_cliente || '-'}</Descriptions.Item>
             </Descriptions>
             {cotizacion.notas && (
               <>

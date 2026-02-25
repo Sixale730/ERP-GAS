@@ -116,6 +116,13 @@ export default function OrdenesVentaPage() {
       key: 'cliente_nombre',
     },
     {
+      title: 'OC Cliente',
+      dataIndex: 'oc_cliente',
+      key: 'oc_cliente',
+      width: 130,
+      render: (val: string | null) => val || '-',
+    },
+    {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',

@@ -64,6 +64,8 @@ interface CotizacionData {
   forma_pago: string | null
   metodo_pago: string | null
   condiciones_pago: string | null
+  // OC Cliente
+  oc_cliente: string | null
 }
 
 export default function EditarCotizacionPage() {
@@ -204,6 +206,7 @@ export default function EditarCotizacionPage() {
         forma_pago: cotData.forma_pago,
         metodo_pago: cotData.metodo_pago,
         condiciones_pago: cotData.condiciones_pago,
+        oc_cliente: cotData.oc_cliente,
       })
 
       // Cargar items de la cotizacion
@@ -527,6 +530,7 @@ export default function EditarCotizacionPage() {
           forma_pago: formValues.forma_pago || null,
           metodo_pago: formValues.metodo_pago || null,
           condiciones_pago: formValues.condiciones_pago || null,
+          oc_cliente: formValues.oc_cliente || null,
         })
         .eq('id', cotizacionId)
 
@@ -839,6 +843,11 @@ export default function EditarCotizacionPage() {
                         setVendedorNombre(nombre || null)
                       }}
                     />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="oc_cliente" label="OC del Cliente">
+                    <Input placeholder="Numero de orden de compra del cliente" />
                   </Form.Item>
                 </Col>
               </Row>

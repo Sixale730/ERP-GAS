@@ -455,6 +455,7 @@ export type Database = {
           forma_pago: string | null
           metodo_pago: string | null
           condiciones_pago: string | null
+          oc_cliente: string | null
           created_at: string
           updated_at: string
         }
@@ -497,6 +498,7 @@ export type Database = {
           forma_pago?: string | null
           metodo_pago?: string | null
           condiciones_pago?: string | null
+          oc_cliente?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -539,6 +541,7 @@ export type Database = {
           forma_pago?: string | null
           metodo_pago?: string | null
           condiciones_pago?: string | null
+          oc_cliente?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -1042,6 +1045,7 @@ export type Database = {
           factura_id: string | null
           vendedor_id: string | null
           vendedor_nombre: string | null
+          oc_cliente: string | null
           created_at: string
           updated_at: string
           organizacion_id: string | null
