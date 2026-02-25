@@ -681,10 +681,10 @@ export default function NuevaOrdenVentaPage() {
                 if (productosSinStock.length === 0) return null
                 return (
                   <Alert
-                    type="warning"
+                    type="info"
                     closable
                     onClose={() => setMostrarAlertaStock(false)}
-                    message="Productos sin stock disponible"
+                    message="Productos sin stock — se requerirá orden de compra"
                     description={
                       <ul style={{ margin: 0, paddingLeft: 20 }}>
                         {productosSinStock.map(p => {
