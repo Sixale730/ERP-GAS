@@ -207,40 +207,47 @@ export default function DetalleOrdenCompraPage() {
     }
   }
 
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+
   const handleDescargarPDF = async () => {
     if (!orden || !proveedor || !almacen) return
+    setDownloadingPdf(true)
 
-    // La OC ya tiene los precios en la moneda seleccionada
-    const opciones: OpcionesMoneda = {
-      moneda: (orden.moneda || 'USD') as 'USD' | 'MXN'
+    try {
+      // La OC ya tiene los precios en la moneda seleccionada
+      const opciones: OpcionesMoneda = {
+        moneda: (orden.moneda || 'USD') as 'USD' | 'MXN'
+      }
+
+      const ordenPDF = {
+        folio: orden.folio,
+        fecha: orden.fecha,
+        fecha_esperada: orden.fecha_esperada,
+        proveedor_nombre: proveedor.razon_social,
+        proveedor_rfc: proveedor.rfc,
+        proveedor_contacto: proveedor.contacto_nombre,
+        almacen_nombre: almacen.nombre,
+        subtotal: orden.subtotal,
+        iva: orden.iva,
+        total: orden.total,
+        notas: orden.notas,
+        moneda: orden.moneda,
+      }
+
+      const itemsPDF = items.map(item => ({
+        sku: item.producto?.sku,
+        descripcion: item.producto?.nombre || '-',
+        cantidad: item.cantidad_solicitada,
+        precio_unitario: item.precio_unitario,
+        margen_porcentaje: item.descuento_porcentaje,
+        subtotal: item.subtotal,
+      }))
+
+      await generarPDFOrdenCompra(ordenPDF, itemsPDF, opciones)
+      message.success('PDF descargado')
+    } finally {
+      setDownloadingPdf(false)
     }
-
-    const ordenPDF = {
-      folio: orden.folio,
-      fecha: orden.fecha,
-      fecha_esperada: orden.fecha_esperada,
-      proveedor_nombre: proveedor.razon_social,
-      proveedor_rfc: proveedor.rfc,
-      proveedor_contacto: proveedor.contacto_nombre,
-      almacen_nombre: almacen.nombre,
-      subtotal: orden.subtotal,
-      iva: orden.iva,
-      total: orden.total,
-      notas: orden.notas,
-      moneda: orden.moneda,
-    }
-
-    const itemsPDF = items.map(item => ({
-      sku: item.producto?.sku,
-      descripcion: item.producto?.nombre || '-',
-      cantidad: item.cantidad_solicitada,
-      precio_unitario: item.precio_unitario,
-      margen_porcentaje: item.descuento_porcentaje,
-      subtotal: item.subtotal,
-    }))
-
-    await generarPDFOrdenCompra(ordenPDF, itemsPDF, opciones)
-    message.success('PDF descargado')
   }
 
   const totalItems = items.length
@@ -371,7 +378,7 @@ export default function DetalleOrdenCompraPage() {
           <Button icon={<EditOutlined />} onClick={() => router.push(`/compras/${ordenId}/editar`)}>
             Editar
           </Button>
-          <Button icon={<FilePdfOutlined />} onClick={handleDescargarPDF}>
+          <Button icon={<FilePdfOutlined />} onClick={handleDescargarPDF} loading={downloadingPdf} disabled={downloadingPdf}>
             Descargar PDF
           </Button>
           {canEnviar && (

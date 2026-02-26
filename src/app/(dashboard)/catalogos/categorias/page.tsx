@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Card, Typography, message, Popconfirm, Tag } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
@@ -78,11 +78,11 @@ export default function CategoriasPage() {
     }
   }
 
-  const filteredCategorias = categorias.filter(
+  const filteredCategorias = useMemo(() => categorias.filter(
     (c) => c.nombre.toLowerCase().includes(searchText.toLowerCase())
-  )
+  ), [categorias, searchText])
 
-  const columns: ColumnsType<Categoria> = [
+  const columns = useMemo<ColumnsType<Categoria>>(() => [
     {
       title: 'Nombre',
       dataIndex: 'nombre',
@@ -123,7 +123,7 @@ export default function CategoriasPage() {
         </Space>
       ),
     },
-  ]
+  ], [router])
 
   return (
     <div>

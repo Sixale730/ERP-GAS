@@ -180,6 +180,6 @@ export function usePreciosProductos() {
 
       return rows
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: CATALOG_STALE_TIME,
   })
 }

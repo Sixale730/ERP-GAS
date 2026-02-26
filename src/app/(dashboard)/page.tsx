@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Row, Col, Card, Statistic, Table, Tag, Typography, Button, Space } from 'antd'
 import {
@@ -26,7 +27,7 @@ export default function DashboardPage() {
   // Auto-fetch tipo de cambio on dashboard mount (fire-and-forget)
   useTipoCambioBanxico()
 
-  const productosColumns = [
+  const productosColumns = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -47,9 +48,9 @@ export default function DashboardPage() {
         </Tag>
       ),
     },
-  ]
+  ], [])
 
-  const facturasColumns = [
+  const facturasColumns = useMemo(() => [
     {
       title: 'Folio',
       dataIndex: 'folio',
@@ -90,7 +91,7 @@ export default function DashboardPage() {
         return <Tag color={colors[status]}>{status.toUpperCase()}</Tag>
       },
     },
-  ]
+  ], [])
 
   if (isLoading) {
     return <DashboardSkeleton />

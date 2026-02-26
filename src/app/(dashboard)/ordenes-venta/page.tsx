@@ -94,7 +94,7 @@ export default function OrdenesVentaPage() {
     facturadas: ordenes.filter(o => o.status === 'facturada').length,
   }), [ordenes])
 
-  const columns: ColumnsType<OrdenVentaRow> = [
+  const columns = useMemo<ColumnsType<OrdenVentaRow>>(() => [
     {
       title: 'Folio',
       dataIndex: 'folio',
@@ -199,7 +199,7 @@ export default function OrdenesVentaPage() {
         </Space>
       ),
     },
-  ]
+  ], [router, downloadingPdfId])
 
   if (isError) {
     message.error('Error al cargar órdenes de venta')

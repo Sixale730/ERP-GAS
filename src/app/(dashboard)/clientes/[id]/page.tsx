@@ -84,18 +84,30 @@ export default function ClienteDetallePage() {
     setLoading(true)
 
     try {
-      // Load cliente
-      const { data: clienteData, error: clienteError } = await supabase
-        .schema('erp')
-        .from('clientes')
-        .select('*')
-        .eq('id', id)
-        .single()
+      // Load cliente + facturas in parallel (both depend only on id)
+      const [clienteResult, facturasResult] = await Promise.all([
+        supabase
+          .schema('erp')
+          .from('clientes')
+          .select('*')
+          .eq('id', id)
+          .single(),
+        supabase
+          .schema('erp')
+          .from('v_facturas')
+          .select('id, folio, fecha, total, saldo, status')
+          .eq('cliente_id', id)
+          .order('fecha', { ascending: false })
+          .limit(10),
+      ])
+
+      const { data: clienteData, error: clienteError } = clienteResult
+      const { data: facturasData, error: facturasError } = facturasResult
 
       if (clienteError) throw clienteError
       setCliente(clienteData)
 
-      // Load lista precio nombre
+      // Load lista precio nombre (depends on cliente result)
       if (clienteData.lista_precio_id) {
         const { data: listaData } = await supabase
           .schema('erp')
@@ -105,15 +117,6 @@ export default function ClienteDetallePage() {
           .single()
         if (listaData) setListaPrecioNombre(listaData.nombre)
       }
-
-      // Load facturas recientes
-      const { data: facturasData, error: facturasError } = await supabase
-        .schema('erp')
-        .from('v_facturas')
-        .select('id, folio, fecha, total, saldo, status')
-        .eq('cliente_id', id)
-        .order('fecha', { ascending: false })
-        .limit(10)
 
       if (!facturasError && facturasData) {
         setFacturas(facturasData)

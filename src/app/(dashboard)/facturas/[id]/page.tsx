@@ -178,23 +178,35 @@ export default function FacturaDetallePage() {
     setLoading(true)
 
     try {
-      const { data: facData, error: facError } = await supabase
-        .schema('erp')
-        .from('facturas')
-        .select(`
-          id, folio, fecha, fecha_vencimiento, status,
-          subtotal, descuento_monto, iva, total, saldo, notas,
-          cliente_id, cliente_rfc, cliente_razon_social, cliente_regimen_fiscal, cliente_uso_cfdi,
-          almacen_id, cotizacion_id,
-          uuid_cfdi, status_sat, fecha_timbrado, xml_cfdi, error_timbrado,
-          sello_cfdi, sello_sat, certificado_sat, cadena_original,
-          moneda, tipo_cambio, vendedor_nombre,
-          clientes:cliente_id (nombre_comercial, razon_social, codigo_postal_fiscal),
-          almacenes:almacen_id (nombre),
-          cotizaciones:cotizacion_id (folio)
-        `)
-        .eq('id', id)
-        .single()
+      // Load factura + items in parallel
+      const [facResult, itemsResult] = await Promise.all([
+        supabase
+          .schema('erp')
+          .from('facturas')
+          .select(`
+            id, folio, fecha, fecha_vencimiento, status,
+            subtotal, descuento_monto, iva, total, saldo, notas,
+            cliente_id, cliente_rfc, cliente_razon_social, cliente_regimen_fiscal, cliente_uso_cfdi,
+            almacen_id, cotizacion_id,
+            uuid_cfdi, status_sat, fecha_timbrado, xml_cfdi, error_timbrado,
+            sello_cfdi, sello_sat, certificado_sat, cadena_original,
+            moneda, tipo_cambio, vendedor_nombre,
+            clientes:cliente_id (nombre_comercial, razon_social, codigo_postal_fiscal),
+            almacenes:almacen_id (nombre),
+            cotizaciones:cotizacion_id (folio)
+          `)
+          .eq('id', id)
+          .single(),
+        supabase
+          .schema('erp')
+          .from('factura_items')
+          .select(`*, productos:producto_id (sku)`)
+          .eq('factura_id', id)
+          .order('created_at'),
+      ])
+
+      const { data: facData, error: facError } = facResult
+      const { data: itemsData, error: itemsError } = itemsResult
 
       if (facError) throw facError
 
@@ -249,14 +261,6 @@ export default function FacturaDetallePage() {
 
       setFactura(facturaData)
 
-      // Load items
-      const { data: itemsData, error: itemsError } = await supabase
-        .schema('erp')
-        .from('factura_items')
-        .select(`*, productos:producto_id (sku)`)
-        .eq('factura_id', id)
-        .order('created_at')
-
       if (itemsError) throw itemsError
 
       setItems(itemsData?.map(item => ({
@@ -297,89 +301,96 @@ export default function FacturaDetallePage() {
 
   // === PDF ===
 
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+
   const handleDescargarPDF = async () => {
     if (!factura) return
+    setDownloadingPdf(true)
 
-    // Si esta timbrada, usar el generador SAT con QR
-    if (factura.uuid_cfdi && factura.status_sat === 'timbrado') {
-      try {
-        const { generarPdfCfdi } = await import('@/lib/cfdi/pdf-generator')
-        const pdfData: import('@/lib/cfdi/pdf-generator').PdfCfdiData = {
-          folio: factura.folio,
-          fecha: factura.fecha,
-          emisor: {
-            // These will be filled by the PDF generator from config
-            rfc: '', nombre: '', regimenFiscal: '', codigoPostal: '',
-          },
-          receptor: {
-            rfc: factura.cliente_rfc || '',
-            nombre: factura.cliente_razon_social || factura.cliente_nombre,
-            codigoPostal: factura.cliente_codigo_postal || '',
-            regimenFiscal: factura.cliente_regimen_fiscal || '616',
-            usoCfdi: factura.cliente_uso_cfdi || 'G03',
-          },
-          conceptos: items.map(item => ({
-            descripcion: item.descripcion,
-            cantidad: item.cantidad,
-            valorUnitario: item.precio_unitario,
-            importe: item.cantidad * item.precio_unitario,
-            descuento: item.descuento_porcentaje > 0
-              ? (item.cantidad * item.precio_unitario * item.descuento_porcentaje / 100)
-              : undefined,
-          })),
-          subtotal: factura.subtotal,
-          descuento: factura.descuento_monto > 0 ? factura.descuento_monto : undefined,
-          iva: factura.iva,
-          total: factura.total,
-          moneda: factura.moneda || 'MXN',
-          metodoPago: 'PUE',
-          formaPago: '99',
-          uuid: factura.uuid_cfdi || undefined,
-          fechaTimbrado: factura.fecha_timbrado || undefined,
-          selloCfdi: factura.sello_cfdi || undefined,
-          selloSat: factura.sello_sat || undefined,
-          certificadoSat: factura.certificado_sat || undefined,
-          cadenaOriginal: factura.cadena_original || undefined,
-        }
-
-        // Fill emisor from preview data if available, otherwise use defaults
+    try {
+      // Si esta timbrada, usar el generador SAT con QR
+      if (factura.uuid_cfdi && factura.status_sat === 'timbrado') {
         try {
-          const previewResp = await fetch('/api/cfdi/preview', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ factura_id: factura.id }),
-          })
-          const previewResult = await previewResp.json()
-          if (previewResult.success && previewResult.emisor) {
-            pdfData.emisor = {
-              ...previewResult.emisor,
-              codigoPostal: previewResult.emisor.codigoPostal || '',
-            }
-            pdfData.formaPago = previewResult.formaPago || '99'
-            pdfData.metodoPago = previewResult.metodoPago || 'PUE'
+          const { generarPdfCfdi } = await import('@/lib/cfdi/pdf-generator')
+          const pdfData: import('@/lib/cfdi/pdf-generator').PdfCfdiData = {
+            folio: factura.folio,
+            fecha: factura.fecha,
+            emisor: {
+              // These will be filled by the PDF generator from config
+              rfc: '', nombre: '', regimenFiscal: '', codigoPostal: '',
+            },
+            receptor: {
+              rfc: factura.cliente_rfc || '',
+              nombre: factura.cliente_razon_social || factura.cliente_nombre,
+              codigoPostal: factura.cliente_codigo_postal || '',
+              regimenFiscal: factura.cliente_regimen_fiscal || '616',
+              usoCfdi: factura.cliente_uso_cfdi || 'G03',
+            },
+            conceptos: items.map(item => ({
+              descripcion: item.descripcion,
+              cantidad: item.cantidad,
+              valorUnitario: item.precio_unitario,
+              importe: item.cantidad * item.precio_unitario,
+              descuento: item.descuento_porcentaje > 0
+                ? (item.cantidad * item.precio_unitario * item.descuento_porcentaje / 100)
+                : undefined,
+            })),
+            subtotal: factura.subtotal,
+            descuento: factura.descuento_monto > 0 ? factura.descuento_monto : undefined,
+            iva: factura.iva,
+            total: factura.total,
+            moneda: factura.moneda || 'MXN',
+            metodoPago: 'PUE',
+            formaPago: '99',
+            uuid: factura.uuid_cfdi || undefined,
+            fechaTimbrado: factura.fecha_timbrado || undefined,
+            selloCfdi: factura.sello_cfdi || undefined,
+            selloSat: factura.sello_sat || undefined,
+            certificadoSat: factura.certificado_sat || undefined,
+            cadenaOriginal: factura.cadena_original || undefined,
           }
-        } catch {
-          // Use defaults if preview fails
-          pdfData.emisor = { rfc: 'N/A', nombre: 'N/A', regimenFiscal: '601', codigoPostal: '00000' }
+
+          // Fill emisor from preview data if available, otherwise use defaults
+          try {
+            const previewResp = await fetch('/api/cfdi/preview', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ factura_id: factura.id }),
+            })
+            const previewResult = await previewResp.json()
+            if (previewResult.success && previewResult.emisor) {
+              pdfData.emisor = {
+                ...previewResult.emisor,
+                codigoPostal: previewResult.emisor.codigoPostal || '',
+              }
+              pdfData.formaPago = previewResult.formaPago || '99'
+              pdfData.metodoPago = previewResult.metodoPago || 'PUE'
+            }
+          } catch {
+            // Use defaults if preview fails
+            pdfData.emisor = { rfc: 'N/A', nombre: 'N/A', regimenFiscal: '601', codigoPostal: '00000' }
+          }
+
+          const doc = await generarPdfCfdi(pdfData)
+          doc.save(`${factura.folio}_CFDI.pdf`)
+          message.success('PDF CFDI descargado')
+          return
+        } catch (e) {
+          console.error('Error generando PDF CFDI:', e)
+          // Fallback to basic PDF
         }
-
-        const doc = await generarPdfCfdi(pdfData)
-        doc.save(`${factura.folio}_CFDI.pdf`)
-        message.success('PDF CFDI descargado')
-        return
-      } catch (e) {
-        console.error('Error generando PDF CFDI:', e)
-        // Fallback to basic PDF
       }
-    }
 
-    // Fallback: PDF basico sin datos SAT
-    const opciones: OpcionesMoneda = {
-      moneda: factura.moneda || 'MXN',
-      tipoCambio: factura.moneda === 'MXN' ? (factura.tipo_cambio || undefined) : undefined
+      // Fallback: PDF basico sin datos SAT
+      const opciones: OpcionesMoneda = {
+        moneda: factura.moneda || 'MXN',
+        tipoCambio: factura.moneda === 'MXN' ? (factura.tipo_cambio || undefined) : undefined
+      }
+      await generarPDFFactura({ ...factura, vendedor_nombre: factura.vendedor_nombre }, items, opciones)
+      message.success('PDF descargado')
+    } finally {
+      setDownloadingPdf(false)
     }
-    await generarPDFFactura({ ...factura, vendedor_nombre: factura.vendedor_nombre }, items, opciones)
-    message.success('PDF descargado')
   }
 
   // === CFDI PREVIEW + TIMBRAR ===
@@ -734,7 +745,7 @@ export default function FacturaDetallePage() {
         </Space>
 
         <Space wrap>
-          <Button icon={<FilePdfOutlined />} onClick={handleDescargarPDF} size="large">
+          <Button icon={<FilePdfOutlined />} onClick={handleDescargarPDF} size="large" loading={downloadingPdf} disabled={downloadingPdf}>
             Descargar PDF
           </Button>
           {factura.status_sat !== 'timbrado' && (

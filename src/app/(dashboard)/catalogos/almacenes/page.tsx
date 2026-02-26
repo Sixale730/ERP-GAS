@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Table, Button, Modal, Form, Input, Space, Card, Typography, message, Popconfirm, Switch } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -100,7 +100,7 @@ export default function AlmacenesPage() {
     }
   }
 
-  const columns: ColumnsType<Almacen> = [
+  const columns = useMemo<ColumnsType<Almacen>>(() => [
     {
       title: 'Código',
       dataIndex: 'codigo',
@@ -155,7 +155,7 @@ export default function AlmacenesPage() {
         </Space>
       ),
     },
-  ]
+  ], [])
 
   return (
     <div>

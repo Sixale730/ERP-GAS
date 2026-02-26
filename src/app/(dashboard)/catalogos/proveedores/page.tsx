@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
@@ -71,14 +71,14 @@ export default function ProveedoresPage() {
     }
   }
 
-  const filteredProveedores = proveedores.filter(
+  const filteredProveedores = useMemo(() => proveedores.filter(
     (p) =>
       p.razon_social.toLowerCase().includes(searchText.toLowerCase()) ||
       p.codigo.toLowerCase().includes(searchText.toLowerCase()) ||
       (p.rfc && p.rfc.toLowerCase().includes(searchText.toLowerCase()))
-  )
+  ), [proveedores, searchText])
 
-  const columns: ColumnsType<Proveedor> = [
+  const columns = useMemo<ColumnsType<Proveedor>>(() => [
     { title: 'Código', dataIndex: 'codigo', key: 'codigo', width: 100 },
     {
       title: 'Razón Social',
@@ -103,7 +103,7 @@ export default function ProveedoresPage() {
         </Space>
       ),
     },
-  ]
+  ], [router])
 
   return (
     <div>

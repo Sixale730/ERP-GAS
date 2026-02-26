@@ -134,17 +134,37 @@ export default function CotizacionDetallePage() {
     setLoading(true)
 
     try {
-      // Load cotizacion directly from table to get moneda and tipo_cambio
-      const { data: cotData, error: cotError } = await supabase
-        .schema('erp')
-        .from('cotizaciones')
-        .select(`
-          *,
-          clientes:cliente_id (nombre_comercial, rfc, dias_credito),
-          almacenes:almacen_id (nombre)
-        `)
-        .eq('id', id)
-        .single()
+      // Load cotizacion + items + OVs in parallel (all depend only on id)
+      const [cotResult, itemsResult, ovsResult] = await Promise.all([
+        supabase
+          .schema('erp')
+          .from('cotizaciones')
+          .select(`
+            *,
+            clientes:cliente_id (nombre_comercial, rfc, dias_credito),
+            almacenes:almacen_id (nombre)
+          `)
+          .eq('id', id)
+          .single(),
+        supabase
+          .schema('erp')
+          .from('cotizacion_items')
+          .select(`
+            *,
+            productos:producto_id (sku, es_servicio)
+          `)
+          .eq('cotizacion_id', id)
+          .order('created_at'),
+        supabase
+          .schema('erp')
+          .from('cotizaciones')
+          .select('id, folio, status, total, fecha')
+          .eq('cotizacion_origen_id', id)
+          .order('created_at', { ascending: false }),
+      ])
+
+      const { data: cotData, error: cotError } = cotResult
+      const { data: itemsData, error: itemsError } = itemsResult
 
       if (cotError) throw cotError
 
@@ -210,17 +230,6 @@ export default function CotizacionDetallePage() {
 
       setCotizacion(cotizacionData)
 
-      // Load items
-      const { data: itemsData, error: itemsError } = await supabase
-        .schema('erp')
-        .from('cotizacion_items')
-        .select(`
-          *,
-          productos:producto_id (sku, es_servicio)
-        `)
-        .eq('cotizacion_id', id)
-        .order('created_at')
-
       if (itemsError) throw itemsError
 
       const itemsWithSku = itemsData?.map(item => ({
@@ -231,15 +240,9 @@ export default function CotizacionDetallePage() {
 
       setItems(itemsWithSku)
 
-      // Cargar OVs generadas desde esta cotización (solo si es COT-)
+      // OVs ya cargadas en paralelo
       if (cotData.folio?.startsWith('COT-')) {
-        const { data: ovsData } = await supabase
-          .schema('erp')
-          .from('cotizaciones')
-          .select('id, folio, status, total, fecha')
-          .eq('cotizacion_origen_id', id)
-          .order('created_at', { ascending: false })
-        setOvsGeneradas(ovsData || [])
+        setOvsGeneradas(ovsResult.data || [])
       } else {
         setOvsGeneradas([])
       }
@@ -327,24 +330,31 @@ export default function CotizacionDetallePage() {
     })
   }
 
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+
   const handleDescargarPDF = async () => {
     if (!cotizacion) return
+    setDownloadingPdf(true)
 
-    // Usar la moneda y tipo de cambio guardados en la cotizacion
-    const opciones: OpcionesMoneda = {
-      moneda: cotizacion.moneda,
-      tipoCambio: cotizacion.tipo_cambio || undefined
+    try {
+      // Usar la moneda y tipo de cambio guardados en la cotizacion
+      const opciones: OpcionesMoneda = {
+        moneda: cotizacion.moneda,
+        tipoCambio: cotizacion.tipo_cambio || undefined
+      }
+
+      // Agregar fecha_vencimiento calculada para el PDF
+      const cotizacionConVigencia = {
+        ...cotizacion,
+        fecha_vencimiento: calcularFechaVencimiento(cotizacion.fecha, cotizacion.vigencia_dias),
+        vendedor_nombre: cotizacion.vendedor_nombre
+      }
+
+      await generarPDFCotizacion(cotizacionConVigencia, items, opciones)
+      message.success(`PDF descargado en ${cotizacion.moneda}`)
+    } finally {
+      setDownloadingPdf(false)
     }
-
-    // Agregar fecha_vencimiento calculada para el PDF
-    const cotizacionConVigencia = {
-      ...cotizacion,
-      fecha_vencimiento: calcularFechaVencimiento(cotizacion.fecha, cotizacion.vigencia_dias),
-      vendedor_nombre: cotizacion.vendedor_nombre
-    }
-
-    await generarPDFCotizacion(cotizacionConVigencia, items, opciones)
-    message.success(`PDF descargado en ${cotizacion.moneda}`)
   }
 
   const handleConvertirOrdenVenta = () => {
@@ -590,6 +600,8 @@ export default function CotizacionDetallePage() {
             icon={<FilePdfOutlined />}
             onClick={handleDescargarPDF}
             size="large"
+            loading={downloadingPdf}
+            disabled={downloadingPdf}
           >
             Descargar PDF
           </Button>
