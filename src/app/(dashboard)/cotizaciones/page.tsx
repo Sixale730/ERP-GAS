@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
-import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, ShoppingCartOutlined, LoadingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useCotizaciones, useDeleteCotizacion, type CotizacionRow } from '@/lib/hooks/queries/useCotizaciones'
 import { TableSkeleton } from '@/components/common/Skeletons'
@@ -34,6 +34,7 @@ export default function CotizacionesPage() {
   const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
   // React Query hooks with server-side pagination
@@ -42,6 +43,7 @@ export default function CotizacionesPage() {
   const deleteCotizacion = useDeleteCotizacion()
 
   const handleDescargarPDF = useCallback(async (cotizacionId: string) => {
+    setDownloadingPdf(cotizacionId)
     const supabase = getSupabaseClient()
     try {
       // Cargar cotizacion completa
@@ -74,6 +76,8 @@ export default function CotizacionesPage() {
     } catch (error) {
       console.error('Error generando PDF:', error)
       message.error('Error al generar PDF')
+    } finally {
+      setDownloadingPdf(null)
     }
   }, [])
 
@@ -197,9 +201,10 @@ export default function CotizacionesPage() {
           />
           <Button
             type="link"
-            icon={<FilePdfOutlined />}
+            icon={downloadingPdf === record.id ? <LoadingOutlined /> : <FilePdfOutlined />}
             onClick={() => handleDescargarPDF(record.id)}
             title="Descargar PDF"
+            disabled={downloadingPdf !== null}
           />
           {record.status === 'propuesta' && (
             <Popconfirm
@@ -222,7 +227,7 @@ export default function CotizacionesPage() {
         </Space>
       ),
     },
-  ], [router, handleDescargarPDF, handleEliminar, deleteCotizacion.isPending])
+  ], [router, handleDescargarPDF, handleEliminar, deleteCotizacion.isPending, downloadingPdf])
 
   if (isError) {
     message.error(`Error al cargar cotizaciones: ${error?.message}`)

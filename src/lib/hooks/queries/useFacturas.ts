@@ -103,6 +103,6 @@ export function useInvalidateFacturas() {
   const queryClient = useQueryClient()
 
   return () => {
-    queryClient.invalidateQueries({ queryKey: facturasKeys.all })
+    queryClient.invalidateQueries({ queryKey: facturasKeys.lists() })
   }
 }

@@ -128,7 +128,7 @@ export default function InventarioPage() {
     stockExceso: inventario.filter(i => i.nivel_stock === 'exceso').length,
   }), [inventarioResult?.total, inventario])
 
-  const columns: ColumnsType<InventarioRow> = [
+  const columns = useMemo<ColumnsType<InventarioRow>>(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -214,7 +214,7 @@ export default function InventarioPage() {
         </Space>
       ),
     },
-  ]
+  ], [])
 
   return (
     <div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -33,7 +33,7 @@ import dayjs from 'dayjs'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
-import { useOrdenesCompra, useProveedoresCompra, useAlmacenesCompra } from '@/lib/hooks/queries/useOrdenesCompra'
+import { useOrdenesCompra, useProveedoresCompra, useAlmacenesCompra, ordenesCompraKeys } from '@/lib/hooks/queries/useOrdenesCompra'
 import type { OrdenCompraView } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -109,59 +109,60 @@ export default function ComprasPage() {
     setLoadingFaltantes(true)
 
     try {
-      // Cargar productos con sus proveedores
-      const { data: todoProductos } = await supabase
-        .schema('erp')
-        .from('productos')
-        .select(`
-          id,
-          sku,
-          nombre,
-          stock_minimo,
-          stock_maximo,
-          proveedor_principal_id,
-          costo_promedio,
-          categoria_id,
-          proveedores:proveedor_principal_id (
+      // Cargar todos los datos en paralelo
+      const [
+        { data: todoProductos },
+        { data: inventarioData },
+        { data: ordenesEnTransitoData },
+        { data: preciosData },
+      ] = await Promise.all([
+        // Productos con sus proveedores
+        supabase
+          .schema('erp')
+          .from('productos')
+          .select(`
             id,
-            razon_social
-          )
-        `)
-        .eq('is_active', true)
-
-      // Cargar inventario del almacén
-      const { data: inventarioData } = await supabase
-        .schema('erp')
-        .from('inventario')
-        .select('producto_id, cantidad')
-        .eq('almacen_id', almacenId)
-
-      // Cargar órdenes de compra enviadas/parcialmente recibidas con sus items
-      const { data: ordenesEnTransitoData, error: ocError } = await supabase
-        .schema('erp')
-        .from('ordenes_compra')
-        .select(`
-          id,
-          status,
-          orden_compra_items(
-            producto_id,
-            cantidad_solicitada,
-            cantidad_recibida
-          )
-        `)
-        .eq('almacen_destino_id', almacenId)
-        .in('status', ['enviada', 'parcialmente_recibida'])
-
-      if (ocError) {
-        console.error('Error loading OC en tránsito:', ocError)
-      }
-
-      // Cargar precios de la lista "Público General"
-      const { data: preciosData } = await supabase
-        .schema('erp')
-        .from('precios_productos')
-        .select('producto_id, precio')
-        .eq('lista_precio_id', '33333333-3333-3333-3333-333333333301')
+            sku,
+            nombre,
+            stock_minimo,
+            stock_maximo,
+            proveedor_principal_id,
+            costo_promedio,
+            categoria_id,
+            proveedores:proveedor_principal_id (
+              id,
+              razon_social
+            )
+          `)
+          .eq('is_active', true),
+        // Inventario del almacén
+        supabase
+          .schema('erp')
+          .from('inventario')
+          .select('producto_id, cantidad')
+          .eq('almacen_id', almacenId),
+        // Órdenes de compra enviadas/parcialmente recibidas con sus items
+        supabase
+          .schema('erp')
+          .from('ordenes_compra')
+          .select(`
+            id,
+            status,
+            orden_compra_items(
+              producto_id,
+              cantidad_solicitada,
+              cantidad_recibida
+            )
+          `)
+          .eq('almacen_destino_id', almacenId)
+          .in('status', ['enviada', 'parcialmente_recibida']),
+        // Precios de la lista "Público General"
+        supabase
+          .schema('erp')
+          .from('precios_productos')
+          .select('producto_id, precio')
+          .eq('lista_precio_id', '33333333-3333-3333-3333-333333333301'),
+      ])
 
       const inventarioMap = new Map(
         inventarioData?.map((i) => [i.producto_id, Number(i.cantidad)]) || []
@@ -363,62 +364,63 @@ export default function ComprasPage() {
     const supabase = getSupabaseClient()
 
     try {
-      const ordenesCreadas: string[] = []
+      // Crear todas las órdenes en paralelo
+      const ordenesCreadas = await Promise.all(
+        gruposValidos.map(async (grupo) => {
+          // Calcular totales usando subtotal con margen aplicado
+          const subtotal = grupo.productos.reduce(
+            (acc, p) => acc + p.subtotal,
+            0
+          )
+          const iva = subtotal * 0.16
+          const total = subtotal + iva
 
-      for (const grupo of gruposValidos) {
-        // Calcular totales usando subtotal con margen aplicado
-        const subtotal = grupo.productos.reduce(
-          (acc, p) => acc + p.subtotal,
-          0
-        )
-        const iva = subtotal * 0.16
-        const total = subtotal + iva
+          // Crear orden (folio se genera automáticamente via trigger)
+          const { data: orden, error: ordenError } = await supabase
+            .schema('erp')
+            .from('ordenes_compra')
+            .insert({
+              proveedor_id: grupo.proveedor_id,
+              almacen_destino_id: almacenSeleccionado,
+              moneda: monedaSeleccionada,
+              tipo_cambio: monedaSeleccionada === 'MXN' ? tipoCambioOrden : null,
+              status: 'borrador',
+              subtotal,
+              iva,
+              total,
+              notas: 'Orden generada automaticamente por faltantes de inventario',
+              creado_por: erpUser?.id || null,
+              creado_por_nombre: erpUser?.nombre || erpUser?.email || null,
+            })
+            .select()
+            .single()
 
-        // Crear orden (folio se genera automáticamente via trigger)
-        const { data: orden, error: ordenError } = await supabase
-          .schema('erp')
-          .from('ordenes_compra')
-          .insert({
-            proveedor_id: grupo.proveedor_id,
-            almacen_destino_id: almacenSeleccionado,
-            moneda: monedaSeleccionada,
-            tipo_cambio: monedaSeleccionada === 'MXN' ? tipoCambioOrden : null,
-            status: 'borrador',
-            subtotal,
-            iva,
-            total,
-            notas: 'Orden generada automaticamente por faltantes de inventario',
-            creado_por: erpUser?.id || null,
-            creado_por_nombre: erpUser?.nombre || erpUser?.email || null,
-          })
-          .select()
-          .single()
+          if (ordenError) throw ordenError
 
-        if (ordenError) throw ordenError
+          // Crear items con precio y margen
+          const items = grupo.productos.map((p) => ({
+            orden_compra_id: orden.id,
+            producto_id: p.producto_id,
+            cantidad_solicitada: p.cantidad_sugerida,
+            precio_unitario: p.precio_mostrado,
+            descuento_porcentaje: p.margen_porcentaje, // Guardar el margen aplicado
+          }))
 
-        // Crear items con precio y margen
-        const items = grupo.productos.map((p) => ({
-          orden_compra_id: orden.id,
-          producto_id: p.producto_id,
-          cantidad_solicitada: p.cantidad_sugerida,
-          precio_unitario: p.precio_mostrado,
-          descuento_porcentaje: p.margen_porcentaje, // Guardar el margen aplicado
-        }))
+          const { error: itemsError } = await supabase
+            .schema('erp')
+            .from('orden_compra_items')
+            .insert(items)
 
-        const { error: itemsError } = await supabase
-          .schema('erp')
-          .from('orden_compra_items')
-          .insert(items)
+          if (itemsError) throw itemsError
 
-        if (itemsError) throw itemsError
-
-        ordenesCreadas.push(orden.folio)
-      }
+          return orden.folio
+        })
+      )
 
       message.success(`Se crearon ${ordenesCreadas.length} ordenes de compra: ${ordenesCreadas.join(', ')}`)
       setModalVisible(false)
       resetModal()
-      queryClient.invalidateQueries({ queryKey: ['ordenes-compra'] })
+      queryClient.invalidateQueries({ queryKey: ordenesCompraKeys.lists() })
     } catch (error: any) {
       console.error('Error generando ordenes:', error)
       message.error(error.message || 'Error al generar ordenes')
@@ -442,16 +444,16 @@ export default function ComprasPage() {
     setModalVisible(true)
   }
 
-  const filteredOrdenes = ordenes.filter((o) => {
+  const filteredOrdenes = useMemo(() => ordenes.filter((o) => {
     const matchesSearch =
       o.folio.toLowerCase().includes(searchText.toLowerCase()) ||
       o.proveedor_nombre.toLowerCase().includes(searchText.toLowerCase())
     const matchesStatus = !statusFilter || o.status === statusFilter
     const matchesProveedor = !proveedorFilter || o.proveedor_id === proveedorFilter
     return matchesSearch && matchesStatus && matchesProveedor
-  })
+  }), [ordenes, searchText, statusFilter, proveedorFilter])
 
-  const columns: ColumnsType<OrdenCompraView> = [
+  const columns = useMemo<ColumnsType<OrdenCompraView>>(() => [
     {
       title: 'Folio',
       dataIndex: 'folio',
@@ -554,7 +556,7 @@ export default function ComprasPage() {
         />
       ),
     },
-  ]
+  ], [router])
 
   // Calcular totales para el modal (solo proveedores seleccionados y productos con cantidad > 0)
   // Usar subtotal con margen aplicado

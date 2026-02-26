@@ -98,15 +98,35 @@ export default function ProductoDetallePage() {
     setLoading(true)
 
     try {
-      // Load producto from view + numero_parte from productos table
-      const [viewRes, prodRes] = await Promise.all([
+      // Ejecutar TODAS las queries en paralelo
+      const [viewRes, prodRes, invRes, ocRes, ovRes] = await Promise.all([
         supabase.schema('erp').from('v_productos_stock').select('*').eq('id', id).single(),
         supabase.schema('erp').from('productos').select('numero_parte, moneda').eq('id', id).single(),
+        supabase.schema('erp').from('inventario').select(`
+          cantidad,
+          reservado,
+          almacenes:almacen_id (id, nombre)
+        `).eq('producto_id', id),
+        supabase.schema('erp').from('orden_compra_items').select(`
+          cantidad_solicitada,
+          cantidad_recibida,
+          ordenes_compra:orden_compra_id (
+            id, folio, status,
+            almacenes:almacen_destino_id (nombre)
+          )
+        `).eq('producto_id', id),
+        supabase.schema('erp').from('cotizacion_items').select(`
+          cantidad,
+          cotizaciones:cotizacion_id (
+            id, folio, status,
+            clientes:cliente_id (nombre_comercial)
+          )
+        `).eq('producto_id', id),
       ])
 
       if (viewRes.error) throw viewRes.error
 
-      // Merge numero_parte into producto data
+      // Procesar producto
       const prodData = {
         ...viewRes.data,
         numero_parte: prodRes.data?.numero_parte || null,
@@ -114,19 +134,9 @@ export default function ProductoDetallePage() {
       }
       setProducto(prodData)
 
-      // Load inventario por almacén
-      const { data: invData, error: invError } = await supabase
-        .schema('erp')
-        .from('inventario')
-        .select(`
-          cantidad,
-          reservado,
-          almacenes:almacen_id (id, nombre)
-        `)
-        .eq('producto_id', id)
-
-      if (!invError && invData) {
-        const invFormatted = invData.map(i => ({
+      // Procesar inventario
+      if (!invRes.error && invRes.data) {
+        const invFormatted = invRes.data.map(i => ({
           almacen_id: (i.almacenes as any)?.id,
           almacen_nombre: (i.almacenes as any)?.nombre || 'Sin nombre',
           cantidad: i.cantidad,
@@ -136,22 +146,9 @@ export default function ProductoDetallePage() {
         setInventario(invFormatted)
       }
 
-      // Cargar piezas pendientes de recepción (OCs en tránsito)
-      const { data: ocItems } = await supabase
-        .schema('erp')
-        .from('orden_compra_items')
-        .select(`
-          cantidad_solicitada,
-          cantidad_recibida,
-          ordenes_compra:orden_compra_id (
-            id, folio, status,
-            almacenes:almacen_destino_id (nombre)
-          )
-        `)
-        .eq('producto_id', id)
-
-      if (ocItems) {
-        const pendientes = ocItems
+      // Procesar OCs en tránsito
+      if (ocRes.data) {
+        const pendientes = ocRes.data
           .filter(item => {
             const oc = item.ordenes_compra as any
             return (
@@ -176,21 +173,9 @@ export default function ProductoDetallePage() {
         })
       }
 
-      // Cargar piezas reservadas por OVs pendientes de facturar
-      const { data: ovItems } = await supabase
-        .schema('erp')
-        .from('cotizacion_items')
-        .select(`
-          cantidad,
-          cotizaciones:cotizacion_id (
-            id, folio, status,
-            clientes:cliente_id (nombre_comercial)
-          )
-        `)
-        .eq('producto_id', id)
-
-      if (ovItems) {
-        const ovsActivas = ovItems
+      // Procesar OVs pendientes
+      if (ovRes.data) {
+        const ovsActivas = ovRes.data
           .filter(item => {
             const cot = item.cotizaciones as any
             return cot && cot.status === 'orden_venta'

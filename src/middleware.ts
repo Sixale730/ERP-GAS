@@ -2,6 +2,16 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 
+/** Extrae el rol del JWT access_token (decodificación local, sin network call) */
+function getRoleFromJWT(accessToken: string): string | null {
+  try {
+    const payload = JSON.parse(atob(accessToken.split('.')[1]))
+    return payload?.app_role || null
+  } catch {
+    return null
+  }
+}
+
 /**
  * Intenta auto-registrar un usuario que tiene sesión de Supabase Auth
  * y está en usuarios_autorizados pero no en erp.usuarios.
@@ -95,16 +105,7 @@ export async function middleware(request: NextRequest) {
   if (user && !isPublicRoute) {
     // getSession() lee de cookies (local, sin network call) - seguro tras getUser()
     const { data: { session } } = await supabase.auth.getSession()
-    let role: string | null = null
-
-    if (session?.access_token) {
-      try {
-        const payload = JSON.parse(atob(session.access_token.split('.')[1]))
-        role = payload?.app_role || null
-      } catch {
-        // Ignorar error de decodificación
-      }
-    }
+    let role = session?.access_token ? getRoleFromJWT(session.access_token) : null
 
     // Si no hay rol en el JWT, el usuario podría ser nuevo (primer login)
     // Solo en este caso hacemos query a BD

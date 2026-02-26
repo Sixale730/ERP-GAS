@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo, type ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { getSupabaseClient } from '@/lib/supabase/client'
 
@@ -82,8 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fetchPromise = (async () => {
       const supabase = getSupabaseClient()
       const maxRetries = 2
-      const initialDelay = 500
-      const timeoutMs = 15000
+      const initialDelay = 200
+      const timeoutMs = 8000
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -152,12 +152,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const timeout = setTimeout(() => {
       setState(prev => {
         if (prev.loading) {
-          console.warn('[useAuth] Loading timeout - forcing loading=false after 6s')
+          console.warn('[useAuth] Loading timeout - forcing loading=false after 4s')
           return { ...prev, loading: false }
         }
         return prev
       })
-    }, 6000)
+    }, 4000)
 
     return () => clearTimeout(timeout)
   }, [])
@@ -280,7 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [state.user, fetchERPUser])
 
-  const value: AuthContextValue = {
+  const value = useMemo<AuthContextValue>(() => ({
     ...state,
     signOut,
     refreshUser,
@@ -292,7 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin: state.role === 'super_admin' || state.role === 'admin_cliente',
     displayName: state.erpUser?.nombre || state.user?.email || 'Usuario',
     avatarUrl: state.erpUser?.avatar_url || state.user?.user_metadata?.avatar_url || null,
-  }
+  }), [state, signOut, refreshUser])
 
   return React.createElement(AuthContext.Provider, { value }, children)
 }
