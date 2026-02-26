@@ -14,7 +14,9 @@
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(tail:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(git:*)",
+      "Bash(npx tsc:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
