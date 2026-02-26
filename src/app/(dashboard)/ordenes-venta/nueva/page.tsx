@@ -354,7 +354,7 @@ export default function NuevaOrdenVentaPage() {
 
       const formValues = form.getFieldsValue()
 
-      // 2. Crear cotizacion con status 'propuesta' primero
+      // 2. Crear cotizacion con status 'orden_venta' (el RPC acepta ambos estados)
       const { data: cotizacion, error: cotError } = await supabase
         .schema('erp')
         .from('cotizaciones')
