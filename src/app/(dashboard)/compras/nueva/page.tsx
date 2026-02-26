@@ -295,20 +295,8 @@ export default function NuevaOrdenCompraPage() {
         message.error('La operación tardó demasiado. Intenta de nuevo.')
       }, 15000)
 
-      // Generar folio
-      const { data: folioData, error: folioError } = await supabase
-        .schema('erp')
-        .rpc('generar_folio', {
-          tipo: 'orden_compra',
-        })
-
-      if (folioError) throw folioError
-
-      const folio = folioData
-
-      // Crear orden
+      // Crear orden (folio se genera automáticamente via trigger)
       const ordenData = {
-        folio,
         proveedor_id: values.proveedor_id,
         almacen_destino_id: values.almacen_id,
         organizacion_id: orgId,
@@ -356,14 +344,14 @@ export default function NuevaOrdenCompraPage() {
       await registrarHistorial({
         documentoTipo: 'orden_compra',
         documentoId: orden.id,
-        documentoFolio: folio,
+        documentoFolio: orden.folio,
         usuarioId: erpUser?.id,
         usuarioNombre: erpUser?.nombre || erpUser?.email,
         accion: 'creado',
         descripcion: `Orden de Compra creada para ${proveedorNombre}`,
       })
 
-      message.success(`Orden ${folio} guardada correctamente`)
+      message.success(`Orden ${orden.folio} guardada correctamente`)
       router.push('/compras')
     } catch (error: any) {
       console.error('Error saving orden:', error)

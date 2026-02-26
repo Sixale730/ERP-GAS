@@ -366,13 +366,6 @@ export default function ComprasPage() {
       const ordenesCreadas: string[] = []
 
       for (const grupo of gruposValidos) {
-        // Generar folio
-        const { data: folio, error: folioError } = await supabase
-          .schema('erp')
-          .rpc('generar_folio', { tipo: 'orden_compra' })
-
-        if (folioError) throw folioError
-
         // Calcular totales usando subtotal con margen aplicado
         const subtotal = grupo.productos.reduce(
           (acc, p) => acc + p.subtotal,
@@ -381,12 +374,11 @@ export default function ComprasPage() {
         const iva = subtotal * 0.16
         const total = subtotal + iva
 
-        // Crear orden
+        // Crear orden (folio se genera automáticamente via trigger)
         const { data: orden, error: ordenError } = await supabase
           .schema('erp')
           .from('ordenes_compra')
           .insert({
-            folio,
             proveedor_id: grupo.proveedor_id,
             almacen_destino_id: almacenSeleccionado,
             moneda: monedaSeleccionada,
@@ -420,7 +412,7 @@ export default function ComprasPage() {
 
         if (itemsError) throw itemsError
 
-        ordenesCreadas.push(folio)
+        ordenesCreadas.push(orden.folio)
       }
 
       message.success(`Se crearon ${ordenesCreadas.length} ordenes de compra: ${ordenesCreadas.join(', ')}`)
