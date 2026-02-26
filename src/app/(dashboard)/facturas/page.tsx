@@ -43,23 +43,16 @@ export default function FacturasPage() {
     const supabase = getSupabaseClient()
     setDownloadingPdf(facturaId)
     try {
-      // Cargar factura completa
-      const { data: facData, error: facError } = await supabase
-        .schema('erp')
-        .from('v_facturas')
-        .select('*')
-        .eq('id', facturaId)
-        .single()
+      // Cargar factura + items en paralelo
+      const [facResult, itemsResult] = await Promise.all([
+        supabase.schema('erp').from('v_facturas').select('*').eq('id', facturaId).single(),
+        supabase.schema('erp').from('factura_items').select('*, productos:producto_id (sku)').eq('factura_id', facturaId),
+      ])
+
+      const { data: facData, error: facError } = facResult
+      const { data: itemsData, error: itemsError } = itemsResult
 
       if (facError) throw facError
-
-      // Cargar items
-      const { data: itemsData, error: itemsError } = await supabase
-        .schema('erp')
-        .from('factura_items')
-        .select('*, productos:producto_id (sku)')
-        .eq('factura_id', facturaId)
-
       if (itemsError) throw itemsError
 
       const items = itemsData?.map(item => ({

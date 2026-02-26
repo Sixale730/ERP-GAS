@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card,
@@ -105,13 +105,14 @@ export default function EditarFacturaPage() {
     setLoading(true)
 
     try {
-      // Cargar factura
-      const { data: factura, error: facError } = await supabase
-        .schema('erp')
-        .from('facturas')
-        .select('*')
-        .eq('id', id)
-        .single()
+      // Cargar factura + items en paralelo (ambas dependen solo del id)
+      const [facResult, itemsResult] = await Promise.all([
+        supabase.schema('erp').from('facturas').select('*').eq('id', id).single(),
+        supabase.schema('erp').from('factura_items').select('*, productos:producto_id (sku)').eq('factura_id', id),
+      ])
+
+      const { data: factura, error: facError } = facResult
+      const { data: itemsData } = itemsResult
 
       if (facError) throw facError
 
@@ -123,13 +124,6 @@ export default function EditarFacturaPage() {
       }
 
       setFacturaOriginal(factura)
-
-      // Cargar items
-      const { data: itemsData } = await supabase
-        .schema('erp')
-        .from('factura_items')
-        .select('*, productos:producto_id (sku)')
-        .eq('factura_id', id)
 
       const itemsFormateados: ItemFactura[] = (itemsData || []).map((item: any) => ({
         key: item.id,
@@ -358,7 +352,7 @@ export default function EditarFacturaPage() {
     }
   }
 
-  const columns: ColumnsType<ItemFactura> = [
+  const columns: ColumnsType<ItemFactura> = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -444,7 +438,7 @@ export default function EditarFacturaPage() {
         />
       ),
     },
-  ]
+  ], [handleItemChange, handleRemoveItem])
 
   if (loading) {
     return (

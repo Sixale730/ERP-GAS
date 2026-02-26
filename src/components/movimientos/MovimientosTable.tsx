@@ -1,5 +1,6 @@
 'use client'
 
+import React, { useMemo } from 'react'
 import { Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { formatDateTime, formatNumber } from '@/lib/utils/format'
@@ -29,7 +30,7 @@ const REFERENCIA_CONFIG: Record<string, { color: string; label: string }> = {
   transferencia: { color: 'geekblue', label: 'Transferencia' },
 }
 
-export default function MovimientosTable({
+function MovimientosTable({
   data,
   loading,
   compact = false,
@@ -37,7 +38,7 @@ export default function MovimientosTable({
   showPagination = true,
 }: MovimientosTableProps) {
 
-  const columns: ColumnsType<MovimientoView> = [
+  const columns: ColumnsType<MovimientoView> = useMemo(() => [
     {
       title: 'Fecha',
       dataIndex: 'created_at',
@@ -114,7 +115,7 @@ export default function MovimientosTable({
       key: 'notas',
       ellipsis: true,
     }] : []),
-  ] as ColumnsType<MovimientoView>
+  ] as ColumnsType<MovimientoView>, [compact])
 
   return (
     <Table
@@ -132,3 +133,5 @@ export default function MovimientosTable({
     />
   )
 }
+
+export default React.memo(MovimientosTable)

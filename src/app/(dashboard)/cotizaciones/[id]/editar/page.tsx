@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin, Alert, Collapse
@@ -161,13 +161,17 @@ export default function EditarCotizacionPage() {
     setLoading(true)
 
     try {
-      // Cargar cotizacion existente
-      const { data: cotData, error: cotError } = await supabase
-        .schema('erp')
-        .from('cotizaciones')
-        .select('*')
-        .eq('id', cotizacionId)
-        .single()
+      // Cargar cotización + items en paralelo (ambas dependen solo del id)
+      const [cotResult, itemsResult] = await Promise.all([
+        supabase.schema('erp').from('cotizaciones').select('*').eq('id', cotizacionId).single(),
+        supabase.schema('erp').from('cotizacion_items').select(`
+          *,
+          productos:producto_id (id, sku, nombre, categoria_id)
+        `).eq('cotizacion_id', cotizacionId).order('created_at'),
+      ])
+
+      const { data: cotData, error: cotError } = cotResult
+      const { data: itemsData } = itemsResult
 
       if (cotError) throw cotError
 
@@ -209,17 +213,6 @@ export default function EditarCotizacionPage() {
         condiciones_pago: cotData.condiciones_pago,
         oc_cliente: cotData.oc_cliente,
       })
-
-      // Cargar items de la cotizacion
-      const { data: itemsData } = await supabase
-        .schema('erp')
-        .from('cotizacion_items')
-        .select(`
-          *,
-          productos:producto_id (id, sku, nombre, categoria_id)
-        `)
-        .eq('cotizacion_id', cotizacionId)
-        .order('created_at')
 
       // Cargar catalogos
       const [clientesRes, almacenesRes, listasRes, productosRes] = await Promise.all([
@@ -628,7 +621,7 @@ export default function EditarCotizacionPage() {
     }
   }
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -726,7 +719,7 @@ export default function EditarCotizacionPage() {
         <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleRemoveItem(record.key)} size="small" />
       ),
     },
-  ]
+  ], [handleUpdateItem, handleRemoveItem])
 
   if (loading) {
     return (

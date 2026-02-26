@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Timeline, Typography, Spin, Empty, Tag } from 'antd'
 import {
   PlusCircleOutlined,
@@ -49,7 +49,7 @@ const accionLabels: Record<AccionTipo, string> = {
   convertido: 'Convertido',
 }
 
-export default function HistorialTimeline({ documentoTipo, documentoId }: HistorialTimelineProps) {
+function HistorialTimeline({ documentoTipo, documentoId }: HistorialTimelineProps) {
   const [historial, setHistorial] = useState<HistorialItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -116,3 +116,5 @@ export default function HistorialTimeline({ documentoTipo, documentoId }: Histor
     />
   )
 }
+
+export default React.memo(HistorialTimeline)
