@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Card, Typography, message, Popconfirm, Tag } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, StarFilled } from '@ant-design/icons'
@@ -74,7 +74,7 @@ export default function ListasPreciosPage() {
       l.codigo.toLowerCase().includes(searchText.toLowerCase())
   )
 
-  const columns: ColumnsType<ListaPrecio> = [
+  const columns: ColumnsType<ListaPrecio> = useMemo(() => [
     { title: 'Código', dataIndex: 'codigo', key: 'codigo', width: 120 },
     {
       title: 'Nombre',
@@ -113,7 +113,7 @@ export default function ListasPreciosPage() {
         </Space>
       ),
     },
-  ]
+  ], [router])
 
   return (
     <div>

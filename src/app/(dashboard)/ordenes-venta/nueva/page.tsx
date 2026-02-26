@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Alert, Collapse
@@ -452,7 +452,7 @@ export default function NuevaOrdenVentaPage() {
     }
   }
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -535,7 +535,7 @@ export default function NuevaOrdenVentaPage() {
         <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleRemoveItem(record.key)} size="small" />
       ),
     },
-  ]
+  ], [handleUpdateItem, handleRemoveItem, formatMoney, moneda])
 
   return (
     <div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Card,
   Typography,
@@ -134,7 +134,7 @@ export default function ConfiguracionCFDIPage() {
   )
 
   // Columnas para la tabla de RFCs
-  const columnsRFCs = [
+  const columnsRFCs = useMemo(() => [
     {
       title: 'RFC',
       dataIndex: 'taxpayer_id',
@@ -169,7 +169,7 @@ export default function ConfiguracionCFDIPage() {
           credit.toLocaleString()
         ),
     },
-  ]
+  ], [])
 
   return (
     <div>

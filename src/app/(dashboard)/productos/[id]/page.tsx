@@ -252,7 +252,7 @@ export default function ProductoDetallePage() {
     }
   }
 
-  const preciosColumns = [
+  const preciosColumns = useMemo(() => [
     {
       title: 'Lista de Precios',
       dataIndex: 'lista_nombre',
@@ -309,9 +309,9 @@ export default function ProductoDetallePage() {
         </Space>
       ),
     },
-  ]
+  ], [])
 
-  const inventarioColumns = [
+  const inventarioColumns = useMemo(() => [
     {
       title: 'Almacén',
       dataIndex: 'almacen_nombre',
@@ -338,7 +338,7 @@ export default function ProductoDetallePage() {
         <Tag color={val > 0 ? 'green' : 'red'}>{val}</Tag>
       ),
     },
-  ]
+  ], [])
 
   if (loading) {
     return (

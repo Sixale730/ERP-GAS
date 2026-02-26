@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card,
@@ -260,7 +260,7 @@ export default function DetalleOrdenCompraPage() {
     return moneda === 'MXN' ? formatMoneyMXN(amount) : formatMoneyUSD(amount)
   }
 
-  const columns: ColumnsType<ItemConProducto> = [
+  const columns: ColumnsType<ItemConProducto> = useMemo(() => [
     {
       title: 'SKU',
       key: 'sku',
@@ -338,7 +338,7 @@ export default function DetalleOrdenCompraPage() {
       align: 'right',
       render: (subtotal) => formatMoney(subtotal),
     },
-  ]
+  ], [formatMoney])
 
   if (loading) {
     return (

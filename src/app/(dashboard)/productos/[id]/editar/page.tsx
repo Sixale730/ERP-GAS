@@ -166,7 +166,7 @@ export default function EditarProductoPage() {
   }
 
   // Columnas de la tabla de precios
-  const preciosColumns: ColumnsType<PrecioConLista> = [
+  const preciosColumns: ColumnsType<PrecioConLista> = useMemo(() => [
     {
       title: 'Lista de Precios',
       dataIndex: 'lista_nombre',
@@ -223,7 +223,7 @@ export default function EditarProductoPage() {
         </Space>
       ),
     },
-  ]
+  ], [])
 
   if (loading) {
     return (

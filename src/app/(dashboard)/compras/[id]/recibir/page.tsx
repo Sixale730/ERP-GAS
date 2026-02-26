@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card,
@@ -191,7 +191,7 @@ export default function RecibirMercanciaPage() {
   const totalPendiente = items.reduce((acc, item) => acc + item.cantidad_pendiente, 0)
   const totalARecibir = items.reduce((acc, item) => acc + item.cantidad_a_recibir, 0)
 
-  const columns: ColumnsType<ItemRecepcion> = [
+  const columns: ColumnsType<ItemRecepcion> = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -271,7 +271,7 @@ export default function RecibirMercanciaPage() {
         />
       ),
     },
-  ]
+  ], [handleItemChange, handleRecibirTodo])
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin,
@@ -656,7 +656,7 @@ export default function FacturaDetallePage() {
 
   // === COLUMNS ===
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 100 },
     { title: 'Descripcion', dataIndex: 'descripcion', key: 'descripcion' },
     { title: 'Cantidad', dataIndex: 'cantidad', key: 'cantidad', width: 100, align: 'right' as const },
@@ -672,9 +672,9 @@ export default function FacturaDetallePage() {
       title: 'Subtotal', dataIndex: 'subtotal', key: 'subtotal',
       width: 130, align: 'right' as const, render: (val: number) => formatMoney(val),
     },
-  ]
+  ], [])
 
-  const pagosColumns = [
+  const pagosColumns = useMemo(() => [
     { title: 'Folio', dataIndex: 'folio', key: 'folio', width: 100 },
     {
       title: 'Fecha', dataIndex: 'fecha', key: 'fecha', width: 100,
@@ -716,7 +716,7 @@ export default function FacturaDetallePage() {
         return <Text type="secondary">-</Text>
       },
     },
-  ]
+  ], [factura, complementoLoading])
 
   if (loading) {
     return (

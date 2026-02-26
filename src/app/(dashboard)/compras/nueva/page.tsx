@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Card,
@@ -362,7 +362,7 @@ export default function NuevaOrdenCompraPage() {
     }
   }
 
-  const columns: ColumnsType<ItemOrden> = [
+  const columns: ColumnsType<ItemOrden> = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -447,7 +447,7 @@ export default function NuevaOrdenCompraPage() {
         />
       ),
     },
-  ]
+  ], [handleItemChange, handleRemoveItem, monedaSeleccionada])
 
   return (
     <div>

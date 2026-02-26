@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin, Table, Input, Switch, List, Tag } from 'antd'
 import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined, AppstoreOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -226,7 +226,7 @@ export default function ConfiguracionPage() {
   const margenActual = formValues.margen_ganancia || margenGanancia
   const precioCalculado = costoEjemplo * tcActual * (1 + margenActual / 100)
 
-  const columnsCategoria: ColumnsType<CategoriaConMargen> = [
+  const columnsCategoria: ColumnsType<CategoriaConMargen> = useMemo(() => [
     {
       title: 'Categoria',
       dataIndex: 'nombre',
@@ -265,7 +265,7 @@ export default function ConfiguracionPage() {
         return <Text strong style={{ color: margenesPorCategoria[record.id] !== null && margenesPorCategoria[record.id] !== undefined ? '#1890ff' : undefined }}>{efectivo}%</Text>
       },
     },
-  ]
+  ], [margenGlobal, margenesPorCategoria])
 
   if (loading || loadingMargenes) {
     return (

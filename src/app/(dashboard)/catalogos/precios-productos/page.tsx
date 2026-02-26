@@ -186,7 +186,7 @@ export default function PreciosProductosPage() {
     }
   }
 
-  const columns: ColumnsType<PrecioProductoRow> = [
+  const columns: ColumnsType<PrecioProductoRow> = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -286,7 +286,7 @@ export default function PreciosProductosPage() {
           </Button>
         ),
     },
-  ]
+  ], [])
 
   return (
     <div>
