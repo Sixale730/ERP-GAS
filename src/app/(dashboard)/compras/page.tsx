@@ -152,6 +152,20 @@ export default function ComprasPage() {
         .eq('almacen_destino_id', almacenId)
         .in('status', ['enviada', 'parcialmente_recibida'])
 
+      // Cargar demanda de OVs pendientes (no facturadas ni canceladas) para este almacén
+      const { data: ovPendientesData } = await supabase
+        .schema('erp')
+        .from('cotizaciones')
+        .select(`
+          id,
+          cotizacion_items(
+            producto_id,
+            cantidad
+          )
+        `)
+        .eq('almacen_id', almacenId)
+        .eq('status', 'orden_venta')
+
       // Cargar precios de la lista "Público General"
       const { data: preciosData } = await supabase
         .schema('erp')
@@ -162,6 +176,21 @@ export default function ComprasPage() {
       const inventarioMap = new Map(
         inventarioData?.map((i) => [i.producto_id, Number(i.cantidad)]) || []
       )
+
+      // Crear mapa de demanda comprometida en OVs pendientes
+      const demandaOVMap = new Map<string, number>()
+      if (ovPendientesData) {
+        ovPendientesData.forEach((ov) => {
+          const items = ov.cotizacion_items as Array<{
+            producto_id: string
+            cantidad: number
+          }> | null
+          items?.forEach((item) => {
+            const actual = demandaOVMap.get(item.producto_id) ?? 0
+            demandaOVMap.set(item.producto_id, actual + Number(item.cantidad))
+          })
+        })
+      }
 
       // Crear mapa de cantidades pendientes por producto (en tránsito)
       const cantidadesPendientesMap = new Map<string, number>()
@@ -194,10 +223,13 @@ export default function ComprasPage() {
         .map((p) => {
           const cantidadActual = inventarioMap.get(p.id) ?? 0
           const cantidadEnTransito = cantidadesPendientesMap.get(p.id) ?? 0
+          const demandaOV = demandaOVMap.get(p.id) ?? 0
           // Stock efectivo = actual + lo que ya viene en camino
           const stockEfectivo = cantidadActual + cantidadEnTransito
-          // Solo sugerir lo que falta después de considerar lo en tránsito
-          const cantidadSugerida = Math.max(p.stock_maximo - stockEfectivo, 0)
+          // Sugerir: lo necesario para llegar a stock_maximo, o cubrir demanda OV no cubierta
+          const porStockMaximo = Math.max(p.stock_maximo - stockEfectivo, 0)
+          const porDemandaOV = Math.max(demandaOV - Math.max(stockEfectivo, 0), 0)
+          const cantidadSugerida = Math.max(porStockMaximo, porDemandaOV)
           const proveedorData = p.proveedores as unknown
           const proveedor = (Array.isArray(proveedorData) ? proveedorData[0] : proveedorData) as { id: string; razon_social: string } | null
           // Usar precio de lista (USD), fallback a costo_promedio
@@ -232,9 +264,12 @@ export default function ComprasPage() {
         .filter((p) => {
           // Mostrar si hay algo que pedir Y:
           // - Stock efectivo está bajo mínimo, O
-          // - Inventario actual es negativo (urgente, aunque haya pedidos en tránsito)
+          // - Inventario actual es negativo (urgente, aunque haya pedidos en tránsito), O
+          // - Hay demanda de OVs pendientes no cubierta por stock + tránsito
           const stockEfectivo = p.cantidad_actual + (cantidadesPendientesMap.get(p.producto_id) ?? 0)
-          return p.cantidad_sugerida > 0 && (stockEfectivo < p.stock_minimo || p.cantidad_actual < 0)
+          const demandaOV = demandaOVMap.get(p.producto_id) ?? 0
+          const demandaNoCubierta = demandaOV > Math.max(stockEfectivo, 0)
+          return p.cantidad_sugerida > 0 && (stockEfectivo < p.stock_minimo || p.cantidad_actual < 0 || demandaNoCubierta)
         })
 
       // Extraer proveedores únicos disponibles
