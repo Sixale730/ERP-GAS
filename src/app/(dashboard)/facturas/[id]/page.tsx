@@ -13,7 +13,7 @@ import {
   DollarOutlined, EyeOutlined
 } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatMoney, formatDate } from '@/lib/utils/format'
+import { formatMoneyUSD, formatMoneyMXN, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura, type OpcionesMoneda } from '@/lib/utils/pdf'
 import { type CodigoMoneda } from '@/lib/config/moneda'
 import TimbradoSuccessModal from '@/components/facturacion/TimbradoSuccessModal'
@@ -168,6 +168,11 @@ export default function FacturaDetallePage() {
   const [registrandoPago, setRegistrandoPago] = useState(false)
   const [complementoLoading, setComplementoLoading] = useState<string | null>(null)
 
+  const formatMoney = (amount: number) => {
+    if (!factura) return `$${amount.toFixed(2)}`
+    return factura.moneda === 'USD' ? formatMoneyUSD(amount) : formatMoneyMXN(amount)
+  }
+
   const loadFactura = useCallback(async () => {
     const supabase = getSupabaseClient()
     setLoading(true)
@@ -230,7 +235,7 @@ export default function FacturaDetallePage() {
         sello_sat: facData.sello_sat,
         certificado_sat: facData.certificado_sat,
         cadena_original: facData.cadena_original,
-        moneda: (facData.moneda as CodigoMoneda) || 'USD',
+        moneda: (facData.moneda as CodigoMoneda) || 'MXN',
         tipo_cambio: facData.tipo_cambio,
         vendedor_nombre: facData.vendedor_nombre,
       }
@@ -370,7 +375,7 @@ export default function FacturaDetallePage() {
 
     // Fallback: PDF basico sin datos SAT
     const opciones: OpcionesMoneda = {
-      moneda: factura.moneda || 'USD',
+      moneda: factura.moneda || 'MXN',
       tipoCambio: factura.moneda === 'MXN' ? (factura.tipo_cambio || undefined) : undefined
     }
     await generarPDFFactura({ ...factura, vendedor_nombre: factura.vendedor_nombre }, items, opciones)
