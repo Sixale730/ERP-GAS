@@ -88,14 +88,14 @@ interface CotizacionItem {
 const statusColors: Record<string, string> = {
   propuesta: 'processing',
   orden_venta: 'success',
-  factura: 'purple',
+  facturada: 'purple',
   cancelada: 'error',
 }
 
 const statusLabels: Record<string, string> = {
   propuesta: 'Propuesta',
   orden_venta: 'Orden de Venta',
-  factura: 'Facturada',
+  facturada: 'Facturada',
   cancelada: 'Cancelada',
 }
 
@@ -577,7 +577,7 @@ export default function CotizacionDetallePage() {
           </Tag>
           {/* Tag Caducada - solo visual, no bloquea acciones */}
           {esCaducada(cotizacion.fecha, cotizacion.vigencia_dias) &&
-           cotizacion.status !== 'factura' &&
+           cotizacion.status !== 'facturada' &&
            cotizacion.status !== 'cancelada' && (
             <Tag color="warning" icon={<ClockCircleOutlined />} style={{ fontSize: 14, padding: '4px 12px' }}>
               Caducada
@@ -648,7 +648,7 @@ export default function CotizacionDetallePage() {
           )}
 
           {/* Status FACTURA */}
-          {cotizacion.status === 'factura' && (
+          {cotizacion.status === 'facturada' && (
             <Tag icon={<CheckCircleOutlined />} color="purple" style={{ fontSize: 14, padding: '4px 12px' }}>
               Ya facturada
             </Tag>
@@ -675,7 +675,7 @@ export default function CotizacionDetallePage() {
               <Descriptions.Item label="Vigencia">
                 {formatDate(calcularFechaVencimiento(cotizacion.fecha, cotizacion.vigencia_dias))}
                 {esCaducada(cotizacion.fecha, cotizacion.vigencia_dias) &&
-                 cotizacion.status !== 'factura' &&
+                 cotizacion.status !== 'facturada' &&
                  cotizacion.status !== 'cancelada' && (
                   <Tag color="warning" style={{ marginLeft: 8 }}>Caducada</Tag>
                 )}
