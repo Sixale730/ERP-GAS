@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, Typography, Space, Input, Select, Row, Col, Statistic, Button } from 'antd'
 import { SearchOutlined, ArrowUpOutlined, ArrowDownOutlined, SwapOutlined, ReloadOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
@@ -76,16 +76,20 @@ export default function MovimientosPage() {
     }
   }
 
-  // Client-side search filter
-  const filteredMovimientos = movimientos.filter(m =>
-    m.producto_nombre.toLowerCase().includes(searchText.toLowerCase()) ||
-    m.sku.toLowerCase().includes(searchText.toLowerCase()) ||
-    (m.notas || '').toLowerCase().includes(searchText.toLowerCase())
-  )
-
-  // Stats
-  const totalEntradas = filteredMovimientos.filter(m => m.tipo === 'entrada').length
-  const totalSalidas = filteredMovimientos.filter(m => m.tipo === 'salida').length
+  // Client-side search filter + stats en una sola pasada
+  const { filteredMovimientos, totalEntradas, totalSalidas } = useMemo(() => {
+    let entradas = 0, salidas = 0
+    const filtered = movimientos.filter(m => {
+      const match = m.producto_nombre.toLowerCase().includes(searchText.toLowerCase()) ||
+        m.sku.toLowerCase().includes(searchText.toLowerCase()) ||
+        (m.notas || '').toLowerCase().includes(searchText.toLowerCase())
+      if (match) {
+        if (m.tipo === 'entrada') entradas++; else salidas++
+      }
+      return match
+    })
+    return { filteredMovimientos: filtered, totalEntradas: entradas, totalSalidas: salidas }
+  }, [movimientos, searchText])
 
   const handleDescargarPDF = async () => {
     setGenerandoPDF(true)

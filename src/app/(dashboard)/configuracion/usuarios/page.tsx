@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Card,
   Table,
@@ -104,7 +104,7 @@ function PermisosTable({
     onChange(updated)
   }
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: 'Modulo',
       dataIndex: 'label',
@@ -123,7 +123,7 @@ function PermisosTable({
         />
       ),
     })),
-  ]
+  ], [permisos, handleChange])
 
   return (
     <Table
@@ -450,7 +450,7 @@ export default function UsuariosPage() {
     }
   }
 
-  const usuariosColumns = [
+  const usuariosColumns = useMemo(() => [
     {
       title: 'Email',
       dataIndex: 'email',
@@ -544,9 +544,9 @@ export default function UsuariosPage() {
         )
       },
     },
-  ]
+  ], [isSuperAdmin, isAdmin])
 
-  const autorizadosColumns = [
+  const autorizadosColumns = useMemo(() => [
     {
       title: 'Email',
       dataIndex: 'email',
@@ -590,9 +590,9 @@ export default function UsuariosPage() {
         </Popconfirm>
       ),
     },
-  ]
+  ], [])
 
-  const solicitudesColumns = [
+  const solicitudesColumns = useMemo(() => [
     {
       title: 'Usuario',
       key: 'usuario',
@@ -638,7 +638,7 @@ export default function UsuariosPage() {
         </Space>
       ),
     },
-  ]
+  ], [])
 
   const tabItems = [
     {

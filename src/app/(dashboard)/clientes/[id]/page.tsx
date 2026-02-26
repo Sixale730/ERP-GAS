@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Table
@@ -130,7 +130,7 @@ export default function ClienteDetallePage() {
     }
   }
 
-  const facturasColumns = [
+  const facturasColumns = useMemo(() => [
     {
       title: 'Folio',
       dataIndex: 'folio',
@@ -171,7 +171,7 @@ export default function ClienteDetallePage() {
         <Tag color={statusColors[status]}>{status}</Tag>
       ),
     },
-  ]
+  ], [router])
 
   if (loading) {
     return (
