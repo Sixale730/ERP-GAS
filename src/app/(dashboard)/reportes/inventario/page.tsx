@@ -71,7 +71,7 @@ export default function ReporteInventarioPage() {
     return { productosEnStock, totalUnidades, stockBajo, sinStock }
   }, [filteredData])
 
-  const columns: ColumnsType<InventarioRow> = [
+  const columns: ColumnsType<InventarioRow> = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -143,7 +143,7 @@ export default function ReporteInventarioPage() {
       key: 'unidad_medida',
       width: 80,
     },
-  ]
+  ], [])
 
   const handleDescargarPDF = async () => {
     setGenerandoPDF(true)

@@ -61,7 +61,7 @@ export default function ReporteServiciosPage() {
     [servicios, searchText]
   )
 
-  const columns: ColumnsType<ServicioRow> = [
+  const columns: ColumnsType<ServicioRow> = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -147,7 +147,7 @@ export default function ReporteServiciosPage() {
         </Button>
       ),
     },
-  ]
+  ], [router, servicioFilter])
 
   const handleDescargarPDF = async () => {
     setGenerandoPDF(true)

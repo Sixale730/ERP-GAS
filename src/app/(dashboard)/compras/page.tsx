@@ -560,20 +560,25 @@ export default function ComprasPage() {
 
   // Calcular totales para el modal (solo proveedores seleccionados y productos con cantidad > 0)
   // Usar subtotal con margen aplicado
-  const gruposFiltrados = proveedorGroups
-    .filter((g) => g.proveedor_id !== 'SIN_PROVEEDOR' && proveedoresSeleccionados.includes(g.proveedor_id))
-    .map((g) => ({
-      ...g,
-      productos: g.productos.filter((p) => p.cantidad_sugerida > 0),
-      total_estimado: g.productos
-        .filter((p) => p.cantidad_sugerida > 0)
-        .reduce((acc, p) => acc + p.subtotal, 0),
-    }))
-    .filter((g) => g.productos.length > 0)
+  const { gruposFiltrados, totalProductosFaltantes, totalOrdenesACrear, totalEstimado } = useMemo(() => {
+    const filtered = proveedorGroups
+      .filter((g) => g.proveedor_id !== 'SIN_PROVEEDOR' && proveedoresSeleccionados.includes(g.proveedor_id))
+      .map((g) => ({
+        ...g,
+        productos: g.productos.filter((p) => p.cantidad_sugerida > 0),
+        total_estimado: g.productos
+          .filter((p) => p.cantidad_sugerida > 0)
+          .reduce((acc, p) => acc + p.subtotal, 0),
+      }))
+      .filter((g) => g.productos.length > 0)
 
-  const totalProductosFaltantes = gruposFiltrados.reduce((acc, g) => acc + g.productos.length, 0)
-  const totalOrdenesACrear = gruposFiltrados.length
-  const totalEstimado = gruposFiltrados.reduce((acc, g) => acc + g.total_estimado, 0)
+    return {
+      gruposFiltrados: filtered,
+      totalProductosFaltantes: filtered.reduce((acc, g) => acc + g.productos.length, 0),
+      totalOrdenesACrear: filtered.length,
+      totalEstimado: filtered.reduce((acc, g) => acc + g.total_estimado, 0),
+    }
+  }, [proveedorGroups, proveedoresSeleccionados])
 
   return (
     <div>

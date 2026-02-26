@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card,
@@ -364,7 +364,7 @@ export default function EditarOrdenCompraPage() {
     }
   }
 
-  const columns: ColumnsType<ItemOrden> = [
+  const columns: ColumnsType<ItemOrden> = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -449,7 +449,7 @@ export default function EditarOrdenCompraPage() {
         />
       ),
     },
-  ]
+  ], [handleItemChange, handleRemoveItem, monedaSeleccionada])
 
   if (loading) {
     return (

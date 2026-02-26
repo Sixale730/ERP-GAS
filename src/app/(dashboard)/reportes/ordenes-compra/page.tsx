@@ -69,7 +69,7 @@ export default function ReporteOrdenesCompraPage() {
     return { total, montoTotal, recibidas, pendientes }
   }, [filteredData])
 
-  const columns: ColumnsType<OrdenCompraView> = [
+  const columns: ColumnsType<OrdenCompraView> = useMemo(() => [
     {
       title: 'Folio',
       dataIndex: 'folio',
@@ -144,7 +144,7 @@ export default function ReporteOrdenesCompraPage() {
       width: 120,
       render: (val: string) => val ? formatDate(val) : '-',
     },
-  ]
+  ], [])
 
   const handleExportarExcel = async () => {
     setGenerandoExcel(true)

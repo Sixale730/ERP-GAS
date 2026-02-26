@@ -65,7 +65,7 @@ export default function ReporteOrdenesVentaPage() {
     return { total, montoTotal, pendientes, facturadas }
   }, [filteredData])
 
-  const columns: ColumnsType<OrdenVentaRow> = [
+  const columns: ColumnsType<OrdenVentaRow> = useMemo(() => [
     {
       title: 'Folio',
       dataIndex: 'folio',
@@ -135,7 +135,7 @@ export default function ReporteOrdenesVentaPage() {
       width: 130,
       render: (val: string) => formatDate(val, 'DD/MM/YYYY HH:mm'),
     },
-  ]
+  ], [])
 
   const handleExportarExcel = async () => {
     setGenerandoExcel(true)
