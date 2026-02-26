@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Segmented } from 'antd'
-import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, FileTextOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, FileTextOutlined, LinkOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { formatMoneySimple, formatDate, formatDateTime } from '@/lib/utils/format'
 import { generarPDFCotizacion, prepararDatosCotizacionPDF } from '@/lib/utils/pdf'
@@ -114,6 +114,17 @@ export default function OrdenesVentaPage() {
       title: 'Cliente',
       dataIndex: 'cliente_nombre',
       key: 'cliente_nombre',
+    },
+    {
+      title: 'Cotización',
+      dataIndex: 'cotizacion_origen_folio',
+      key: 'cotizacion_origen_folio',
+      width: 120,
+      render: (folio: string | null, record: OrdenVentaRow) => folio ? (
+        <Button type="link" size="small" style={{ padding: 0 }} icon={<LinkOutlined />} onClick={() => router.push(`/cotizaciones/${record.cotizacion_origen_id}`)}>
+          {folio}
+        </Button>
+      ) : <span style={{ color: '#999' }}>-</span>,
     },
     {
       title: 'OC Cliente',

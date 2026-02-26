@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
-import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useCotizaciones, useDeleteCotizacion, type CotizacionRow } from '@/lib/hooks/queries/useCotizaciones'
 import { TableSkeleton } from '@/components/common/Skeletons'
@@ -156,6 +156,16 @@ export default function CotizacionesPage() {
           )}
         </Space>
       ),
+    },
+    {
+      title: 'OVs',
+      dataIndex: 'num_ovs_generadas',
+      key: 'num_ovs_generadas',
+      width: 70,
+      align: 'center',
+      render: (num: number) => num > 0 ? (
+        <Tag color="green" icon={<ShoppingCartOutlined />}>{num}</Tag>
+      ) : null,
     },
     {
       title: 'Creado',

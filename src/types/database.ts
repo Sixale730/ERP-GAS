@@ -456,6 +456,7 @@ export type Database = {
           metodo_pago: string | null
           condiciones_pago: string | null
           oc_cliente: string | null
+          cotizacion_origen_id: string | null
           created_at: string
           updated_at: string
         }
@@ -499,6 +500,7 @@ export type Database = {
           metodo_pago?: string | null
           condiciones_pago?: string | null
           oc_cliente?: string | null
+          cotizacion_origen_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -542,6 +544,7 @@ export type Database = {
           metodo_pago?: string | null
           condiciones_pago?: string | null
           oc_cliente?: string | null
+          cotizacion_origen_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -1049,6 +1052,9 @@ export type Database = {
           created_at: string
           updated_at: string
           organizacion_id: string | null
+          cotizacion_origen_id: string | null
+          cotizacion_origen_folio: string | null
+          num_ovs_generadas: number
         }
       }
       v_facturas: {
@@ -1139,6 +1145,14 @@ export type Database = {
       cotizacion_a_factura: {
         Args: { p_cotizacion_id: string }
         Returns: string
+      }
+      cotizacion_a_orden_venta: {
+        Args: { p_cotizacion_id: string }
+        Returns: string
+      }
+      descontar_inventario_ov: {
+        Args: { p_ov_id: string }
+        Returns: void
       }
       recalcular_totales_cotizacion: {
         Args: { p_cotizacion_id: string }

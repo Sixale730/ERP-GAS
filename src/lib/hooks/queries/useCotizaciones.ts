@@ -13,6 +13,7 @@ export interface CotizacionRow {
   cliente_nombre?: string
   cliente_rfc?: string
   almacen_nombre?: string
+  num_ovs_generadas: number
   created_at?: string
   updated_at?: string
 }
@@ -26,7 +27,7 @@ export const cotizacionesKeys = {
   detail: (id: string) => [...cotizacionesKeys.details(), id] as const,
 }
 
-const COTIZACIONES_LIST_COLUMNS = 'id, folio, fecha, vigencia_dias, status, total, moneda, cliente_nombre, cliente_rfc, almacen_nombre, created_at, updated_at'
+const COTIZACIONES_LIST_COLUMNS = 'id, folio, fecha, vigencia_dias, status, total, moneda, cliente_nombre, cliente_rfc, almacen_nombre, num_ovs_generadas, created_at, updated_at'
 
 // Fetch cotizaciones with optional status filter and pagination
 async function fetchCotizaciones(statusFilter?: string | null, pagination?: PaginationParams): Promise<PaginatedResult<CotizacionRow>> {

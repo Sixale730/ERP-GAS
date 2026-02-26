@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Alert, Collapse, Input
 } from 'antd'
-import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, HistoryOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, HistoryOutlined, LinkOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyMXN, formatMoneyUSD, formatDate } from '@/lib/utils/format'
 import { getFormaPagoLabel, getMetodoPagoLabel, getRegimenFiscalLabel, getUsoCfdiLabel } from '@/lib/config/sat'
@@ -58,6 +58,9 @@ interface CotizacionDetalle {
   vendedor_nombre: string | null
   // OC Cliente
   oc_cliente: string | null
+  // Relación COT <-> OV
+  cotizacion_origen_id: string | null
+  cotizacion_origen_folio: string | null
 }
 
 // Helpers para vigencia
@@ -107,6 +110,8 @@ export default function CotizacionDetallePage() {
   const [items, setItems] = useState<CotizacionItem[]>([])
   const [inventarioMap, setInventarioMap] = useState<Map<string, number>>(new Map())
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(true)
+  // OVs generadas desde esta cotización
+  const [ovsGeneradas, setOvsGeneradas] = useState<{id: string, folio: string, status: string, total: number, fecha: string}[]>([])
   // Estados para edición inline de descripción
   const [editingItems, setEditingItems] = useState<Map<string, string>>(new Map())
   const [savingItem, setSavingItem] = useState<string | null>(null)
@@ -184,7 +189,23 @@ export default function CotizacionDetallePage() {
         // Vendedor
         vendedor_nombre: cotData.vendedor_nombre,
         // OC Cliente
-        oc_cliente: cotData.oc_cliente
+        oc_cliente: cotData.oc_cliente,
+        // Relación COT <-> OV
+        cotizacion_origen_id: cotData.cotizacion_origen_id || null,
+        cotizacion_origen_folio: null // se resuelve abajo si existe
+      }
+
+      // Resolver folio de cotización origen si existe
+      if (cotData.cotizacion_origen_id) {
+        const { data: origenData } = await supabase
+          .schema('erp')
+          .from('cotizaciones')
+          .select('folio')
+          .eq('id', cotData.cotizacion_origen_id)
+          .single()
+        if (origenData) {
+          cotizacionData.cotizacion_origen_folio = origenData.folio
+        }
       }
 
       setCotizacion(cotizacionData)
@@ -209,6 +230,19 @@ export default function CotizacionDetallePage() {
       })) || []
 
       setItems(itemsWithSku)
+
+      // Cargar OVs generadas desde esta cotización (solo si es COT-)
+      if (cotData.folio?.startsWith('COT-')) {
+        const { data: ovsData } = await supabase
+          .schema('erp')
+          .from('cotizaciones')
+          .select('id, folio, status, total, fecha')
+          .eq('cotizacion_origen_id', id)
+          .order('created_at', { ascending: false })
+        setOvsGeneradas(ovsData || [])
+      } else {
+        setOvsGeneradas([])
+      }
     } catch (error) {
       console.error('Error loading cotizacion:', error)
       message.error('Error al cargar cotización')
@@ -315,20 +349,23 @@ export default function CotizacionDetallePage() {
 
   const handleConvertirOrdenVenta = () => {
     Modal.confirm({
-      title: '¿Convertir a Orden de Venta?',
+      title: '¿Generar Orden de Venta?',
       content: (
         <div>
-          <p>Esta acción convertirá la cotización <strong>{cotizacion?.folio}</strong> en una Orden de Venta.</p>
+          <p>Se creará una nueva Orden de Venta a partir de <strong>{cotizacion?.folio}</strong>.</p>
           <p style={{ marginTop: 8 }}>
             <strong>Automáticamente se:</strong>
           </p>
           <ul style={{ marginTop: 4 }}>
+            <li>Creará una nueva OV con los mismos productos</li>
             <li>Descontará el inventario del almacén</li>
-            <li>Reservará los productos para esta orden</li>
           </ul>
+          <p style={{ marginTop: 8 }}>
+            La cotización original permanecerá sin cambios.
+          </p>
         </div>
       ),
-      okText: 'Sí, Convertir',
+      okText: 'Sí, Generar OV',
       cancelText: 'Cancelar',
       okType: 'primary',
       onOk: async () => {
@@ -336,14 +373,16 @@ export default function CotizacionDetallePage() {
         const supabase = getSupabaseClient()
 
         try {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .schema('erp')
             .rpc('cotizacion_a_orden_venta', { p_cotizacion_id: id })
 
           if (error) throw error
 
-          message.success('Convertido a Orden de Venta')
-          loadCotizacion()
+          const nuevaOvId = data as string
+
+          message.success('Orden de Venta creada exitosamente')
+          router.push(`/cotizaciones/${nuevaOvId}`)
         } catch (error: any) {
           console.error('Error converting to orden de venta:', error)
           message.error(error.message || 'Error al convertir a orden de venta')
@@ -524,7 +563,7 @@ export default function CotizacionDetallePage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Space wrap>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/cotizaciones')}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(cotizacion.folio.startsWith('OV-') ? '/ordenes-venta' : '/cotizaciones')}>
             Volver
           </Button>
           <Title level={2} style={{ margin: 0 }}>
@@ -653,6 +692,19 @@ export default function CotizacionDetallePage() {
               </Descriptions.Item>
               <Descriptions.Item label="Vendedor">{cotizacion.vendedor_nombre || '-'}</Descriptions.Item>
               <Descriptions.Item label="OC Cliente">{cotizacion.oc_cliente || '-'}</Descriptions.Item>
+              {cotizacion.cotizacion_origen_folio && (
+                <Descriptions.Item label="Cotización Origen">
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: 0 }}
+                    icon={<LinkOutlined />}
+                    onClick={() => router.push(`/cotizaciones/${cotizacion.cotizacion_origen_id}`)}
+                  >
+                    {cotizacion.cotizacion_origen_folio}
+                  </Button>
+                </Descriptions.Item>
+              )}
             </Descriptions>
             {cotizacion.notas && (
               <>
@@ -661,6 +713,51 @@ export default function CotizacionDetallePage() {
               </>
             )}
           </Card>
+
+          {/* OVs generadas desde esta cotización */}
+          {cotizacion.folio.startsWith('COT-') && ovsGeneradas.length > 0 && (
+            <Card title={`Órdenes de Venta generadas (${ovsGeneradas.length})`} size="small" style={{ marginBottom: 16 }}>
+              <Table
+                dataSource={ovsGeneradas}
+                rowKey="id"
+                pagination={false}
+                size="small"
+                columns={[
+                  {
+                    title: 'Folio',
+                    dataIndex: 'folio',
+                    key: 'folio',
+                    render: (folio: string, record: any) => (
+                      <Button type="link" size="small" style={{ padding: 0 }} onClick={() => router.push(`/cotizaciones/${record.id}`)}>
+                        {folio}
+                      </Button>
+                    ),
+                  },
+                  {
+                    title: 'Fecha',
+                    dataIndex: 'fecha',
+                    key: 'fecha',
+                    render: (fecha: string) => formatDate(fecha),
+                  },
+                  {
+                    title: 'Status',
+                    dataIndex: 'status',
+                    key: 'status',
+                    render: (status: string) => (
+                      <Tag color={statusColors[status]}>{statusLabels[status] || status}</Tag>
+                    ),
+                  },
+                  {
+                    title: 'Total',
+                    dataIndex: 'total',
+                    key: 'total',
+                    align: 'right' as const,
+                    render: (total: number) => formatMoney(total),
+                  },
+                ]}
+              />
+            </Card>
+          )}
 
           {/* Secciones colapsables de Envío, Facturación y Pago */}
           <Collapse
