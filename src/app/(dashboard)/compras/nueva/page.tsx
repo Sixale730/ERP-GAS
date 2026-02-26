@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Card,
@@ -54,7 +54,7 @@ interface ProductoOption {
   producto: Producto
 }
 
-export default function NuevaOrdenCompraPage() {
+function NuevaOrdenCompraContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const cargarStockBajo = searchParams.get('stock_bajo') === 'true'
@@ -705,5 +705,13 @@ export default function NuevaOrdenCompraPage() {
         </Col>
       </Row>
     </div>
+  )
+}
+
+export default function NuevaOrdenCompraPage() {
+  return (
+    <Suspense>
+      <NuevaOrdenCompraContent />
+    </Suspense>
   )
 }
