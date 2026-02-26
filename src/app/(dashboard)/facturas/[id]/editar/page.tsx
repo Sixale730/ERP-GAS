@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card,
@@ -82,6 +82,7 @@ export default function EditarFacturaPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [facturaOriginal, setFacturaOriginal] = useState<any>(null)
   const [items, setItems] = useState<ItemFactura[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
@@ -259,11 +260,15 @@ export default function EditarFacturaPage() {
   const total = Math.round((subtotal - descuentoMonto + iva) * 100) / 100
 
   const handleSave = async () => {
+    if (savingRef.current) return
+    savingRef.current = true
+
     let safetyTimeout: ReturnType<typeof setTimeout> | undefined
     try {
       await form.validateFields()
 
       if (items.length === 0) {
+        savingRef.current = false
         message.error('Agrega al menos un producto')
         return
       }
@@ -348,6 +353,7 @@ export default function EditarFacturaPage() {
       message.error(error.message || 'Error al guardar la factura')
     } finally {
       if (safetyTimeout) clearTimeout(safetyTimeout)
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -649,6 +655,7 @@ export default function EditarFacturaPage() {
                 icon={<SaveOutlined />}
                 onClick={handleSave}
                 loading={saving}
+                disabled={saving}
               >
                 Guardar Cambios
               </Button>

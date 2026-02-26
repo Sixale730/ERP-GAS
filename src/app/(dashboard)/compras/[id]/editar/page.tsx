@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card,
@@ -72,6 +72,7 @@ export default function EditarOrdenCompraPage() {
   const [items, setItems] = useState<ItemOrden[]>([])
   const [searchValue, setSearchValue] = useState('')
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [monedaSeleccionada, setMonedaSeleccionada] = useState<'USD' | 'MXN'>('USD')
   const [tipoCambioOrden, setTipoCambioOrden] = useState<number | null>(null)
   const [creadoPorNombre, setCreadoPorNombre] = useState<string | null>(null)
@@ -270,11 +271,15 @@ export default function EditarOrdenCompraPage() {
   const total = subtotal + iva
 
   const handleSave = async () => {
+    if (savingRef.current) return
+    savingRef.current = true
+
     let safetyTimeout: ReturnType<typeof setTimeout> | undefined
     try {
       await form.validateFields()
 
       if (items.length === 0) {
+        savingRef.current = false
         message.error('Agrega al menos un producto')
         return
       }
@@ -354,6 +359,7 @@ export default function EditarOrdenCompraPage() {
       message.error(error.message || 'Error al guardar la orden')
     } finally {
       if (safetyTimeout) clearTimeout(safetyTimeout)
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -668,6 +674,7 @@ export default function EditarOrdenCompraPage() {
               icon={<SaveOutlined />}
               onClick={handleSave}
               loading={saving}
+              disabled={saving}
             >
               Guardar Cambios
             </Button>

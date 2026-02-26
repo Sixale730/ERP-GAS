@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin, Alert, Collapse
@@ -74,6 +74,7 @@ export default function EditarCotizacionPage() {
   const cotizacionId = params.id as string
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [loading, setLoading] = useState(true)
 
   // Datos de la cotizacion original
@@ -437,12 +438,19 @@ export default function EditarCotizacionPage() {
   const { iva, total } = calcularTotal(subtotal, descuentoMonto)
 
   const handleSave = async () => {
+    if (savingRef.current) return
+    savingRef.current = true
+
     if (!clienteId || !almacenId || items.length === 0) {
+      savingRef.current = false
       message.error('Completa todos los campos requeridos')
       return
     }
 
-    if (!cotizacion) return
+    if (!cotizacion) {
+      savingRef.current = false
+      return
+    }
 
     setSaving(true)
     const supabase = getSupabaseClient()
@@ -615,6 +623,7 @@ export default function EditarCotizacionPage() {
       message.error(error.message || 'Error al guardar cotización')
     } finally {
       clearTimeout(safetyTimeout)
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -1075,7 +1084,7 @@ export default function EditarCotizacionPage() {
                   icon={<SaveOutlined />}
                   onClick={handleSave}
                   loading={saving}
-                  disabled={items.length === 0}
+                  disabled={saving || items.length === 0}
                   size="large"
                 >
                   Guardar Cambios

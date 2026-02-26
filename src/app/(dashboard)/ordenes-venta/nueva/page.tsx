@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Alert, Collapse
@@ -37,6 +37,7 @@ export default function NuevaOrdenVentaPage() {
   const router = useRouter()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const { orgId, erpUser } = useAuth()
 
   const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
@@ -332,7 +333,11 @@ export default function NuevaOrdenVentaPage() {
   const { iva, total } = calcularTotal(subtotal, descuentoMonto)
 
   const handleSave = async () => {
+    if (savingRef.current) return
+    savingRef.current = true
+
     if (!clienteId || !almacenId || items.length === 0) {
+      savingRef.current = false
       message.error('Completa todos los campos requeridos')
       return
     }
@@ -417,10 +422,10 @@ export default function NuevaOrdenVentaPage() {
 
       if (itemsError) throw itemsError
 
-      // 4. Convertir a Orden de Venta (descuenta inventario)
+      // 4. Descontar inventario de la OV creada directamente
       const { error: ovError } = await supabase
         .schema('erp')
-        .rpc('cotizacion_a_orden_venta', { p_cotizacion_id: cotizacion.id })
+        .rpc('descontar_inventario_ov', { p_ov_id: cotizacion.id })
 
       if (ovError) throw ovError
 
@@ -442,6 +447,7 @@ export default function NuevaOrdenVentaPage() {
       message.error(error.message || 'Error al guardar orden de venta')
     } finally {
       clearTimeout(safetyTimeout)
+      savingRef.current = false
       setSaving(false)
     }
   }
