@@ -23,6 +23,7 @@ export interface FacturaReciente {
   total: number
   saldo: number
   status: string
+  moneda: string
 }
 
 export interface DashboardData {
@@ -76,7 +77,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
     supabase
       .schema('erp')
       .from('v_facturas')
-      .select('id, folio, cliente_nombre, total, saldo, status', { count: 'exact' })
+      .select('id, folio, cliente_nombre, total, saldo, status, moneda', { count: 'exact' })
       .in('status', ['pendiente', 'parcial'])
       .order('fecha', { ascending: false })
       .limit(5),

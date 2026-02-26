@@ -13,15 +13,17 @@ import {
 } from '@ant-design/icons'
 import { useDashboard } from '@/lib/hooks/queries/useDashboard'
 import { useTipoCambioBanxico } from '@/lib/hooks/queries/useTipoCambioBanxico'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { DashboardSkeleton } from '@/components/common/Skeletons'
-import { formatMoney, formatMoneyMXN } from '@/lib/utils/format'
+import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
 
 const { Title } = Typography
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { loading: authLoading } = useAuth()
 
-  // React Query hook
+  // React Query hook — se dispara inmediatamente (en paralelo con auth)
   const { data, isLoading, isError } = useDashboard()
 
   // Auto-fetch tipo de cambio on dashboard mount (fire-and-forget)
@@ -65,15 +67,15 @@ export default function DashboardPage() {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',
-      render: (total: number) => formatMoney(total),
+      render: (total: number, record: any) => record.moneda === 'MXN' ? formatMoneyMXN(total) : formatMoneyUSD(total),
     },
     {
       title: 'Saldo',
       dataIndex: 'saldo',
       key: 'saldo',
-      render: (saldo: number) => (
+      render: (saldo: number, record: any) => (
         <span style={{ color: saldo > 0 ? '#cf1322' : '#3f8600' }}>
-          {formatMoney(saldo)}
+          {record.moneda === 'MXN' ? formatMoneyMXN(saldo) : formatMoneyUSD(saldo)}
         </span>
       ),
     },
@@ -93,7 +95,7 @@ export default function DashboardPage() {
     },
   ], [])
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return <DashboardSkeleton />
   }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid, Tag, Spin } from 'antd'
+import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid, Tag, Skeleton } from 'antd'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -146,16 +146,48 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Spin size="large" />
-      </div>
+      <Layout style={{ minHeight: '100vh' }}>
+        {/* Sidebar skeleton (desktop only) */}
+        <Sider
+          width={200}
+          theme="light"
+          style={{
+            overflow: 'hidden',
+            height: '100vh',
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            borderRight: '1px solid #f0f0f0',
+          }}
+        >
+          <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #f0f0f0' }}>
+            <Skeleton.Input active size="small" style={{ width: 120 }} />
+          </div>
+          <div style={{ padding: '16px 12px' }}>
+            {Array.from({ length: 7 }).map((_, i) => (
+              <Skeleton.Input key={i} active size="small" block style={{ marginBottom: 12 }} />
+            ))}
+          </div>
+        </Sider>
+        <Layout style={{ marginLeft: 200 }}>
+          <Header style={{
+            padding: '0 24px',
+            background: colorBgContainer,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid #f0f0f0',
+          }}>
+            <Skeleton.Input active size="small" style={{ width: 32 }} />
+            <Skeleton.Input active style={{ width: 300 }} />
+            <Skeleton.Avatar active size="default" />
+          </Header>
+          <Content style={{ margin: 24, padding: 24, minHeight: 280, background: colorBgContainer, borderRadius: borderRadiusLG }}>
+            {children}
+          </Content>
+        </Layout>
+      </Layout>
     )
   }
 
