@@ -5,7 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Button, Space, Typography, Tag, Descriptions, Divider, message, Spin, Row, Col, Table, Modal, InputNumber, Form, Popconfirm
 } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, SettingOutlined, HistoryOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, SettingOutlined, HistoryOutlined, PlusOutlined, DeleteOutlined, ShoppingCartOutlined, FileTextOutlined } from '@ant-design/icons'
+import Link from 'next/link'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
 import HistorialProductoTable from '@/components/productos/HistorialProductoTable'
@@ -54,6 +55,14 @@ export default function ProductoDetallePage() {
   const [loading, setLoading] = useState(true)
   const [producto, setProducto] = useState<ProductoDetalle | null>(null)
   const [inventario, setInventario] = useState<InventarioAlmacen[]>([])
+  const [pendienteRecepcion, setPendienteRecepcion] = useState<{
+    total: number
+    detalle: { folio: string; oc_id: string; cantidad_pendiente: number; almacen_nombre: string }[]
+  }>({ total: 0, detalle: [] })
+  const [reservadoOV, setReservadoOV] = useState<{
+    total: number
+    detalle: { folio: string; ov_id: string; cantidad: number; cliente_nombre: string }[]
+  }>({ total: 0, detalle: [] })
 
 
   // Modal para editar min/max
@@ -125,6 +134,81 @@ export default function ProductoDetallePage() {
           disponible: i.cantidad - (i.reservado || 0)
         }))
         setInventario(invFormatted)
+      }
+
+      // Cargar piezas pendientes de recepción (OCs en tránsito)
+      const { data: ocItems } = await supabase
+        .schema('erp')
+        .from('orden_compra_items')
+        .select(`
+          cantidad_solicitada,
+          cantidad_recibida,
+          ordenes_compra:orden_compra_id (
+            id, folio, status,
+            almacenes:almacen_destino_id (nombre)
+          )
+        `)
+        .eq('producto_id', id)
+
+      if (ocItems) {
+        const pendientes = ocItems
+          .filter(item => {
+            const oc = item.ordenes_compra as any
+            return (
+              oc &&
+              (oc.status === 'enviada' || oc.status === 'parcialmente_recibida') &&
+              (item.cantidad_solicitada || 0) > (item.cantidad_recibida || 0)
+            )
+          })
+          .map(item => {
+            const oc = item.ordenes_compra as any
+            return {
+              folio: oc.folio,
+              oc_id: oc.id,
+              cantidad_pendiente: (item.cantidad_solicitada || 0) - (item.cantidad_recibida || 0),
+              almacen_nombre: oc.almacenes?.nombre || 'Sin asignar',
+            }
+          })
+
+        setPendienteRecepcion({
+          total: pendientes.reduce((sum, p) => sum + p.cantidad_pendiente, 0),
+          detalle: pendientes,
+        })
+      }
+
+      // Cargar piezas reservadas por OVs pendientes de facturar
+      const { data: ovItems } = await supabase
+        .schema('erp')
+        .from('cotizacion_items')
+        .select(`
+          cantidad,
+          cotizaciones:cotizacion_id (
+            id, folio, status,
+            clientes:cliente_id (nombre_comercial)
+          )
+        `)
+        .eq('producto_id', id)
+
+      if (ovItems) {
+        const ovsActivas = ovItems
+          .filter(item => {
+            const cot = item.cotizaciones as any
+            return cot && cot.status === 'orden_venta'
+          })
+          .map(item => {
+            const cot = item.cotizaciones as any
+            return {
+              folio: cot.folio,
+              ov_id: cot.id,
+              cantidad: item.cantidad || 0,
+              cliente_nombre: cot.clientes?.nombre_comercial || 'Sin cliente',
+            }
+          })
+
+        setReservadoOV({
+          total: ovsActivas.reduce((sum, o) => sum + o.cantidad, 0),
+          detalle: ovsActivas,
+        })
       }
     } catch (error) {
       console.error('Error loading producto:', error)
@@ -409,9 +493,21 @@ export default function ProductoDetallePage() {
                 <Text strong>{producto.stock_total}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text>Reservado:</Text>
-                <Text type="warning">{producto.reservado_total}</Text>
+                <Text>Reservado (OVs):</Text>
+                <Text type="warning">{reservadoOV.total}</Text>
               </div>
+              {reservadoOV.total > 0 && (
+                <div style={{ paddingLeft: 8 }}>
+                  {reservadoOV.detalle.map((d, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2 }}>
+                      <Link href={`/cotizaciones/${d.ov_id}`} style={{ color: '#fa8c16' }}>
+                        <FileTextOutlined style={{ marginRight: 4 }} />{d.folio}
+                      </Link>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{d.cantidad} — {d.cliente_nombre}</Text>
+                    </div>
+                  ))}
+                </div>
+              )}
               <Divider style={{ margin: '12px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Title level={4} style={{ margin: 0 }}>Disponible:</Title>
@@ -422,6 +518,24 @@ export default function ProductoDetallePage() {
                   {producto.disponible_total}
                 </Title>
               </div>
+
+              {pendienteRecepcion.total > 0 && (
+                <>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text><ShoppingCartOutlined style={{ color: '#1890ff', marginRight: 6 }} />En tránsito:</Text>
+                    <Text strong style={{ color: '#1890ff' }}>{pendienteRecepcion.total}</Text>
+                  </div>
+                  <div style={{ paddingLeft: 8, marginTop: 4 }}>
+                    {pendienteRecepcion.detalle.map((d, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2 }}>
+                        <Link href={`/compras/${d.oc_id}`} style={{ color: '#1890ff' }}>{d.folio}</Link>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{d.cantidad_pendiente} → {d.almacen_nombre}</Text>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
 
               {producto.disponible_total <= producto.stock_minimo && (
                 <Tag color="orange" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
