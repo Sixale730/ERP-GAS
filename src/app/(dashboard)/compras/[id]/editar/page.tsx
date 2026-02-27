@@ -60,7 +60,7 @@ export default function EditarOrdenCompraPage() {
   const [form] = Form.useForm()
   const { getMargenParaCategoria } = useMargenesCategoria()
   const { tipoCambio } = useConfiguracion()
-  const { erpUser } = useAuth()
+  const { erpUser, orgId } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [orden, setOrden] = useState<OrdenCompra | null>(null)
@@ -332,6 +332,7 @@ export default function EditarOrdenCompraPage() {
         cantidad_solicitada: item.cantidad,
         precio_unitario: item.precio_unitario,
         descuento_porcentaje: item.descuento_porcentaje,
+        organizacion_id: orgId,
       }))
 
       const { error: itemsError } = await supabase

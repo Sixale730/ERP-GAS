@@ -14,73 +14,8 @@ export interface PermisoCRUD {
 
 export type PermisosUsuario = Record<string, PermisoCRUD>
 
-const ALL: PermisoCRUD = { ver: true, crear: true, editar: true, eliminar: true }
-const VIEW_ONLY: PermisoCRUD = { ver: true, crear: false, editar: false, eliminar: false }
-const VCE: PermisoCRUD = { ver: true, crear: true, editar: true, eliminar: false }
-const NONE: PermisoCRUD = { ver: false, crear: false, editar: false, eliminar: false }
-
-export const PERMISOS_DEFAULT: Record<UserRole, PermisosUsuario> = {
-  super_admin: {
-    productos: ALL,
-    inventario: ALL,
-    clientes: ALL,
-    cotizaciones: ALL,
-    ordenes_venta: ALL,
-    facturas: ALL,
-    compras: ALL,
-    reportes: ALL,
-    catalogos: ALL,
-    configuracion: ALL,
-  },
-  admin_cliente: {
-    productos: ALL,
-    inventario: ALL,
-    clientes: ALL,
-    cotizaciones: ALL,
-    ordenes_venta: ALL,
-    facturas: ALL,
-    compras: ALL,
-    reportes: ALL,
-    catalogos: ALL,
-    configuracion: VCE,
-  },
-  vendedor: {
-    productos: VIEW_ONLY,
-    inventario: VIEW_ONLY,
-    clientes: VCE,
-    cotizaciones: VCE,
-    ordenes_venta: VCE,
-    facturas: VIEW_ONLY,
-    compras: NONE,
-    reportes: VIEW_ONLY,
-    catalogos: VIEW_ONLY,
-    configuracion: NONE,
-  },
-  compras: {
-    productos: ALL,
-    inventario: ALL,
-    clientes: VIEW_ONLY,
-    cotizaciones: VIEW_ONLY,
-    ordenes_venta: VIEW_ONLY,
-    facturas: VIEW_ONLY,
-    compras: ALL,
-    reportes: VIEW_ONLY,
-    catalogos: VCE,
-    configuracion: NONE,
-  },
-  contador: {
-    productos: VIEW_ONLY,
-    inventario: VIEW_ONLY,
-    clientes: VCE,
-    cotizaciones: VIEW_ONLY,
-    ordenes_venta: VIEW_ONLY,
-    facturas: ALL,
-    compras: VIEW_ONLY,
-    reportes: ALL,
-    catalogos: VIEW_ONLY,
-    configuracion: NONE,
-  },
-}
+import { PERMISOS_DEFAULT } from '@/lib/config/modules'
+export { PERMISOS_DEFAULT }
 
 export function getPermisosEfectivos(
   rol: UserRole | string | null,

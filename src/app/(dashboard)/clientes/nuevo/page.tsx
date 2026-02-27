@@ -7,6 +7,7 @@ import {
 } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined, ExperimentOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 import { MONEDAS, type CodigoMoneda } from '@/lib/config/moneda'
 import DireccionFields from '@/components/common/DireccionFields'
@@ -26,6 +27,7 @@ interface ListaPrecio {
 
 export default function NuevoClientePage() {
   const router = useRouter()
+  const { orgId } = useAuth()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
@@ -174,6 +176,7 @@ export default function NuevoClientePage() {
           forma_pago: values.forma_pago || null,
           metodo_pago: values.metodo_pago || null,
           is_active: true,
+          organizacion_id: orgId,
         })
         .select()
         .single()

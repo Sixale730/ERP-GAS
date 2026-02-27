@@ -25,6 +25,10 @@ interface UIState {
   pageFilters: Record<string, Record<string, unknown>>
   setPageFilter: (page: string, key: string, value: unknown) => void
   clearPageFilters: (page: string) => void
+
+  // Super admin: org context selector
+  selectedOrgId: string | null
+  setSelectedOrgId: (orgId: string | null) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -67,6 +71,10 @@ export const useUIStore = create<UIState>()(
         const { [page]: _, ...rest } = get().pageFilters
         set({ pageFilters: rest })
       },
+
+      // Super admin: org context selector
+      selectedOrgId: null,
+      setSelectedOrgId: (orgId) => set({ selectedOrgId: orgId }),
     }),
     {
       name: 'cuanty-ui-storage',
@@ -74,6 +82,7 @@ export const useUIStore = create<UIState>()(
         sidebarCollapsed: state.sidebarCollapsed,
         recentSearches: state.recentSearches,
         tablePageSize: state.tablePageSize,
+        selectedOrgId: state.selectedOrgId,
         // No persistir pageFilters para evitar datos obsoletos
       }),
     }

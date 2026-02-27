@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Modal, Form, Select, InputNumber, Space, Typography, message } from 'antd'
 import { useCreatePrecioProducto, useUpdatePrecioProducto, type PrecioConLista } from '@/lib/hooks/usePreciosProductos'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const { Text } = Typography
 
@@ -30,6 +31,7 @@ export default function PrecioProductoModal({
 }: PrecioProductoModalProps) {
   const [form] = Form.useForm()
   const [precioConIva, setPrecioConIva] = useState<number | null>(null)
+  const { orgId } = useAuth()
 
   const createPrecio = useCreatePrecioProducto()
   const updatePrecio = useUpdatePrecioProducto()
@@ -85,6 +87,7 @@ export default function PrecioProductoModal({
           precio: values.precio,
           precio_con_iva: precioConIva,
           moneda: values.moneda,
+          organizacion_id: orgId,
         })
         message.success('Precio creado correctamente')
       }

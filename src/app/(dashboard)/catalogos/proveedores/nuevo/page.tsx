@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, Form, Input, InputNumber, Button, Space, Typography, message, Row, Col } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const { Title } = Typography
 const { TextArea } = Input
@@ -12,6 +13,7 @@ const { TextArea } = Input
 export default function NuevoProveedorPage() {
   const router = useRouter()
   const [form] = Form.useForm()
+  const { orgId } = useAuth()
   const [saving, setSaving] = useState(false)
 
   const handleSave = async (values: any) => {
@@ -40,6 +42,7 @@ export default function NuevoProveedorPage() {
           dias_credito: values.dias_credito || 0,
           notas: values.notas || null,
           is_active: true,
+          organizacion_id: orgId,
         })
 
       if (error) throw error

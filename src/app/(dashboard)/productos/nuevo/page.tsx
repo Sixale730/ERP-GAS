@@ -7,6 +7,7 @@ import {
 } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const { Title } = Typography
 const { TextArea } = Input
@@ -25,6 +26,7 @@ interface Proveedor {
 export default function NuevoProductoPage() {
   const router = useRouter()
   const [form] = Form.useForm()
+  const { orgId } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -93,6 +95,7 @@ export default function NuevoProductoPage() {
           es_servicio: values.es_servicio || false,
           costo_promedio: 0,
           is_active: true,
+          organizacion_id: orgId,
         })
         .select()
         .single()

@@ -95,8 +95,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Si hay usuario y esta en login, redirigir al dashboard
+  // Si hay usuario y esta en login, redirigir segun rol
   if (user && request.nextUrl.pathname === '/login') {
+    // Determinar rol desde JWT para decidir destino post-login
+    const { data: { session } } = await supabase.auth.getSession()
+    const loginRole = session?.access_token ? getRoleFromJWT(session.access_token) : null
+    if (loginRole === 'super_admin') {
+      return NextResponse.redirect(new URL('/modulos', request.url))
+    }
     return NextResponse.redirect(new URL('/', request.url))
   }
 

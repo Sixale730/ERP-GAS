@@ -74,7 +74,7 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 export default function ComprasPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { erpUser } = useAuth()
+  const { erpUser, orgId } = useAuth()
   const { getMargenParaCategoria } = useMargenesCategoria()
   const { tipoCambio } = useConfiguracion()
 
@@ -391,6 +391,7 @@ export default function ComprasPage() {
               notas: 'Orden generada automaticamente por faltantes de inventario',
               creado_por: erpUser?.id || null,
               creado_por_nombre: erpUser?.nombre || erpUser?.email || null,
+              organizacion_id: orgId,
             })
             .select()
             .single()
@@ -404,6 +405,7 @@ export default function ComprasPage() {
             cantidad_solicitada: p.cantidad_sugerida,
             precio_unitario: p.precio_mostrado,
             descuento_porcentaje: p.margen_porcentaje, // Guardar el margen aplicado
+            organizacion_id: orgId,
           }))
 
           const { error: itemsError } = await supabase

@@ -444,6 +444,7 @@ export default function NuevaCotizacionPage() {
         precio_unitario: i.precio_unitario,
         descuento_porcentaje: 0,
         subtotal: i.subtotal,
+        organizacion_id: orgId,
       }))
 
       const { error: itemsError } = await supabase

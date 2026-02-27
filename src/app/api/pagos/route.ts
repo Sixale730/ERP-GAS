@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     const { data: factura, error: errorFactura } = await supabase
       .schema('erp')
       .from('facturas')
-      .select('id, folio, total, saldo, status, cliente_id')
+      .select('id, folio, total, saldo, status, cliente_id, organizacion_id')
       .eq('id', factura_id)
       .single()
 
@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
         metodo_pago: metodo_pago || '03', // Transferencia por defecto
         referencia: referencia || null,
         notas: notas || null,
+        organizacion_id: factura.organizacion_id,
       })
       .select()
       .single()

@@ -12,6 +12,7 @@ export type Database = {
           is_active: boolean
           created_at: string
           updated_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -21,6 +22,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -30,6 +32,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id?: string
         }
       }
       almacenes: {
@@ -43,6 +46,7 @@ export type Database = {
           is_active: boolean
           created_at: string
           updated_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -54,6 +58,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -65,6 +70,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id?: string
         }
       }
       listas_precios: {
@@ -77,6 +83,7 @@ export type Database = {
           is_active: boolean
           created_at: string
           updated_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -87,6 +94,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -97,6 +105,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id?: string
         }
       }
       proveedores: {
@@ -115,6 +124,7 @@ export type Database = {
           is_active: boolean
           created_at: string
           updated_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -131,6 +141,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -147,6 +158,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id?: string
         }
       }
       productos: {
@@ -168,6 +180,7 @@ export type Database = {
           is_active: boolean
           created_at: string
           updated_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -187,6 +200,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -206,6 +220,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id?: string
         }
       }
       precios_productos: {
@@ -218,6 +233,7 @@ export type Database = {
           moneda: 'USD' | 'MXN'
           created_at: string
           updated_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -228,6 +244,7 @@ export type Database = {
           moneda?: 'USD' | 'MXN'
           created_at?: string
           updated_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -238,6 +255,7 @@ export type Database = {
           moneda?: 'USD' | 'MXN'
           created_at?: string
           updated_at?: string
+          organizacion_id?: string
         }
       }
       inventario: {
@@ -248,6 +266,7 @@ export type Database = {
           cantidad: number
           cantidad_reservada: number
           updated_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -256,6 +275,7 @@ export type Database = {
           cantidad?: number
           cantidad_reservada?: number
           updated_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -264,6 +284,7 @@ export type Database = {
           cantidad?: number
           cantidad_reservada?: number
           updated_at?: string
+          organizacion_id?: string
         }
       }
       clientes: {
@@ -561,6 +582,7 @@ export type Database = {
           subtotal: number
           costo_base: number | null
           created_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -573,6 +595,7 @@ export type Database = {
           subtotal?: number
           costo_base?: number | null
           created_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -585,6 +608,7 @@ export type Database = {
           subtotal?: number
           costo_base?: number | null
           created_at?: string
+          organizacion_id?: string
         }
       }
       facturas: {
@@ -720,6 +744,7 @@ export type Database = {
           referencia: string | null
           notas: string | null
           created_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -731,6 +756,7 @@ export type Database = {
           referencia?: string | null
           notas?: string | null
           created_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -742,6 +768,7 @@ export type Database = {
           referencia?: string | null
           notas?: string | null
           created_at?: string
+          organizacion_id?: string
         }
       }
       configuracion: {
@@ -752,6 +779,7 @@ export type Database = {
           descripcion: string | null
           created_at: string
           updated_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -760,6 +788,7 @@ export type Database = {
           descripcion?: string | null
           created_at?: string
           updated_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -768,6 +797,7 @@ export type Database = {
           descripcion?: string | null
           created_at?: string
           updated_at?: string
+          organizacion_id?: string
         }
       }
       ordenes_compra: {
@@ -843,6 +873,7 @@ export type Database = {
           descuento_porcentaje: number
           subtotal: number
           created_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -854,6 +885,7 @@ export type Database = {
           descuento_porcentaje?: number
           subtotal?: number
           created_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -865,6 +897,7 @@ export type Database = {
           descuento_porcentaje?: number
           subtotal?: number
           created_at?: string
+          organizacion_id?: string
         }
       }
       recepciones_orden: {
@@ -877,6 +910,7 @@ export type Database = {
           numero_lote: string | null
           notas: string | null
           created_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -887,6 +921,7 @@ export type Database = {
           numero_lote?: string | null
           notas?: string | null
           created_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -897,6 +932,7 @@ export type Database = {
           numero_lote?: string | null
           notas?: string | null
           created_at?: string
+          organizacion_id?: string
         }
       }
       tipo_cambio_diario: {
@@ -945,6 +981,7 @@ export type Database = {
           is_active: boolean
           created_at: string
           updated_at: string
+          organizacion_id: string
         }
         Insert: {
           id?: string
@@ -965,6 +1002,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id: string
         }
         Update: {
           id?: string
@@ -985,6 +1023,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          organizacion_id?: string
         }
       }
     }
@@ -1003,6 +1042,7 @@ export type Database = {
           stock_minimo: number
           stock_maximo: number
           es_servicio: boolean
+          organizacion_id: string
         }
       }
       v_inventario_detalle: {
@@ -1022,6 +1062,7 @@ export type Database = {
           almacen_codigo: string
           almacen_nombre: string
           nivel_stock: 'sin_stock' | 'bajo' | 'normal' | 'exceso' | 'servicio'
+          organizacion_id: string
         }
       }
       v_cotizaciones: {
@@ -1134,6 +1175,7 @@ export type Database = {
           producto_nombre: string
           almacen_origen: string | null
           almacen_destino: string | null
+          organizacion_id: string
         }
       }
     }

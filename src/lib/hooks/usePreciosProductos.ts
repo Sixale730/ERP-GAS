@@ -69,6 +69,7 @@ export function useCreatePrecioProducto() {
       precio: number
       precio_con_iva?: number | null
       moneda?: 'USD' | 'MXN'
+      organizacion_id: string | null
     }) => {
       const supabase = getSupabaseClient()
       const { error } = await supabase
@@ -80,6 +81,7 @@ export function useCreatePrecioProducto() {
           precio: data.precio,
           precio_con_iva: data.precio_con_iva ?? null,
           moneda: data.moneda || 'MXN',
+          organizacion_id: data.organizacion_id,
         })
 
       if (error) throw error

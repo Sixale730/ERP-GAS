@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation'
 import { Card, Form, Input, Select, Switch, Button, Space, Typography, message } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const { Title } = Typography
 
 export default function NuevaListaPrecioPage() {
   const router = useRouter()
   const [form] = Form.useForm()
+  const { orgId } = useAuth()
   const [saving, setSaving] = useState(false)
 
   const handleSave = async (values: any) => {
@@ -42,6 +44,7 @@ export default function NuevaListaPrecioPage() {
           moneda: values.moneda || 'MXN',
           is_default: values.is_default || false,
           is_active: true,
+          organizacion_id: orgId,
         })
 
       if (error) throw error

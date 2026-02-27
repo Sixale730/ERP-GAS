@@ -78,7 +78,7 @@ export default function EditarFacturaPage() {
   const params = useParams()
   const id = params.id as string
   const [form] = Form.useForm()
-  const { erpUser } = useAuth()
+  const { erpUser, orgId } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -320,6 +320,7 @@ export default function EditarFacturaPage() {
         precio_unitario: item.precio_unitario,
         descuento_porcentaje: item.descuento_porcentaje,
         subtotal: item.subtotal,
+        organizacion_id: orgId,
       }))
 
       const { error: itemsError } = await supabase

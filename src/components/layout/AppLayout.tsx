@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid, Tag, Skeleton } from 'antd'
+import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid, Tag, Skeleton, Select } from 'antd'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -10,6 +10,7 @@ import {
   LogoutOutlined,
   SettingOutlined,
   TeamOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useRouter } from 'next/navigation'
@@ -19,6 +20,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { useInactivityLogout } from '@/lib/hooks/useInactivityLogout'
 import { useModulos } from '@/lib/hooks/useModulos'
 import { useUIStore } from '@/store/uiStore'
+import { getSupabaseClient } from '@/lib/supabase/client'
 
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
@@ -46,9 +48,29 @@ export default function AppLayout({ children }: AppLayoutProps) {
     setMounted(true)
   }, [])
   const router = useRouter()
-  const { loading, displayName, avatarUrl, role, signOut, isAdmin, organizacion, erpUser } = useAuth()
+  const { loading, displayName, avatarUrl, role, signOut, isAdmin, isSuperAdmin, organizacion, erpUser } = useAuth()
   useInactivityLogout(signOut)
   const { modulosActivos } = useModulos()
+
+  // Super admin: org selector
+  const selectedOrgId = useUIStore((s) => s.selectedOrgId)
+  const setSelectedOrgId = useUIStore((s) => s.setSelectedOrgId)
+  const [orgList, setOrgList] = useState<{ id: string; nombre: string; codigo: string }[]>([])
+
+  useEffect(() => {
+    if (!isSuperAdmin) return
+    const fetchOrgs = async () => {
+      const supabase = getSupabaseClient()
+      const { data } = await supabase
+        .schema('erp')
+        .from('organizaciones')
+        .select('id, nombre, codigo')
+        .eq('is_active', true)
+        .order('nombre')
+      if (data) setOrgList(data)
+    }
+    fetchOrgs()
+  }, [isSuperAdmin])
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
@@ -259,6 +281,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <div style={{ width: isMobile ? 200 : 450, margin: '0 12px', height: 64, display: 'flex', alignItems: 'center', lineHeight: 'normal' }}>
             <GlobalSearch />
           </div>
+
+          {isSuperAdmin && orgList.length > 0 && (
+            <Select
+              value={selectedOrgId}
+              onChange={setSelectedOrgId}
+              allowClear
+              placeholder={
+                <Space size={4}>
+                  <GlobalOutlined />
+                  <span>{isMobile ? 'Org' : 'Todas las organizaciones'}</span>
+                </Space>
+              }
+              style={{ width: isMobile ? 120 : 220 }}
+              options={orgList
+                .filter(o => !o.codigo || o.codigo !== 'SISTEMA')
+                .map(o => ({ value: o.id, label: o.nombre }))}
+            />
+          )}
 
           <Dropdown menu={{ items: userMenuItems, onClick: handleMenuClick }} placement="bottomRight">
             <Space style={{ cursor: 'pointer' }}>

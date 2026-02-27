@@ -329,6 +329,7 @@ function NuevaOrdenCompraContent() {
         cantidad_solicitada: item.cantidad,
         precio_unitario: item.precio_unitario,
         descuento_porcentaje: item.descuento_porcentaje,
+        organizacion_id: orgId,
       }))
 
       const { error: itemsError } = await supabase

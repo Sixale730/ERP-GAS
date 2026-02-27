@@ -2,83 +2,21 @@
 
 import { useMemo } from 'react'
 import { useAuth, PermisoCRUD } from './useAuth'
+import { PERMISOS_DEFAULT, MODULOS_LIST } from '@/lib/config/modules'
+import type { Modulo } from '@/lib/config/modules'
+
+export type { Modulo }
 
 export type UserRole = 'super_admin' | 'admin_cliente' | 'vendedor' | 'compras' | 'contador'
 
 export type PermisosUsuario = Record<string, PermisoCRUD>
 
-const ALL: PermisoCRUD = { ver: true, crear: true, editar: true, eliminar: true }
-const VIEW_ONLY: PermisoCRUD = { ver: true, crear: false, editar: false, eliminar: false }
-const VCE: PermisoCRUD = { ver: true, crear: true, editar: true, eliminar: false }
-const NONE: PermisoCRUD = { ver: false, crear: false, editar: false, eliminar: false }
+export type Accion = keyof PermisoCRUD
 
-export const PERMISOS_DEFAULT: Record<UserRole, PermisosUsuario> = {
-  super_admin: {
-    productos: ALL,
-    inventario: ALL,
-    clientes: ALL,
-    cotizaciones: ALL,
-    ordenes_venta: ALL,
-    facturas: ALL,
-    cfdi: ALL,
-    compras: ALL,
-    reportes: ALL,
-    catalogos: ALL,
-    configuracion: ALL,
-  },
-  admin_cliente: {
-    productos: ALL,
-    inventario: ALL,
-    clientes: ALL,
-    cotizaciones: ALL,
-    ordenes_venta: ALL,
-    facturas: ALL,
-    cfdi: ALL,
-    compras: ALL,
-    reportes: ALL,
-    catalogos: ALL,
-    configuracion: VCE,
-  },
-  vendedor: {
-    productos: VIEW_ONLY,
-    inventario: VIEW_ONLY,
-    clientes: VCE,
-    cotizaciones: VCE,
-    ordenes_venta: VCE,
-    facturas: VIEW_ONLY,
-    cfdi: NONE,
-    compras: NONE,
-    reportes: VIEW_ONLY,
-    catalogos: VIEW_ONLY,
-    configuracion: NONE,
-  },
-  compras: {
-    productos: ALL,
-    inventario: ALL,
-    clientes: VIEW_ONLY,
-    cotizaciones: VIEW_ONLY,
-    ordenes_venta: VIEW_ONLY,
-    facturas: VIEW_ONLY,
-    cfdi: NONE,
-    compras: ALL,
-    reportes: VIEW_ONLY,
-    catalogos: VCE,
-    configuracion: NONE,
-  },
-  contador: {
-    productos: VIEW_ONLY,
-    inventario: VIEW_ONLY,
-    clientes: VCE,
-    cotizaciones: VIEW_ONLY,
-    ordenes_venta: VIEW_ONLY,
-    facturas: ALL,
-    cfdi: ALL,
-    compras: VIEW_ONLY,
-    reportes: ALL,
-    catalogos: VIEW_ONLY,
-    configuracion: NONE,
-  },
-}
+/** Module list for the usuarios permission table */
+export const MODULOS = MODULOS_LIST
+
+export { PERMISOS_DEFAULT }
 
 export function getPermisosEfectivos(
   rol: UserRole | string | null,
@@ -95,35 +33,6 @@ export function getPermisosEfectivos(
   }
   return result
 }
-
-export type Modulo =
-  | 'productos'
-  | 'inventario'
-  | 'clientes'
-  | 'cotizaciones'
-  | 'ordenes_venta'
-  | 'facturas'
-  | 'cfdi'
-  | 'compras'
-  | 'reportes'
-  | 'catalogos'
-  | 'configuracion'
-
-export type Accion = keyof PermisoCRUD
-
-export const MODULOS: { key: Modulo; label: string }[] = [
-  { key: 'productos', label: 'Productos' },
-  { key: 'inventario', label: 'Inventario' },
-  { key: 'clientes', label: 'Clientes' },
-  { key: 'cotizaciones', label: 'Cotizaciones' },
-  { key: 'ordenes_venta', label: 'Ordenes de Venta' },
-  { key: 'facturas', label: 'Facturas' },
-  { key: 'cfdi', label: 'CFDI / Timbrado' },
-  { key: 'compras', label: 'Compras' },
-  { key: 'reportes', label: 'Reportes' },
-  { key: 'catalogos', label: 'Catalogos' },
-  { key: 'configuracion', label: 'Configuracion' },
-]
 
 export function usePermisos() {
   const { role, erpUser } = useAuth()

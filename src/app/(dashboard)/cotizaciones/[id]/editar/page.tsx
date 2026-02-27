@@ -83,7 +83,7 @@ export default function EditarCotizacionPage() {
 
   // Configuracion global
   const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
-  const { erpUser } = useAuth()
+  const { erpUser, orgId } = useAuth()
 
   // Tipo de cambio para esta cotizacion (editable)
   const [tipoCambio, setTipoCambio] = useState(17.50)
@@ -490,7 +490,8 @@ export default function EditarCotizacionPage() {
               cantidad: itemViejo.cantidad,
               referencia_tipo: 'cotizacion',
               referencia_id: cotizacionId,
-              notas: `Restauración por edición OV ${cotizacion.folio}`
+              notas: `Restauración por edición OV ${cotizacion.folio}`,
+              organizacion_id: orgId,
             })
         }
       }
@@ -553,6 +554,7 @@ export default function EditarCotizacionPage() {
         precio_unitario: i.precio_unitario_mxn,
         descuento_porcentaje: 0,
         subtotal: i.subtotal,
+        organizacion_id: orgId,
       }))
 
       const { error: itemsError } = await supabase
@@ -593,7 +595,8 @@ export default function EditarCotizacionPage() {
               cantidad: item.cantidad,
               referencia_tipo: 'cotizacion',
               referencia_id: cotizacionId,
-              notas: `Orden de Venta ${cotizacion.folio} (editada)`
+              notas: `Orden de Venta ${cotizacion.folio} (editada)`,
+              organizacion_id: orgId,
             })
         }
       }

@@ -5,11 +5,13 @@ import { Table, Button, Modal, Form, Input, Space, Card, Typography, message, Po
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 import type { Almacen, InsertTables } from '@/types/database'
 
 const { Title } = Typography
 
 export default function AlmacenesPage() {
+  const { orgId } = useAuth()
   const [loading, setLoading] = useState(true)
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const [modalOpen, setModalOpen] = useState(false)
@@ -59,7 +61,7 @@ export default function AlmacenesPage() {
         const { error } = await supabase
           .schema('erp')
           .from('almacenes')
-          .insert(values)
+          .insert({ ...values, organizacion_id: orgId })
 
         if (error) throw error
         message.success('Almacén creado')

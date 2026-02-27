@@ -5,6 +5,7 @@ import { Modal, Form, Input, Row, Col, Checkbox, AutoComplete, message } from 'a
 import type { DireccionEnvio, DireccionEnvioInsert, DireccionEnvioUpdate } from '@/types/database'
 import { ESTADOS_MEXICO, getCiudadesByEstado, esEstadoMexico } from '@/lib/config/mexico'
 import { useCreateDireccionEnvio, useUpdateDireccionEnvio } from '@/lib/hooks/useDireccionesEnvio'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const { TextArea } = Input
 
@@ -26,6 +27,7 @@ export default function DireccionEnvioModal({
   const [form] = Form.useForm()
   const isEditing = !!direccion
 
+  const { orgId } = useAuth()
   const createMutation = useCreateDireccionEnvio()
   const updateMutation = useUpdateDireccionEnvio()
 
@@ -182,7 +184,8 @@ export default function DireccionEnvioModal({
           contacto_nombre: formData.contacto_nombre || null,
           contacto_telefono: formData.contacto_telefono || null,
           is_default: formData.is_default || false,
-        }
+          organizacion_id: orgId,
+        } as any
 
         const created = await createMutation.mutateAsync(insertData)
         message.success('Direccion agregada')

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, Form, Input, Select, Button, Space, Typography, message } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const { Title } = Typography
 const { TextArea } = Input
@@ -17,6 +18,7 @@ interface Categoria {
 export default function NuevaCategoriaPage() {
   const router = useRouter()
   const [form] = Form.useForm()
+  const { orgId } = useAuth()
   const [saving, setSaving] = useState(false)
   const [categoriasPadre, setCategoriasPadre] = useState<Categoria[]>([])
 
@@ -54,6 +56,7 @@ export default function NuevaCategoriaPage() {
           descripcion: values.descripcion || null,
           categoria_padre_id: values.categoria_padre_id || null,
           is_active: true,
+          organizacion_id: orgId,
         })
 
       if (error) throw error
