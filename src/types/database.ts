@@ -942,6 +942,8 @@ export type Database = {
           valor: number
           fuente: string
           serie: string | null
+          vigente_desde: string | null
+          vigente_hasta: string | null
           created_at: string
         }
         Insert: {
@@ -950,6 +952,8 @@ export type Database = {
           valor: number
           fuente?: string
           serie?: string | null
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
           created_at?: string
         }
         Update: {
@@ -958,6 +962,8 @@ export type Database = {
           valor?: number
           fuente?: string
           serie?: string | null
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
           created_at?: string
         }
       }

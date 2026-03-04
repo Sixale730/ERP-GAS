@@ -7,7 +7,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useTipoCambioBanxico } from '@/lib/hooks/queries/useTipoCambioBanxico'
-import { formatDate } from '@/lib/utils/format'
+import { formatDate, formatDateTime } from '@/lib/utils/format'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useModulos } from '@/lib/hooks/useModulos'
@@ -299,6 +299,11 @@ export default function ConfiguracionPage() {
                       <span style={{ marginLeft: 8 }}>
                         (Fuente: {tipoCambioData.fuente === 'banxico' ? 'Banxico FIX' : tipoCambioData.fuente})
                       </span>
+                    )}
+                    {tipoCambioData?.vigente_desde && tipoCambioData?.vigente_hasta && (
+                      <div style={{ marginTop: 4, fontSize: 12, color: '#888' }}>
+                        Vigencia: {formatDateTime(tipoCambioData.vigente_desde)} — {formatDateTime(tipoCambioData.vigente_hasta)}
+                      </div>
                     )}
                   </>
                 }

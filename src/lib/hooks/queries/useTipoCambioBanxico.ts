@@ -10,6 +10,8 @@ interface TipoCambioResponse {
   fuente: string
   cached: boolean
   mensaje?: string
+  vigente_desde?: string | null
+  vigente_hasta?: string | null
 }
 
 const tipoCambioKeys = {
