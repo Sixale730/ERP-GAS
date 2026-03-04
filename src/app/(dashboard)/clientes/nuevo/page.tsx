@@ -127,9 +127,16 @@ export default function NuevoClientePage() {
 
     try {
       // Generate codigo
-      const { data: codigoData, error: folioError } = await supabase.schema('erp').rpc('generar_folio', { tipo: 'cliente' })
-      if (folioError) throw folioError
-      const codigo = codigoData as string || `CLI-${Date.now()}`
+      const { data: lastCliente } = await supabase
+        .schema('erp')
+        .from('clientes')
+        .select('codigo')
+        .like('codigo', 'CLI-%')
+        .order('codigo', { ascending: false })
+        .limit(1)
+        .single()
+      const lastNum = lastCliente?.codigo ? parseInt(lastCliente.codigo.replace('CLI-', '')) || 0 : 0
+      const codigo = `CLI-${String(lastNum + 1).padStart(5, '0')}`
 
       const { error } = await supabase
         .schema('erp')
