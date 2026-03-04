@@ -16,7 +16,8 @@
       "Bash(tail:*)",
       "Bash(cd:*)",
       "Bash(git:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
