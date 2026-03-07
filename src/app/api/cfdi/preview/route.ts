@@ -10,8 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { generarPreCFDI, validarDatosFactura } from '@/lib/cfdi/xml-builder'
 import { DatosFacturaCFDI, ItemFacturaCFDI } from '@/lib/cfdi/types'
-import { getFinkokConfig } from '@/lib/config/finkok'
-import { EMPRESA, EMPRESA_PRUEBAS } from '@/lib/config/empresa'
+import { getEmpresaFromUser } from '@/lib/config/empresa-server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -85,9 +84,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obtener datos del emisor
-    const config = getFinkokConfig()
-    const emisor = config.environment === 'demo' ? EMPRESA_PRUEBAS : EMPRESA
+    // Obtener datos del emisor desde la BD
+    const emisor = await getEmpresaFromUser(supabase)
 
     // Preparar datos
     const moneda = (clienteData?.moneda as 'MXN' | 'USD') || 'MXN'
@@ -129,7 +127,7 @@ export async function POST(request: NextRequest) {
     // Generar XML preview (sin timbrar)
     let xml = ''
     try {
-      xml = generarPreCFDI(datosFactura, { omitirFirma: true })
+      xml = generarPreCFDI(datosFactura, { omitirFirma: true }, emisor)
     } catch (e) {
       validaciones.push(`Error al generar XML: ${e instanceof Error ? e.message : 'Error desconocido'}`)
     }
@@ -153,6 +151,7 @@ export async function POST(request: NextRequest) {
         rfc: emisor.rfc,
         nombre: emisor.nombre,
         regimenFiscal: emisor.regimenFiscal,
+        codigoPostal: emisor.codigoPostal,
       },
       receptor: {
         rfc: factura.cliente_rfc || '',

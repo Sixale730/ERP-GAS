@@ -10,7 +10,7 @@ import {
   CLAVES_PROD_SERV,
   CLAVES_UNIDAD,
 } from './types'
-import { EMPRESA, EMPRESA_PRUEBAS } from '../config/empresa'
+import { EMPRESA, EMPRESA_PRUEBAS, type EmpresaData } from '../config/empresa'
 import { getFinkokConfig } from '../config/finkok'
 
 // Namespaces del CFDI 4.0
@@ -74,8 +74,8 @@ export interface OpcionesXML {
  *   - Si se pasa sello, se usa ese valor
  *   - Si no se pasan, se usan placeholders
  */
-export function generarPreCFDI(factura: DatosFacturaCFDI, opciones?: OpcionesXML): string {
-  const emisor = getEmisor()
+export function generarPreCFDI(factura: DatosFacturaCFDI, opciones?: OpcionesXML, emisorExterno?: EmpresaData): string {
+  const emisor = emisorExterno || getEmisor()
 
   // Calcular totales de impuestos
   const baseIVA = factura.subtotal - factura.descuento_monto
@@ -207,9 +207,10 @@ export function generarPreCFDI(factura: DatosFacturaCFDI, opciones?: OpcionesXML
  */
 export function generarCadenaOriginal(
   factura: DatosFacturaCFDI,
-  noCertificado: string
+  noCertificado: string,
+  emisorExterno?: EmpresaData
 ): string {
-  const emisor = getEmisor()
+  const emisor = emisorExterno || getEmisor()
   const baseIVA = factura.subtotal - factura.descuento_monto
   const totalIVA = calcularIVA(baseIVA)
 

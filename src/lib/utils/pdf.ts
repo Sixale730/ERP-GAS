@@ -1,6 +1,6 @@
 import type jsPDF from 'jspdf'
 import dayjs from 'dayjs'
-import { EMPRESA } from '@/lib/config/empresa'
+import { EMPRESA, type EmpresaData } from '@/lib/config/empresa'
 import { formatMoneyCurrency, formatDate } from './format'
 import { type CodigoMoneda } from '@/lib/config/moneda'
 
@@ -69,14 +69,14 @@ const COLOR_GRIS: [number, number, number] = [100, 100, 100]
 /**
  * Genera el encabezado de la empresa
  */
-function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: string): number {
+function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: string, emp: EmpresaData = EMPRESA): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   let y = 20
 
   // Logo (si existe)
-  if (EMPRESA.logo) {
+  if (emp.logo) {
     try {
-      doc.addImage(EMPRESA.logo, 'PNG', 14, y, 30, 30)
+      doc.addImage(emp.logo, 'PNG', 14, y, 30, 30)
     } catch {
       // Si falla el logo, continuar sin él
     }
@@ -86,16 +86,16 @@ function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: st
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLOR_PRIMARIO)
-  doc.text(EMPRESA.nombre, EMPRESA.logo ? 50 : 14, y + 5)
+  doc.text(emp.nombre, emp.logo ? 50 : 14, y + 5)
 
   // Datos empresa
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLOR_GRIS)
-  const xDatos = EMPRESA.logo ? 50 : 14
-  doc.text(`RFC: ${EMPRESA.rfc}`, xDatos, y + 12)
-  doc.text(EMPRESA.direccion, xDatos, y + 17)
-  doc.text(`Tel: ${EMPRESA.telefono} | ${EMPRESA.email}`, xDatos, y + 22)
+  const xDatos = emp.logo ? 50 : 14
+  doc.text(`RFC: ${emp.rfc}`, xDatos, y + 12)
+  doc.text(emp.direccion, xDatos, y + 17)
+  doc.text(`Tel: ${emp.telefono} | ${emp.email}`, xDatos, y + 22)
 
   // Tipo de documento (derecha)
   doc.setFontSize(20)
@@ -303,7 +303,8 @@ function generarNotas(doc: jsPDF, y: number, notas: string | null | undefined): 
 export async function generarPDFCotizacion(
   cotizacion: CotizacionPDF,
   items: ItemPDF[],
-  opciones?: OpcionesMoneda
+  opciones?: OpcionesMoneda,
+  empresa?: EmpresaData
 ): Promise<void> {
   const { default: jsPDFLib } = await import('jspdf')
   const { default: autoTable } = await import('jspdf-autotable')
@@ -313,7 +314,7 @@ export async function generarPDFCotizacion(
   }
   const doc = new jsPDFLib()
 
-  let y = generarEncabezado(doc, 'COTIZACION', cotizacion.folio)
+  let y = generarEncabezado(doc, 'COTIZACION', cotizacion.folio, empresa)
   y = generarDatosCliente(doc, y, cotizacion)
 
   y = generarTablaProductos(doc, y, items, opcionesFinales, autoTable)
@@ -335,7 +336,8 @@ export async function generarPDFCotizacion(
 export async function generarPDFFactura(
   factura: FacturaPDF,
   items: ItemPDF[],
-  opciones?: OpcionesMoneda
+  opciones?: OpcionesMoneda,
+  empresa?: EmpresaData
 ): Promise<void> {
   const { default: jsPDFLib } = await import('jspdf')
   const { default: autoTable } = await import('jspdf-autotable')
@@ -345,7 +347,7 @@ export async function generarPDFFactura(
   }
   const doc = new jsPDFLib()
 
-  let y = generarEncabezado(doc, 'FACTURA', factura.folio)
+  let y = generarEncabezado(doc, 'FACTURA', factura.folio, empresa)
   y = generarDatosCliente(doc, y, factura)
 
   // Referencia a cotización (si existe)
@@ -543,14 +545,14 @@ function generarTotalesOC(
 /**
  * Genera encabezado para orden de compra
  */
-function generarEncabezadoOC(doc: jsPDF, folio: string): number {
+function generarEncabezadoOC(doc: jsPDF, folio: string, emp: EmpresaData = EMPRESA): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   let y = 20
 
   // Logo (si existe)
-  if (EMPRESA.logo) {
+  if (emp.logo) {
     try {
-      doc.addImage(EMPRESA.logo, 'PNG', 14, y, 30, 30)
+      doc.addImage(emp.logo, 'PNG', 14, y, 30, 30)
     } catch {
       // Si falla el logo, continuar sin él
     }
@@ -560,16 +562,16 @@ function generarEncabezadoOC(doc: jsPDF, folio: string): number {
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLOR_PRIMARIO)
-  doc.text(EMPRESA.nombre, EMPRESA.logo ? 50 : 14, y + 5)
+  doc.text(emp.nombre, emp.logo ? 50 : 14, y + 5)
 
   // Datos empresa
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLOR_GRIS)
-  const xDatos = EMPRESA.logo ? 50 : 14
-  doc.text(`RFC: ${EMPRESA.rfc}`, xDatos, y + 12)
-  doc.text(EMPRESA.direccion, xDatos, y + 17)
-  doc.text(`Tel: ${EMPRESA.telefono} | ${EMPRESA.email}`, xDatos, y + 22)
+  const xDatos = emp.logo ? 50 : 14
+  doc.text(`RFC: ${emp.rfc}`, xDatos, y + 12)
+  doc.text(emp.direccion, xDatos, y + 17)
+  doc.text(`Tel: ${emp.telefono} | ${emp.email}`, xDatos, y + 22)
 
   // Tipo de documento (derecha)
   doc.setFontSize(18)
@@ -597,7 +599,8 @@ function generarEncabezadoOC(doc: jsPDF, folio: string): number {
 export async function generarPDFOrdenCompra(
   orden: OrdenCompraPDF,
   items: ItemOrdenCompraPDF[],
-  opciones?: OpcionesMoneda
+  opciones?: OpcionesMoneda,
+  empresa?: EmpresaData
 ): Promise<void> {
   const { default: jsPDFLib } = await import('jspdf')
   const { default: autoTable } = await import('jspdf-autotable')
@@ -607,7 +610,7 @@ export async function generarPDFOrdenCompra(
   }
   const doc = new jsPDFLib()
 
-  let y = generarEncabezadoOC(doc, orden.folio)
+  let y = generarEncabezadoOC(doc, orden.folio, empresa)
   y = generarDatosProveedor(doc, y, orden)
 
   // Mostrar moneda
@@ -649,19 +652,20 @@ export interface ReportePDFConfig {
   }>
   datos: Array<Record<string, any>>
   orientacion?: 'portrait' | 'landscape'
+  empresa?: EmpresaData
 }
 
 /**
  * Genera el encabezado de empresa para reportes
  */
-function generarEncabezadoReporte(doc: jsPDF, titulo: string): number {
+function generarEncabezadoReporte(doc: jsPDF, titulo: string, emp: EmpresaData = EMPRESA): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   let y = 20
 
   // Logo (si existe)
-  if (EMPRESA.logo) {
+  if (emp.logo) {
     try {
-      doc.addImage(EMPRESA.logo, 'PNG', 14, y, 30, 30)
+      doc.addImage(emp.logo, 'PNG', 14, y, 30, 30)
     } catch {
       // Si falla el logo, continuar sin él
     }
@@ -671,16 +675,16 @@ function generarEncabezadoReporte(doc: jsPDF, titulo: string): number {
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLOR_PRIMARIO)
-  doc.text(EMPRESA.nombre, EMPRESA.logo ? 50 : 14, y + 5)
+  doc.text(emp.nombre, emp.logo ? 50 : 14, y + 5)
 
   // Datos empresa
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLOR_GRIS)
-  const xDatos = EMPRESA.logo ? 50 : 14
-  doc.text(`RFC: ${EMPRESA.rfc}`, xDatos, y + 12)
-  doc.text(EMPRESA.direccion, xDatos, y + 17)
-  doc.text(`Tel: ${EMPRESA.telefono} | ${EMPRESA.email}`, xDatos, y + 22)
+  const xDatos = emp.logo ? 50 : 14
+  doc.text(`RFC: ${emp.rfc}`, xDatos, y + 12)
+  doc.text(emp.direccion, xDatos, y + 17)
+  doc.text(`Tel: ${emp.telefono} | ${emp.email}`, xDatos, y + 22)
 
   // Título del reporte (derecha)
   doc.setFontSize(16)
@@ -709,10 +713,10 @@ function generarEncabezadoReporte(doc: jsPDF, titulo: string): number {
 export async function generarPDFReporte(config: ReportePDFConfig): Promise<void> {
   const { default: jsPDFLib } = await import('jspdf')
   const { default: autoTable } = await import('jspdf-autotable')
-  const { titulo, nombreArchivo, filtrosAplicados, estadisticas, columnas, datos, orientacion = 'portrait' } = config
+  const { titulo, nombreArchivo, filtrosAplicados, estadisticas, columnas, datos, orientacion = 'portrait', empresa } = config
 
   const doc = new jsPDFLib({ orientation: orientacion })
-  let y = generarEncabezadoReporte(doc, titulo)
+  let y = generarEncabezadoReporte(doc, titulo, empresa)
 
   // Filtros aplicados
   if (filtrosAplicados && filtrosAplicados.length > 0) {

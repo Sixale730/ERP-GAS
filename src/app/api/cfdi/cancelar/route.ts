@@ -11,9 +11,8 @@ import {
   getFinkokConfigError,
   MotivoCancelacion,
   MOTIVOS_CANCELACION,
-  getFinkokConfig,
 } from '@/lib/config/finkok'
-import { EMPRESA, EMPRESA_PRUEBAS } from '@/lib/config/empresa'
+import { getEmpresaFromUser } from '@/lib/config/empresa-server'
 
 interface CancelarRequest {
   factura_id: string
@@ -138,9 +137,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obtener RFC del emisor segun ambiente
-    const config = getFinkokConfig()
-    const empresa = config.environment === 'demo' ? EMPRESA_PRUEBAS : EMPRESA
+    // Obtener datos del emisor desde la BD
+    const empresa = await getEmpresaFromUser(supabase)
 
     // Cancelar con Finkok
     const resultado = await cancel(

@@ -25,6 +25,7 @@ export interface ExportarExcelParams {
   resumen?: ResumenEstadistica[]
   statusDataIndex?: string
   mapaColorStatus?: Record<string, string>
+  nombreEmpresa?: string
 }
 
 // ── Paleta corporativa ──────────────────────────────────────
@@ -66,10 +67,11 @@ export async function exportarExcel({
   resumen,
   statusDataIndex,
   mapaColorStatus,
+  nombreEmpresa,
 }: ExportarExcelParams) {
   const ExcelJSLib = (await import('exceljs')).default
   const wb = new ExcelJSLib.Workbook()
-  wb.creator = 'CUANTY ERP'
+  wb.creator = nombreEmpresa || 'CUANTY ERP'
   wb.created = new Date()
 
   const ws = wb.addWorksheet(nombreHoja, {
@@ -240,7 +242,7 @@ export async function exportarExcel({
   currentRow++ // blank spacer row
   ws.mergeCells(currentRow, 1, currentRow, totalCols)
   const footerCell = ws.getCell(currentRow, 1)
-  footerCell.value = `Documento generado por CUANTY ERP | ${fechaStr}`
+  footerCell.value = `Documento generado por ${nombreEmpresa || 'CUANTY ERP'} | ${fechaStr}`
   footerCell.font = { name: 'Calibri', size: 8, italic: true, color: { argb: TEXT_GRAY } }
   footerCell.alignment = { horizontal: 'center', vertical: 'middle' }
 

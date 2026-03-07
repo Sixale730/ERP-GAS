@@ -12,7 +12,7 @@ import {
   isFinkokConfigured,
   getFinkokConfig,
 } from '@/lib/config/finkok'
-import { EMPRESA, EMPRESA_PRUEBAS } from '@/lib/config/empresa'
+import { getEmpresaFromUser } from '@/lib/config/empresa-server'
 
 interface FacturaDB {
   id: string
@@ -97,8 +97,7 @@ export async function GET(request: NextRequest) {
     // Si esta timbrada y hay credenciales, consultar al SAT
     let statusSAT = null
     if (isFinkokConfigured() && factura.cliente_rfc) {
-      const config = getFinkokConfig()
-      const empresa = config.environment === 'demo' ? EMPRESA_PRUEBAS : EMPRESA
+      const empresa = await getEmpresaFromUser(supabase)
 
       statusSAT = await getSatStatus(
         factura.uuid_cfdi,

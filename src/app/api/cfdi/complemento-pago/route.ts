@@ -11,8 +11,8 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { signStamp } from '@/lib/cfdi/finkok/stamp'
 import { generarXmlComplementoPago, validarComplementoPago } from '@/lib/cfdi/pago-builder'
 import { CFDIEmisor, CFDIReceptor, DatosPagoCFDI, DocumentoRelacionadoPago } from '@/lib/cfdi/types'
-import { isFinkokConfigured, getFinkokConfigError, getFinkokConfig } from '@/lib/config/finkok'
-import { EMPRESA, EMPRESA_PRUEBAS } from '@/lib/config/empresa'
+import { isFinkokConfigured, getFinkokConfigError } from '@/lib/config/finkok'
+import { getEmpresaFromUser } from '@/lib/config/empresa-server'
 import { parsearErrorCfdi } from '@/lib/cfdi/error-catalog'
 
 export async function POST(request: NextRequest) {
@@ -131,9 +131,8 @@ export async function POST(request: NextRequest) {
     const saldoAnterior = factura.saldo + pago.monto
     const saldoInsoluto = factura.saldo
 
-    // Preparar datos del emisor y receptor
-    const config = getFinkokConfig()
-    const empresaData = config.environment === 'demo' ? EMPRESA_PRUEBAS : EMPRESA
+    // Obtener datos del emisor desde la BD
+    const empresaData = await getEmpresaFromUser(supabase)
 
     const emisor: CFDIEmisor = {
       Rfc: empresaData.rfc,

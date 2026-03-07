@@ -15,6 +15,7 @@ import {
 import { signStamp } from '@/lib/cfdi/finkok/stamp'
 import { DatosFacturaCFDI, ItemFacturaCFDI } from '@/lib/cfdi/types'
 import { isFinkokConfigured, getFinkokConfigError, getFinkokConfig } from '@/lib/config/finkok'
+import { getEmpresaFromUser } from '@/lib/config/empresa-server'
 import { parsearErrorCfdi, generarRespuestaError } from '@/lib/cfdi/error-catalog'
 
 interface TimbrarRequest {
@@ -262,8 +263,11 @@ export async function POST(request: NextRequest) {
 
     const config = getFinkokConfig()
 
+    // Obtener datos del emisor desde la BD
+    const empresa = await getEmpresaFromUser(supabase)
+
     // Generar XML SIN atributos de firma (Finkok los agregara)
-    const xmlSinFirmar = generarPreCFDI(datosFactura, { omitirFirma: true })
+    const xmlSinFirmar = generarPreCFDI(datosFactura, { omitirFirma: true }, empresa)
 
     // DEBUG: Log del XML antes de enviar a Finkok
     console.log('=== CFDI DEBUG ===')
