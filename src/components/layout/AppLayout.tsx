@@ -294,6 +294,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const { error } = await (supabase.rpc as any)('cambiar_organizacion_activa', { p_nueva_org_id: newOrgId })
                   if (error) throw error
+                  await supabase.auth.refreshSession()
                   await refreshUser()
                   queryClient.invalidateQueries()
                   const orgName = orgList.find(o => o.id === newOrgId)?.nombre
