@@ -33,6 +33,16 @@ export interface Organizacion {
   codigo: string
   is_sistema: boolean
   modulos_deshabilitados: string[]
+  modulos_activos: string[]
+  // Datos fiscales del emisor
+  rfc: string | null
+  razon_social: string | null
+  regimen_fiscal: string | null
+  codigo_postal: string | null
+  direccion: string | null
+  telefono: string | null
+  email: string | null
+  logo_url: string | null
 }
 
 interface AuthState {
@@ -123,6 +133,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               codigo: row.org_codigo,
               is_sistema: row.org_is_sistema,
               modulos_deshabilitados: row.org_modulos_deshabilitados || [],
+              modulos_activos: row.org_modulos_activos || [],
+              rfc: row.org_rfc || null,
+              razon_social: row.org_razon_social || null,
+              regimen_fiscal: row.org_regimen_fiscal || null,
+              codigo_postal: row.org_codigo_postal || null,
+              direccion: row.org_direccion || null,
+              telefono: row.org_telefono || null,
+              email: row.org_email || null,
+              logo_url: row.org_logo_url || null,
             } : null
 
             return { erpUser, organizacion }

@@ -46,10 +46,15 @@ export function useModulos() {
     [organizacion?.modulos_deshabilitados]
   )
 
+  const orgModulosActivos = useMemo(
+    () => organizacion?.modulos_activos ?? [],
+    [organizacion?.modulos_activos]
+  )
+
   const modulosActivos = useMemo(() => {
     if (!modulosGlobales) return [...TODOS_LOS_MODULOS]
-    return getModulosActivos(modulosGlobales, orgDeshabilitados)
-  }, [modulosGlobales, orgDeshabilitados])
+    return getModulosActivos(modulosGlobales, orgDeshabilitados, orgModulosActivos)
+  }, [modulosGlobales, orgDeshabilitados, orgModulosActivos])
 
   const isModuloActivo = (modulo: Modulo): boolean => {
     return modulosActivos.includes(modulo)

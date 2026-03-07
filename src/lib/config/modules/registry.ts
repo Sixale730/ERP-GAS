@@ -5,6 +5,7 @@ import { cotizacionesManifest } from './cotizaciones'
 import { ordenesVentaManifest } from './ordenes-venta'
 import { facturasManifest } from './facturas'
 import { cfdiManifest } from './cfdi'
+import { posManifest } from './pos'
 import { comprasManifest } from './compras'
 import { reportesManifest } from './reportes'
 import { catalogosManifest } from './catalogos'
@@ -20,6 +21,7 @@ const ALL_MANIFESTS = {
   cotizaciones: cotizacionesManifest,
   ordenes_venta: ordenesVentaManifest,
   facturas: facturasManifest,
+  pos: posManifest,
   cfdi: cfdiManifest,
   compras: comprasManifest,
   reportes: reportesManifest,
@@ -88,8 +90,18 @@ export const PERMISOS_DEFAULT: Record<UserRole, PermisosUsuario> = Object.fromEn
  */
 export function getModulosActivos(
   modulosGlobales: string[],
-  orgDeshabilitados: string[]
+  orgDeshabilitados: string[],
+  orgModulosActivos?: string[]
 ): Modulo[] {
+  // Si la org tiene whitelist definida, usarla directamente
+  if (orgModulosActivos && orgModulosActivos.length > 0) {
+    const activosSet = new Set(orgModulosActivos)
+    return TODOS_LOS_MODULOS.filter((m) => {
+      if (MODULOS_REGISTRO[m]?.core) return true
+      return activosSet.has(m)
+    })
+  }
+  // Fallback: logica original (global - deshabilitados)
   const deshabilitadosSet = new Set(orgDeshabilitados)
   return modulosGlobales.filter((m) => {
     const info = MODULOS_REGISTRO[m as Modulo]
