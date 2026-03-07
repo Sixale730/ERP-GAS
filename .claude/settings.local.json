@@ -31,7 +31,9 @@
       "Bash(for f in mini_03.sql mini_04.sql mini_05.sql mini_06.sql mini_07.sql mini_08.sql mini_09.sql mini_10.sql)",
       "Bash(do echo \"=== $f ===\")",
       "Read(//c/ERP-GAS/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "mcp__supabase__list_extensions",
+      "Bash(npx next:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
