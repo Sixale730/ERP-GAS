@@ -17,7 +17,21 @@
       "Bash(cd:*)",
       "Bash(git:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(python3:*)",
+      "Bash(where python)",
+      "Bash(where py)",
+      "Bash(where python3)",
+      "Bash(ls /c/Python*/python.exe)",
+      "Read(//c/Users/PC/AppData/Local/Programs/**)",
+      "Bash(/c/Python314/python.exe:*)",
+      "Read(//c/Users/PC/.claude/**)",
+      "Read(//c/Users/PC/AppData/Roaming/**)",
+      "mcp__supabase__get_publishable_keys",
+      "Bash(for f in mini_03.sql mini_04.sql mini_05.sql mini_06.sql mini_07.sql mini_08.sql mini_09.sql mini_10.sql)",
+      "Bash(do echo \"=== $f ===\")",
+      "Read(//c/ERP-GAS/**)",
+      "Bash(done)"
     ]
   },
   "enableAllProjectMcpServers": true,
