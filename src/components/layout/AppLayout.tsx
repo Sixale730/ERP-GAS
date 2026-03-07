@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid, Tag, Skeleton, Select } from 'antd'
+import { Layout, theme, Button, Dropdown, Avatar, Space, Drawer, Grid, Tag, Skeleton, Select, message } from 'antd'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -21,6 +21,7 @@ import { useInactivityLogout } from '@/lib/hooks/useInactivityLogout'
 import { useModulos } from '@/lib/hooks/useModulos'
 import { useUIStore } from '@/store/uiStore'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useQueryClient } from '@tanstack/react-query'
 
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
@@ -48,7 +49,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
     setMounted(true)
   }, [])
   const router = useRouter()
-  const { loading, displayName, avatarUrl, role, signOut, isAdmin, isSuperAdmin, organizacion, erpUser } = useAuth()
+  const { loading, displayName, avatarUrl, role, signOut, isAdmin, isSuperAdmin, organizacion, erpUser, orgId, refreshUser } = useAuth()
+  const queryClient = useQueryClient()
   useInactivityLogout(signOut)
   const { modulosActivos } = useModulos()
 
@@ -284,13 +286,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
           {isSuperAdmin && orgList.length > 0 && (
             <Select
-              value={selectedOrgId}
-              onChange={setSelectedOrgId}
-              allowClear
+              value={orgId}
+              onChange={async (newOrgId) => {
+                if (!newOrgId || newOrgId === orgId) return
+                try {
+                  const supabase = getSupabaseClient()
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const { error } = await (supabase.rpc as any)('cambiar_organizacion_activa', { p_nueva_org_id: newOrgId })
+                  if (error) throw error
+                  await refreshUser()
+                  queryClient.invalidateQueries()
+                  const orgName = orgList.find(o => o.id === newOrgId)?.nombre
+                  message.success(`Organización: ${orgName}`)
+                } catch (err) {
+                  message.error('Error al cambiar organización')
+                  console.error(err)
+                }
+              }}
               placeholder={
                 <Space size={4}>
                   <GlobalOutlined />
-                  <span>{isMobile ? 'Org' : 'Todas las organizaciones'}</span>
+                  <span>{isMobile ? 'Org' : 'Organización'}</span>
                 </Space>
               }
               style={{ width: isMobile ? 120 : 220 }}
