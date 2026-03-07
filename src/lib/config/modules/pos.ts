@@ -9,7 +9,10 @@ export const posManifest = {
   dependencias: ['productos', 'clientes'],
   orden: 35,
   navItems: [
-    { key: '/pos', label: 'Punto de Venta', icono: 'ShoppingCartOutlined' },
+    { key: '/pos', label: 'Terminal POS', icono: 'ShoppingCartOutlined' },
+    { key: '/pos/ventas', label: 'Ventas POS', icono: 'UnorderedListOutlined' },
+    { key: '/pos/cortes', label: 'Cortes de Caja', icono: 'DollarOutlined' },
+    { key: '/pos/cajas', label: 'Cajas', icono: 'ShopOutlined' },
   ],
   permisosPorRol: {
     super_admin: ALL,

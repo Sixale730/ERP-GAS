@@ -113,6 +113,17 @@ body {
   }
 }
 
+/* POS Ticket print styles (80mm thermal) */
+@media print {
+  .pos-ticket-print {
+    width: 80mm !important;
+    margin: 0 !important;
+    padding: 2mm !important;
+    font-family: 'Courier New', monospace !important;
+    font-size: 12px !important;
+  }
+}
+
 /* NProgress styles */
 #nprogress {
   pointer-events: none;
