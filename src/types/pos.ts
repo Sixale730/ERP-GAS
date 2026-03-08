@@ -115,6 +115,7 @@ export interface POSCartItem {
   subtotal: number
   unidad_medida: string
   es_granel: boolean // true para KG
+  tasa_ieps: number
 }
 
 // Producto con precio para búsqueda POS
@@ -128,6 +129,7 @@ export interface ProductoPOS {
   stock_total: number | null
   precio: number | null
   precio_con_iva: number | null
+  tasa_ieps: number
 }
 
 // Params para registrar venta RPC
@@ -141,6 +143,7 @@ export interface RegistrarVentaParams {
     cantidad: number
     precio_unitario: number
     descuento_porcentaje: number
+    tasa_ieps: number
   }>
   p_descuento_porcentaje?: number
   p_metodo_pago?: string

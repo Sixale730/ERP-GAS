@@ -11,7 +11,8 @@ export default function POSCart() {
   const descuentoMonto = subtotal * descuentoGlobal / 100
   const baseIVA = subtotal - descuentoMonto
   const iva = Math.round(baseIVA * 0.16 * 100) / 100
-  const total = Math.round((baseIVA + iva) * 100) / 100
+  const ieps = Math.round(items.reduce((sum, i) => sum + (i.subtotal * (1 - descuentoGlobal / 100) * (i.tasa_ieps || 0)), 0) * 100) / 100
+  const total = Math.round((baseIVA + iva + ieps) * 100) / 100
 
   if (items.length === 0) {
     return (
@@ -102,6 +103,12 @@ export default function POSCart() {
           <span>IVA (16%)</span>
           <span>${iva.toFixed(2)}</span>
         </div>
+        {ieps > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: '#999' }}>
+            <span>IEPS</span>
+            <span>${ieps.toFixed(2)}</span>
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 24, fontWeight: 700, color: '#1890ff' }}>
           <span>TOTAL</span>
           <span>${total.toFixed(2)}</span>
@@ -112,11 +119,12 @@ export default function POSCart() {
 }
 
 // Helper exportado para calcular totales desde fuera
-export function calcTotals(items: Array<{ subtotal: number }>, descuentoGlobal: number) {
+export function calcTotals(items: Array<{ subtotal: number; tasa_ieps?: number }>, descuentoGlobal: number) {
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0)
   const descuentoMonto = subtotal * descuentoGlobal / 100
   const baseIVA = subtotal - descuentoMonto
   const iva = Math.round(baseIVA * 0.16 * 100) / 100
-  const total = Math.round((baseIVA + iva) * 100) / 100
-  return { subtotal, descuentoMonto, iva, total }
+  const ieps = Math.round(items.reduce((sum, i) => sum + (i.subtotal * (1 - descuentoGlobal / 100) * (i.tasa_ieps || 0)), 0) * 100) / 100
+  const total = Math.round((baseIVA + iva + ieps) * 100) / 100
+  return { subtotal, descuentoMonto, iva, ieps, total }
 }

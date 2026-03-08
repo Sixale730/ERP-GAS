@@ -81,6 +81,7 @@ export const usePOSStore = create<POSState>()(
             subtotal: calcSubtotal(precio, qty, 0),
             unidad_medida: product.unidad_medida,
             es_granel: product.unidad_medida === 'KG',
+            tasa_ieps: product.tasa_ieps || 0,
           }
           set({ items: [...items, newItem] })
         }

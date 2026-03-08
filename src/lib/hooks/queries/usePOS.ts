@@ -239,7 +239,7 @@ async function fetchProductosPOS(search?: string, listaPrecioId?: string): Promi
     .schema('erp')
     .from('productos')
     .select(`
-      id, sku, nombre, codigo_barras, unidad_medida, es_servicio,
+      id, sku, nombre, codigo_barras, unidad_medida, es_servicio, tasa_ieps,
       precios_productos!left(precio, precio_con_iva)
     `)
     .eq('is_active', true)
@@ -270,6 +270,7 @@ async function fetchProductosPOS(search?: string, listaPrecioId?: string): Promi
       stock_total: null,
       precio: precio?.precio ?? null,
       precio_con_iva: precio?.precio_con_iva ?? null,
+      tasa_ieps: p.tasa_ieps || 0,
     } as ProductoPOS
   })
 }
@@ -291,7 +292,7 @@ export async function buscarPorCodigoBarras(codigo: string, listaPrecioId?: stri
     .schema('erp')
     .from('productos')
     .select(`
-      id, sku, nombre, codigo_barras, unidad_medida, es_servicio,
+      id, sku, nombre, codigo_barras, unidad_medida, es_servicio, tasa_ieps,
       precios_productos!left(precio, precio_con_iva)
     `)
     .eq('is_active', true)
@@ -319,5 +320,6 @@ export async function buscarPorCodigoBarras(codigo: string, listaPrecioId?: stri
     stock_total: null,
     precio: precio?.precio ?? null,
     precio_con_iva: precio?.precio_con_iva ?? null,
+    tasa_ieps: p.tasa_ieps || 0,
   }
 }

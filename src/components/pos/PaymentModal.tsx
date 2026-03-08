@@ -65,6 +65,7 @@ export default function PaymentModal({ open, onSuccess, onCancel }: PaymentModal
           cantidad: i.cantidad,
           precio_unitario: i.precio_unitario,
           descuento_porcentaje: i.descuento_porcentaje,
+          tasa_ieps: i.tasa_ieps || 0,
         })),
         p_descuento_porcentaje: descuentoGlobal,
         p_metodo_pago: metodo,

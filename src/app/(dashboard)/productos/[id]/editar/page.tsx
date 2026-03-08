@@ -91,6 +91,7 @@ export default function EditarProductoPage() {
         stock_minimo: prodRes.data.stock_minimo,
         stock_maximo: prodRes.data.stock_maximo,
         es_servicio: prodRes.data.es_servicio || false,
+        tasa_ieps: prodRes.data.tasa_ieps || 0,
       })
     } catch (error) {
       console.error('Error loading data:', error)
@@ -128,6 +129,7 @@ export default function EditarProductoPage() {
           stock_minimo: values.es_servicio ? 0 : (values.stock_minimo || 0),
           stock_maximo: values.es_servicio ? 0 : (values.stock_maximo || 0),
           es_servicio: values.es_servicio || false,
+          tasa_ieps: values.tasa_ieps || 0,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -394,6 +396,16 @@ export default function EditarProductoPage() {
                 </Space>
               )
             }}
+          </Form.Item>
+
+          <Form.Item name="tasa_ieps" label="Tasa IEPS">
+            <Select
+              options={[
+                { value: 0, label: 'Sin IEPS (0%)' },
+                { value: 0.06, label: 'IEPS 6%' },
+                { value: 0.08, label: 'IEPS 8%' },
+              ]}
+            />
           </Form.Item>
 
           <Form.Item style={{ marginTop: 24 }}>

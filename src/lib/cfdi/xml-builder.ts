@@ -81,6 +81,18 @@ export function generarPreCFDI(factura: DatosFacturaCFDI, opciones?: OpcionesXML
   const baseIVA = factura.subtotal - factura.descuento_monto
   const totalIVA = calcularIVA(baseIVA)
 
+  // Calcular IEPS total por items
+  let totalIEPS = 0
+  for (const item of factura.items) {
+    if (item.tasa_ieps && item.tasa_ieps > 0) {
+      const importe = item.cantidad * item.precio_unitario
+      const descuento = importe * (item.descuento_porcentaje / 100)
+      const base = importe - descuento
+      totalIEPS += base * item.tasa_ieps
+    }
+  }
+  totalIEPS = Math.round(totalIEPS * 100) / 100
+
   // Crear documento XML
   const doc = create({ version: '1.0', encoding: 'UTF-8' })
 
@@ -172,11 +184,23 @@ export function generarPreCFDI(factura: DatosFacturaCFDI, opciones?: OpcionesXML
       TasaOCuota: '0.160000',
       Importe: formatDecimal(ivaItem),
     })
+
+    // IEPS del concepto (si aplica)
+    if (item.tasa_ieps && item.tasa_ieps > 0) {
+      const iepsItem = baseImpuesto * item.tasa_ieps
+      trasladosConcepto.ele('cfdi:Traslado', {
+        Base: formatDecimal(baseImpuesto),
+        Impuesto: '003', // IEPS
+        TipoFactor: 'Tasa',
+        TasaOCuota: item.tasa_ieps.toFixed(6),
+        Importe: formatDecimal(iepsItem),
+      })
+    }
   }
 
   // Impuestos totales
   const impuestos = comprobante.ele('cfdi:Impuestos', {
-    TotalImpuestosTrasladados: formatDecimal(totalIVA),
+    TotalImpuestosTrasladados: formatDecimal(totalIVA + totalIEPS),
   })
 
   const traslados = impuestos.ele('cfdi:Traslados')
@@ -187,6 +211,32 @@ export function generarPreCFDI(factura: DatosFacturaCFDI, opciones?: OpcionesXML
     TasaOCuota: '0.160000',
     Importe: formatDecimal(totalIVA),
   })
+
+  // IEPS total (si hay items con IEPS)
+  if (totalIEPS > 0) {
+    // Agrupar por tasa IEPS para nodos separados
+    const iepsPorTasa = new Map<number, { base: number; importe: number }>()
+    for (const item of factura.items) {
+      if (item.tasa_ieps && item.tasa_ieps > 0) {
+        const importe = item.cantidad * item.precio_unitario
+        const descuento = importe * (item.descuento_porcentaje / 100)
+        const base = importe - descuento
+        const entry = iepsPorTasa.get(item.tasa_ieps) || { base: 0, importe: 0 }
+        entry.base += base
+        entry.importe += base * item.tasa_ieps
+        iepsPorTasa.set(item.tasa_ieps, entry)
+      }
+    }
+    Array.from(iepsPorTasa.entries()).forEach(([tasa, { base, importe }]) => {
+      traslados.ele('cfdi:Traslado', {
+        Base: formatDecimal(base),
+        Impuesto: '003',
+        TipoFactor: 'Tasa',
+        TasaOCuota: tasa.toFixed(6),
+        Importe: formatDecimal(importe),
+      })
+    })
+  }
 
   // Generar XML string
   const xml = doc.end({ prettyPrint: false })
@@ -213,6 +263,23 @@ export function generarCadenaOriginal(
   const emisor = emisorExterno || getEmisor()
   const baseIVA = factura.subtotal - factura.descuento_monto
   const totalIVA = calcularIVA(baseIVA)
+
+  // Calcular IEPS total para cadena original
+  let cadTotalIEPS = 0
+  const cadIepsPorTasa = new Map<number, { base: number; importe: number }>()
+  for (const item of factura.items) {
+    if (item.tasa_ieps && item.tasa_ieps > 0) {
+      const imp = item.cantidad * item.precio_unitario
+      const desc = imp * (item.descuento_porcentaje / 100)
+      const base = imp - desc
+      cadTotalIEPS += base * item.tasa_ieps
+      const entry = cadIepsPorTasa.get(item.tasa_ieps) || { base: 0, importe: 0 }
+      entry.base += base
+      entry.importe += base * item.tasa_ieps
+      cadIepsPorTasa.set(item.tasa_ieps, entry)
+    }
+  }
+  cadTotalIEPS = Math.round(cadTotalIEPS * 100) / 100
 
   const partes: string[] = [
     // Comprobante (orden segun XSLT SAT)
@@ -264,24 +331,47 @@ export function generarCadenaOriginal(
       formatDecimal(importe),
       descuento > 0 ? formatDecimal(descuento) : '',
       '02', // ObjetoImp
-      // Impuestos del concepto
+      // Impuestos del concepto - IVA
       formatDecimal(baseImpuesto),
       '002',
       'Tasa',
       '0.160000',
       formatDecimal(ivaItem)
     )
+
+    // IEPS del concepto en cadena original
+    if (item.tasa_ieps && item.tasa_ieps > 0) {
+      const iepsItem = baseImpuesto * item.tasa_ieps
+      partes.push(
+        formatDecimal(baseImpuesto),
+        '003',
+        'Tasa',
+        item.tasa_ieps.toFixed(6),
+        formatDecimal(iepsItem)
+      )
+    }
   }
 
   // Impuestos totales
   partes.push(
-    formatDecimal(totalIVA), // TotalImpuestosTrasladados
-    formatDecimal(baseIVA), // Base
+    formatDecimal(totalIVA + cadTotalIEPS), // TotalImpuestosTrasladados
+    formatDecimal(baseIVA), // Base IVA
     '002', // Impuesto
     'Tasa', // TipoFactor
     '0.160000', // TasaOCuota
     formatDecimal(totalIVA) // Importe
   )
+
+  // IEPS totales en cadena original
+  Array.from(cadIepsPorTasa.entries()).forEach(([tasa, { base, importe }]) => {
+    partes.push(
+      formatDecimal(base),
+      '003',
+      'Tasa',
+      tasa.toFixed(6),
+      formatDecimal(importe)
+    )
+  })
 
   // Filtrar valores vacios y unir con pipes
   const cadena = '||' + partes.filter((p) => p !== '').join('|') + '||'

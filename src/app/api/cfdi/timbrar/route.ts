@@ -31,6 +31,7 @@ interface FacturaDB {
   subtotal: number
   descuento_monto: number
   iva: number
+  ieps: number
   total: number
   notas: string | null
   cliente_rfc: string | null
@@ -138,6 +139,7 @@ export async function POST(request: NextRequest) {
         subtotal,
         descuento_monto,
         iva,
+        ieps,
         total,
         notas,
         cliente_rfc,
@@ -222,6 +224,7 @@ export async function POST(request: NextRequest) {
       subtotal: factura.subtotal,
       descuento_monto: factura.descuento_monto,
       iva: factura.iva,
+      ieps: factura.ieps || 0,
       total: factura.total,
       moneda: (clienteData?.moneda as 'MXN' | 'USD') || 'MXN',
       forma_pago: clienteData?.forma_pago || '99',

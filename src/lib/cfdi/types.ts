@@ -159,6 +159,7 @@ export interface DatosFacturaCFDI {
   subtotal: number
   descuento_monto: number
   iva: number
+  ieps: number
   total: number
   moneda: 'MXN' | 'USD'
   tipo_cambio?: number
@@ -185,6 +186,7 @@ export interface ItemFacturaCFDI {
   clave_prod_serv?: string // Clave SAT del producto
   clave_unidad?: string // Clave SAT de la unidad
   unidad?: string
+  tasa_ieps?: number // 0.06 = 6%, 0.08 = 8%
 }
 
 export interface ResultadoTimbrado {

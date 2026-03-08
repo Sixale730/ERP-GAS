@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       .from('facturas')
       .select(`
         id, folio, serie, fecha, fecha_vencimiento,
-        subtotal, descuento_monto, iva, total, notas,
+        subtotal, descuento_monto, iva, ieps, total, notas,
         cliente_rfc, cliente_razon_social, cliente_regimen_fiscal, cliente_uso_cfdi,
         status_sat, uuid_cfdi, cliente_id, error_timbrado
       `)
@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
       subtotal: factura.subtotal,
       descuento_monto: factura.descuento_monto,
       iva: factura.iva,
+      ieps: factura.ieps || 0,
       total: factura.total,
       moneda: (clienteData?.moneda as 'MXN' | 'USD') || 'MXN',
       forma_pago: clienteData?.forma_pago || '99',
