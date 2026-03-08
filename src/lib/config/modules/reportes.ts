@@ -10,16 +10,9 @@ export const reportesManifest = {
   orden: 100,
   navItems: [
     {
-      key: 'reportes',
+      key: '/reportes',
       label: 'Reportes',
       icono: 'BarChartOutlined',
-      children: [
-        { key: '/reportes/ordenes-venta', label: 'Ordenes de Venta', icono: 'ContainerOutlined' },
-        { key: '/reportes/ordenes-compra', label: 'Ordenes de Compra', icono: 'ShoppingCartOutlined' },
-        { key: '/reportes/servicios', label: 'Servicios', icono: 'ToolOutlined' },
-        { key: '/reportes/movimientos', label: 'Movimientos', icono: 'SwapOutlined' },
-        { key: '/reportes/inventario', label: 'Inventario', icono: 'InboxOutlined' },
-      ],
     },
   ],
   permisosPorRol: {
