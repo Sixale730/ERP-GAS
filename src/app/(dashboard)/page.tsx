@@ -16,12 +16,15 @@ import { useTipoCambioBanxico } from '@/lib/hooks/queries/useTipoCambioBanxico'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { DashboardSkeleton } from '@/components/common/Skeletons'
 import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
+import DashboardPOS from '@/components/dashboard/DashboardPOS'
 
 const { Title } = Typography
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { loading: authLoading } = useAuth()
+  const { loading: authLoading, organizacion } = useAuth()
+
+  const esPOS = organizacion?.codigo === 'MASCOTIENDA'
 
   // React Query hook — se dispara inmediatamente (en paralelo con auth)
   const { data, isLoading, isError } = useDashboard()
@@ -94,6 +97,10 @@ export default function DashboardPage() {
       },
     },
   ], [])
+
+  if (esPOS) {
+    return <DashboardPOS />
+  }
 
   if (authLoading || isLoading) {
     return <DashboardSkeleton />
