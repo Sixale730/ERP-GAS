@@ -466,7 +466,7 @@ export default function ConfiguracionPage() {
       </Card>
 
       {/* ==================== MODULOS DE LA ORGANIZACION ==================== */}
-      {isAdmin && organizacion && (
+      {role === 'super_admin' && organizacion && (
         <Card
           title={
             <Space>
