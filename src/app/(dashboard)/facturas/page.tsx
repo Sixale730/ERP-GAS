@@ -3,13 +3,14 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
-import { SearchOutlined, EyeOutlined, FilePdfOutlined, LoadingOutlined } from '@ant-design/icons'
+import { SearchOutlined, EyeOutlined, FilePdfOutlined, LoadingOutlined, GlobalOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useFacturas, type FacturaRow } from '@/lib/hooks/queries/useFacturas'
 import { TableSkeleton } from '@/components/common/Skeletons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyCurrency, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura, prepararDatosFacturaPDF } from '@/lib/utils/pdf'
+import { useAuth } from '@/lib/hooks/useAuth'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
@@ -30,6 +31,8 @@ const statusLabels: Record<string, string> = {
 
 export default function FacturasPage() {
   const router = useRouter()
+  const { organizacion } = useAuth()
+  const esPOS = organizacion?.codigo === 'MASCOTIENDA'
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
@@ -200,7 +203,17 @@ export default function FacturasPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <Title level={2} style={{ margin: 0 }}>Facturas</Title>
+        <Space>
+          <Title level={2} style={{ margin: 0 }}>Facturas</Title>
+          {esPOS && (
+            <Button
+              icon={<GlobalOutlined />}
+              onClick={() => router.push('/facturas/global')}
+            >
+              Factura Global
+            </Button>
+          )}
+        </Space>
         <Space wrap>
           {totalPorCobrarUSD > 0 && (
             <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
