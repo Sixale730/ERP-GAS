@@ -91,9 +91,9 @@ export interface ResumenTurnoReporte {
 
 // ── Hooks ────────────────────────────────────────────
 
-export function useVentasPOSReporte(fechaDesde: string | null, fechaHasta: string | null) {
+export function useVentasPOSReporte(fechaDesde: string | null, fechaHasta: string | null, orgId?: string) {
   return useQuery({
-    queryKey: ['reporte-ventas-pos', fechaDesde, fechaHasta],
+    queryKey: ['reporte-ventas-pos', fechaDesde, fechaHasta, orgId],
     queryFn: async () => {
       const supabase = getSupabaseClient()
       let query = supabase
@@ -101,6 +101,7 @@ export function useVentasPOSReporte(fechaDesde: string | null, fechaHasta: strin
         .from('ventas_pos')
         .select('id, folio, created_at, metodo_pago, subtotal, iva, ieps, total, monto_efectivo, monto_tarjeta, monto_transferencia, vendedor_nombre')
         .eq('status', 'completada')
+        .eq('organizacion_id', orgId!)
         .order('created_at', { ascending: false })
 
       if (fechaDesde) query = query.gte('created_at', `${fechaDesde}T00:00:00`)
@@ -110,13 +111,13 @@ export function useVentasPOSReporte(fechaDesde: string | null, fechaHasta: strin
       if (error) throw error
       return (data || []) as VentaPOSReporte[]
     },
-    enabled: !!fechaDesde && !!fechaHasta,
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
   })
 }
 
-export function useVentasFormaPago(fechaDesde: string | null, fechaHasta: string | null) {
+export function useVentasFormaPago(fechaDesde: string | null, fechaHasta: string | null, orgId?: string) {
   return useQuery({
-    queryKey: ['reporte-ventas-forma-pago', fechaDesde, fechaHasta],
+    queryKey: ['reporte-ventas-forma-pago', fechaDesde, fechaHasta, orgId],
     queryFn: async () => {
       const supabase = getSupabaseClient()
       let query = supabase
@@ -124,6 +125,7 @@ export function useVentasFormaPago(fechaDesde: string | null, fechaHasta: string
         .from('ventas_pos')
         .select('metodo_pago, total, monto_efectivo, monto_tarjeta, monto_transferencia')
         .eq('status', 'completada')
+        .eq('organizacion_id', orgId!)
 
       if (fechaDesde) query = query.gte('created_at', `${fechaDesde}T00:00:00`)
       if (fechaHasta) query = query.lte('created_at', `${fechaHasta}T23:59:59`)
@@ -155,13 +157,13 @@ export function useVentasFormaPago(fechaDesde: string | null, fechaHasta: string
       }
       return Array.from(agrupado.values())
     },
-    enabled: !!fechaDesde && !!fechaHasta,
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
   })
 }
 
-export function useProductosMasVendidos(fechaDesde: string | null, fechaHasta: string | null) {
+export function useProductosMasVendidos(fechaDesde: string | null, fechaHasta: string | null, orgId?: string) {
   return useQuery({
-    queryKey: ['reporte-productos-vendidos', fechaDesde, fechaHasta],
+    queryKey: ['reporte-productos-vendidos', fechaDesde, fechaHasta, orgId],
     queryFn: async () => {
       const supabase = getSupabaseClient()
 
@@ -171,6 +173,7 @@ export function useProductosMasVendidos(fechaDesde: string | null, fechaHasta: s
         .from('ventas_pos')
         .select('id')
         .eq('status', 'completada')
+        .eq('organizacion_id', orgId!)
 
       if (fechaDesde) ventasQuery = ventasQuery.gte('created_at', `${fechaDesde}T00:00:00`)
       if (fechaHasta) ventasQuery = ventasQuery.lte('created_at', `${fechaHasta}T23:59:59`)
@@ -226,36 +229,39 @@ export function useProductosMasVendidos(fechaDesde: string | null, fechaHasta: s
 
       return Array.from(agrupado.values()).sort((a, b) => b.importe_total - a.importe_total)
     },
-    enabled: !!fechaDesde && !!fechaHasta,
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
   })
 }
 
-export function useMargenUtilidad() {
+export function useMargenUtilidad(orgId?: string) {
   return useQuery({
-    queryKey: ['reporte-margen-utilidad'],
+    queryKey: ['reporte-margen-utilidad', orgId],
     queryFn: async () => {
       const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .schema('erp')
         .from('v_margen_utilidad')
         .select('*')
+        .eq('organizacion_id', orgId!)
         .order('margen_porcentaje', { ascending: false })
 
       if (error) throw error
       return (data || []) as MargenUtilidadRow[]
     },
+    enabled: !!orgId,
   })
 }
 
-export function useFacturasSaldos(fechaDesde: string | null, fechaHasta: string | null, statusFilter?: string | null) {
+export function useFacturasSaldos(fechaDesde: string | null, fechaHasta: string | null, orgId?: string, statusFilter?: string | null) {
   return useQuery({
-    queryKey: ['reporte-facturas-saldos', fechaDesde, fechaHasta, statusFilter],
+    queryKey: ['reporte-facturas-saldos', fechaDesde, fechaHasta, orgId, statusFilter],
     queryFn: async () => {
       const supabase = getSupabaseClient()
       let query = supabase
         .schema('erp')
         .from('v_facturas')
         .select('id, folio, fecha, status, total, monto_pagado, saldo, moneda, dias_vencida, cliente_nombre')
+        .eq('organizacion_id', orgId!)
         .order('fecha', { ascending: false })
 
       if (fechaDesde) query = query.gte('fecha', fechaDesde)
@@ -266,19 +272,20 @@ export function useFacturasSaldos(fechaDesde: string | null, fechaHasta: string 
       if (error) throw error
       return (data || []) as FacturaSaldoRow[]
     },
-    enabled: !!fechaDesde && !!fechaHasta,
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
   })
 }
 
-export function useCarteraVencida() {
+export function useCarteraVencida(orgId?: string) {
   return useQuery({
-    queryKey: ['reporte-cartera-vencida'],
+    queryKey: ['reporte-cartera-vencida', orgId],
     queryFn: async () => {
       const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .schema('erp')
         .from('v_facturas')
         .select('id, folio, fecha, total, saldo, dias_vencida, cliente_nombre, moneda')
+        .eq('organizacion_id', orgId!)
         .gt('saldo', 0)
         .gt('dias_vencida', 0)
         .order('dias_vencida', { ascending: false })
@@ -286,18 +293,20 @@ export function useCarteraVencida() {
       if (error) throw error
       return (data || []) as CarteraVencidaRow[]
     },
+    enabled: !!orgId,
   })
 }
 
-export function useCortesReporte(fechaDesde: string | null, fechaHasta: string | null) {
+export function useCortesReporte(fechaDesde: string | null, fechaHasta: string | null, orgId?: string) {
   return useQuery({
-    queryKey: ['reporte-cortes-caja', fechaDesde, fechaHasta],
+    queryKey: ['reporte-cortes-caja', fechaDesde, fechaHasta, orgId],
     queryFn: async () => {
       const supabase = getSupabaseClient()
       let query = supabase
         .schema('erp')
         .from('v_resumen_turno')
         .select('id, caja_nombre, caja_codigo, usuario_nombre, fecha_apertura, fecha_cierre, status, num_ventas, total_ventas, total_efectivo, total_tarjeta, total_transferencia, monto_apertura, monto_cierre_real, diferencia')
+        .eq('organizacion_id', orgId!)
         .order('fecha_apertura', { ascending: false })
 
       if (fechaDesde) query = query.gte('fecha_apertura', `${fechaDesde}T00:00:00`)
@@ -307,6 +316,6 @@ export function useCortesReporte(fechaDesde: string | null, fechaHasta: string |
       if (error) throw error
       return (data || []) as ResumenTurnoReporte[]
     },
-    enabled: !!fechaDesde && !!fechaHasta,
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
   })
 }

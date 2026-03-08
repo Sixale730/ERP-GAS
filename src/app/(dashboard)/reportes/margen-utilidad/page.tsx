@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useMargenUtilidad, type MargenUtilidadRow } from '@/lib/hooks/queries/useReportesNuevos'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
@@ -25,11 +26,12 @@ type MargenRange = 'todos' | 'lt10' | '10-25' | '25-50' | 'gt50'
 
 export default function ReporteMargenUtilidadPage() {
   const router = useRouter()
+  const { organizacion } = useAuth()
   const [searchText, setSearchText] = useState('')
   const [margenRange, setMargenRange] = useState<MargenRange>('todos')
   const [generandoExcel, setGenerandoExcel] = useState(false)
 
-  const { data: productos = [], isLoading, refetch } = useMargenUtilidad()
+  const { data: productos = [], isLoading, refetch } = useMargenUtilidad(organizacion?.id)
 
   const filteredData = useMemo(() => {
     let result = productos

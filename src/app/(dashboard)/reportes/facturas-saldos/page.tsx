@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useFacturasSaldos, type FacturaSaldoRow } from '@/lib/hooks/queries/useReportesNuevos'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatDate, formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
@@ -30,6 +31,7 @@ const STATUS_TAG: Record<string, { color: string; label: string }> = {
 
 export default function ReporteFacturasSaldosPage() {
   const router = useRouter()
+  const { organizacion } = useAuth()
   const [fechaRange, setFechaRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([
     dayjs().startOf('month'),
     dayjs().endOf('month'),
@@ -40,7 +42,7 @@ export default function ReporteFacturasSaldosPage() {
   const fechaDesde = fechaRange?.[0]?.format('YYYY-MM-DD') ?? null
   const fechaHasta = fechaRange?.[1]?.format('YYYY-MM-DD') ?? null
 
-  const { data: facturas = [], isLoading, refetch } = useFacturasSaldos(fechaDesde, fechaHasta, statusFilter)
+  const { data: facturas = [], isLoading, refetch } = useFacturasSaldos(fechaDesde, fechaHasta, organizacion?.id, statusFilter)
 
   const stats = useMemo(() => {
     const totalFacturado = facturas.reduce((sum, f) => sum + (f.total || 0), 0)

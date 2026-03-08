@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useCarteraVencida, type CarteraVencidaRow } from '@/lib/hooks/queries/useReportesNuevos'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatDate, formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
@@ -28,10 +29,11 @@ function getDiasVencidaTag(dias: number) {
 
 export default function ReporteCarteraVencidaPage() {
   const router = useRouter()
+  const { organizacion } = useAuth()
   const [rangoDias, setRangoDias] = useState<string | null>(null)
   const [generandoExcel, setGenerandoExcel] = useState(false)
 
-  const { data: cartera = [], isLoading, refetch } = useCarteraVencida()
+  const { data: cartera = [], isLoading, refetch } = useCarteraVencida(organizacion?.id)
 
   const filteredData = useMemo(() => {
     if (!rangoDias) return cartera

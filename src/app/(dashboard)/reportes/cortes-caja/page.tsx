@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useCortesReporte, type ResumenTurnoReporte } from '@/lib/hooks/queries/useReportesNuevos'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatDateTime, formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
@@ -23,6 +24,7 @@ const { RangePicker } = DatePicker
 
 export default function ReporteCortesCajaPage() {
   const router = useRouter()
+  const { organizacion } = useAuth()
   const [fechaRange, setFechaRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([
     dayjs().startOf('month'),
     dayjs().endOf('month'),
@@ -33,7 +35,7 @@ export default function ReporteCortesCajaPage() {
   const fechaDesde = fechaRange?.[0]?.format('YYYY-MM-DD') ?? null
   const fechaHasta = fechaRange?.[1]?.format('YYYY-MM-DD') ?? null
 
-  const { data: cortes = [], isLoading, refetch } = useCortesReporte(fechaDesde, fechaHasta)
+  const { data: cortes = [], isLoading, refetch } = useCortesReporte(fechaDesde, fechaHasta, organizacion?.id)
 
   const cajasOptions = useMemo(() => {
     const unique = Array.from(new Set(cortes.map(c => c.caja_nombre).filter(Boolean)))

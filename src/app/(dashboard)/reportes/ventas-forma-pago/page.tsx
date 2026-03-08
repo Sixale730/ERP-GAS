@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useVentasFormaPago, type VentaFormaPagoRow } from '@/lib/hooks/queries/useReportesNuevos'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
@@ -28,6 +29,7 @@ function capitalize(str: string): string {
 
 export default function ReporteVentasFormaPagoPage() {
   const router = useRouter()
+  const { organizacion } = useAuth()
   const [fechaRange, setFechaRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([
     dayjs().startOf('month'),
     dayjs().endOf('month'),
@@ -37,7 +39,7 @@ export default function ReporteVentasFormaPagoPage() {
   const fechaDesde = fechaRange?.[0]?.format('YYYY-MM-DD') ?? null
   const fechaHasta = fechaRange?.[1]?.format('YYYY-MM-DD') ?? null
 
-  const { data: datos = [], isLoading, refetch } = useVentasFormaPago(fechaDesde, fechaHasta)
+  const { data: datos = [], isLoading, refetch } = useVentasFormaPago(fechaDesde, fechaHasta, organizacion?.id)
 
   const stats = useMemo(() => {
     const totalGeneral = datos.reduce((sum, r) => sum + (r.total || 0), 0)

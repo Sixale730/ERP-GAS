@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useVentasPOSReporte, type VentaPOSReporte } from '@/lib/hooks/queries/useReportesNuevos'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatDateTime, formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
@@ -29,6 +30,7 @@ const METODO_PAGO_TAG: Record<string, { color: string; label: string }> = {
 
 export default function ReporteVentasPOSPage() {
   const router = useRouter()
+  const { organizacion } = useAuth()
   const [fechaRange, setFechaRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([
     dayjs().startOf('month'),
     dayjs().endOf('month'),
@@ -39,7 +41,7 @@ export default function ReporteVentasPOSPage() {
   const fechaDesde = fechaRange?.[0]?.format('YYYY-MM-DD') ?? null
   const fechaHasta = fechaRange?.[1]?.format('YYYY-MM-DD') ?? null
 
-  const { data: ventas = [], isLoading, refetch } = useVentasPOSReporte(fechaDesde, fechaHasta)
+  const { data: ventas = [], isLoading, refetch } = useVentasPOSReporte(fechaDesde, fechaHasta, organizacion?.id)
 
   const filteredData = useMemo(() => {
     if (!metodoPagoFilter) return ventas
