@@ -77,7 +77,7 @@ interface AbrirTurnoParams {
 async function abrirTurno(params: AbrirTurnoParams): Promise<string> {
   const supabase = getSupabaseClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)('abrir_turno_caja', params)
+  const { data, error } = await supabase.schema('erp').rpc('abrir_turno_caja' as any, params)
   if (error) throw error
   return data as string
 }
@@ -103,7 +103,7 @@ interface CerrarTurnoParams {
 async function cerrarTurno(params: CerrarTurnoParams): Promise<Record<string, unknown>> {
   const supabase = getSupabaseClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)('cerrar_turno_caja', params)
+  const { data, error } = await supabase.schema('erp').rpc('cerrar_turno_caja' as any, params)
   if (error) throw error
   return data as Record<string, unknown>
 }
@@ -123,7 +123,7 @@ export function useCerrarTurno() {
 async function registrarVenta(params: RegistrarVentaParams): Promise<Record<string, unknown>> {
   const supabase = getSupabaseClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)('registrar_venta_pos', {
+  const { data, error } = await supabase.schema('erp').rpc('registrar_venta_pos' as any, {
     ...params,
     p_items: JSON.stringify(params.p_items),
   })
@@ -152,7 +152,7 @@ interface CancelarVentaParams {
 async function cancelarVenta(params: CancelarVentaParams): Promise<void> {
   const supabase = getSupabaseClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.rpc as any)('cancelar_venta_pos', params)
+  const { error } = await supabase.schema('erp').rpc('cancelar_venta_pos' as any, params)
   if (error) throw error
 }
 
