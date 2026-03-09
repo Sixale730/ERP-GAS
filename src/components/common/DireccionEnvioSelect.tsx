@@ -106,6 +106,7 @@ export default function DireccionEnvioSelect({
 
   const options = direcciones.map((dir) => ({
     value: dir.id,
+    title: dir.alias + (dir.is_default ? ' (Predeterminada)' : ''),
     label: (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <EnvironmentOutlined style={{ color: '#1890ff' }} />
@@ -132,7 +133,7 @@ export default function DireccionEnvioSelect({
           placeholder={placeholder}
           disabled={disabled}
           style={{ flex: 1 }}
-          optionLabelProp="label"
+          optionLabelProp="title"
           showSearch
           filterOption={(input, option) =>
             (option?.searchLabel ?? '').toLowerCase().includes(input.toLowerCase())
