@@ -111,7 +111,7 @@ export function useDeleteDireccionEnvio() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, clienteId }: { id: string; clienteId: string }): Promise<void> => {
+    mutationFn: async ({ id }: { id: string; clienteId: string }): Promise<void> => {
       const supabase = getSupabaseClient()
       const { error } = await supabase
         .schema('erp')
@@ -132,7 +132,7 @@ export function useSetDefaultDireccion() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, clienteId }: { id: string; clienteId: string }): Promise<void> => {
+    mutationFn: async ({ id }: { id: string; clienteId: string }): Promise<void> => {
       const supabase = getSupabaseClient()
       const { error } = await supabase
         .schema('erp')

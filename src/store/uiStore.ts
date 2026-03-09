@@ -68,7 +68,7 @@ export const useUIStore = create<UIState>()(
         })
       },
       clearPageFilters: (page) => {
-        const { [page]: _, ...rest } = get().pageFilters
+        const { [page]: _removed, ...rest } = get().pageFilters
         set({ pageFilters: rest })
       },
 

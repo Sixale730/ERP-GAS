@@ -25,7 +25,7 @@ export default function ConfiguracionPage() {
   const { tipoCambio, fechaTipoCambio, margenGanancia, loading, updateTipoCambio, updateMargenGanancia, reload } = useConfiguracion()
   const { config: margenesConfig, loading: loadingMargenes, updateConfig: updateMargenes, reload: reloadMargenes } = useMargenesCategoria()
   const { data: tipoCambioData, fetchFromBanxico, isFetchingBanxico } = useTipoCambioBanxico()
-  const { isAdmin, organizacion, refreshUser } = useAuth()
+  const { isAdmin, organizacion, refreshUser, role } = useAuth()
   const { modulosGlobales, orgDeshabilitados, loading: loadingModulos } = useModulos()
 
   const [form] = Form.useForm()
