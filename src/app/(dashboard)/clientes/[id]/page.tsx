@@ -11,6 +11,7 @@ import { formatMoney, formatMoneyMXN, formatDate } from '@/lib/utils/format'
 import { MONEDAS, type CodigoMoneda } from '@/lib/config/moneda'
 import { getRegimenFiscalLabel, getUsoCfdiLabel, getFormaPagoLabel, getMetodoPagoLabel } from '@/lib/config/sat'
 import DireccionEnvioList from '@/components/common/DireccionEnvioList'
+import { useDireccionesEnvio } from '@/lib/hooks/useDireccionesEnvio'
 
 const { Title, Text } = Typography
 
@@ -53,6 +54,7 @@ interface FacturaResumen {
   total: number
   saldo: number
   status: string
+  sucursal_nombre: string | null
 }
 
 const statusColors: Record<string, string> = {
@@ -71,6 +73,7 @@ export default function ClienteDetallePage() {
   const [cliente, setCliente] = useState<ClienteDetalle | null>(null)
   const [facturas, setFacturas] = useState<FacturaResumen[]>([])
   const [listaPrecioNombre, setListaPrecioNombre] = useState<string | null>(null)
+  const { data: direcciones = [] } = useDireccionesEnvio(id)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -95,7 +98,7 @@ export default function ClienteDetallePage() {
         supabase
           .schema('erp')
           .from('v_facturas')
-          .select('id, folio, fecha, total, saldo, status')
+          .select('id, folio, fecha, total, saldo, status, sucursal_nombre')
           .eq('cliente_id', id)
           .order('fecha', { ascending: false })
           .limit(10),
@@ -144,6 +147,12 @@ export default function ClienteDetallePage() {
       dataIndex: 'fecha',
       key: 'fecha',
       render: (fecha: string) => formatDate(fecha),
+    },
+    {
+      title: 'Sucursal',
+      dataIndex: 'sucursal_nombre',
+      key: 'sucursal_nombre',
+      render: (nombre: string) => nombre || '-',
     },
     {
       title: 'Total',
@@ -312,6 +321,23 @@ export default function ClienteDetallePage() {
               )}
             </Space>
           </Card>
+
+          {direcciones.some((d: any) => d.saldo_pendiente > 0) && (
+            <Card title="Saldo por Sucursal" style={{ marginTop: 16 }}>
+              <Space direction="vertical" style={{ width: '100%' }} size="small">
+                {direcciones
+                  .filter((d: any) => d.saldo_pendiente > 0)
+                  .map((d: any) => (
+                    <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text>{d.alias}</Text>
+                      <Text strong style={{ color: '#cf1322' }}>
+                        {formatMoneyMXN(d.saldo_pendiente)}
+                      </Text>
+                    </div>
+                  ))}
+              </Space>
+            </Card>
+          )}
 
           {cliente.notas && (
             <Card title="Notas" style={{ marginTop: 16 }}>

@@ -9,6 +9,7 @@ import { DeleteOutlined, SaveOutlined, InfoCircleOutlined, DollarOutlined, Envir
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
+import DireccionEnvioSelect from '@/components/common/DireccionEnvioSelect'
 import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
 import { registrarHistorial } from '@/lib/utils/historial'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
@@ -58,6 +59,7 @@ export default function NuevaCotizacionPage() {
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [almacenId, setAlmacenId] = useState<string | null>(null)
   const [listaPrecioId, setListaPrecioId] = useState<string | null>(null)
+  const [direccionEnvioId, setDireccionEnvioId] = useState<string | null>(null)
 
   // Items
   const [items, setItems] = useState<CotizacionItem[]>([])
@@ -398,6 +400,7 @@ export default function NuevaCotizacionPage() {
           cliente_id: clienteId,
           almacen_id: almacenId,
           lista_precio_id: listaPrecioId,
+          direccion_envio_id: direccionEnvioId,
           status,
           subtotal,
           descuento_porcentaje: descuentoGlobal,
@@ -624,6 +627,15 @@ export default function NuevaCotizacionPage() {
                         (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                       }
                       options={clientes.map(c => ({ value: c.id, label: `${c.codigo} - ${c.nombre_comercial}` }))}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Sucursal / Dirección de Envío">
+                    <DireccionEnvioSelect
+                      clienteId={clienteId}
+                      value={direccionEnvioId}
+                      onChange={(id) => setDireccionEnvioId(id)}
                     />
                   </Form.Item>
                 </Col>

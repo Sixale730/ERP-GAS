@@ -106,6 +106,14 @@ export default function FacturasPage() {
       key: 'cliente_nombre',
     },
     {
+      title: 'Sucursal',
+      dataIndex: 'sucursal_nombre',
+      key: 'sucursal_nombre',
+      width: 130,
+      ellipsis: true,
+      render: (nombre) => nombre || '-',
+    },
+    {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',

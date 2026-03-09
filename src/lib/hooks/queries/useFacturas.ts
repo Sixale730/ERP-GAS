@@ -11,6 +11,8 @@ export interface FacturaRow {
   saldo: number
   moneda: 'USD' | 'MXN'
   fecha_vencimiento: string | null
+  direccion_envio_id: string | null
+  sucursal_nombre: string | null
   dias_vencida: number
   cliente_nombre?: string
   almacen_nombre?: string
@@ -25,7 +27,7 @@ export const facturasKeys = {
   detail: (id: string) => [...facturasKeys.details(), id] as const,
 }
 
-const FACTURAS_LIST_COLUMNS = 'id, folio, fecha, fecha_vencimiento, status, total, saldo, moneda, dias_vencida, cliente_nombre, almacen_nombre'
+const FACTURAS_LIST_COLUMNS = 'id, folio, fecha, fecha_vencimiento, status, total, saldo, moneda, direccion_envio_id, sucursal_nombre, dias_vencida, cliente_nombre, almacen_nombre'
 
 // Fetch facturas with optional status filter and pagination
 async function fetchFacturas(statusFilter?: string | null, pagination?: PaginationParams): Promise<PaginatedResult<FacturaRow>> {
