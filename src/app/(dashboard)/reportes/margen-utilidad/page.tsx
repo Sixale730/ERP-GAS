@@ -12,17 +12,65 @@ import {
   PercentageOutlined,
   TrophyOutlined,
   WarningOutlined,
+  DollarOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useMargenUtilidad, type MargenUtilidadRow } from '@/lib/hooks/queries/useReportesNuevos'
+import { useTipoCambioBanxico } from '@/lib/hooks/queries/useTipoCambioBanxico'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 type MargenRange = 'todos' | 'lt10' | '10-25' | '25-50' | 'gt50'
+
+interface MargenUtilidadProcessed extends MargenUtilidadRow {
+  precio_convertido_mxn: number | null
+}
+
+function convertirMargen(
+  row: MargenUtilidadRow,
+  tipoCambio: number | null
+): MargenUtilidadProcessed {
+  const moneda = row.moneda_precio || 'MXN'
+
+  // MXN: usar valores de la vista tal cual
+  if (moneda === 'MXN') {
+    return { ...row, precio_convertido_mxn: row.precio_venta }
+  }
+
+  // USD sin tipo de cambio: no se puede calcular
+  if (!tipoCambio || !row.precio_venta) {
+    return {
+      ...row,
+      precio_convertido_mxn: null,
+      margen_bruto: null,
+      margen_porcentaje: null,
+    }
+  }
+
+  // USD con tipo de cambio: convertir y recalcular
+  const precioMXN = row.precio_venta * tipoCambio
+  const costo = row.costo_promedio || 0
+
+  if (costo <= 0) {
+    return { ...row, precio_convertido_mxn: precioMXN, margen_bruto: null, margen_porcentaje: null }
+  }
+
+  const margenBruto = precioMXN - costo
+  const margenPorcentaje = precioMXN > 0
+    ? Math.round((precioMXN - costo) / precioMXN * 10000) / 100
+    : null
+
+  return {
+    ...row,
+    precio_convertido_mxn: precioMXN,
+    margen_bruto: margenBruto,
+    margen_porcentaje: margenPorcentaje,
+  }
+}
 
 export default function ReporteMargenUtilidadPage() {
   const router = useRouter()
@@ -32,9 +80,20 @@ export default function ReporteMargenUtilidadPage() {
   const [generandoExcel, setGenerandoExcel] = useState(false)
 
   const { data: productos = [], isLoading, refetch } = useMargenUtilidad(organizacion?.id)
+  const { data: tcData, isLoading: tcLoading } = useTipoCambioBanxico()
+  const tipoCambio = tcData?.tipo_cambio ?? null
+
+  // Recalcular márgenes con conversión de moneda
+  const datosConvertidos = useMemo(() => {
+    return productos.map(p => convertirMargen(p, tipoCambio))
+  }, [productos, tipoCambio])
+
+  const hayProductosUSD = useMemo(() => {
+    return datosConvertidos.some(p => p.moneda_precio === 'USD')
+  }, [datosConvertidos])
 
   const filteredData = useMemo(() => {
-    let result = productos
+    let result = datosConvertidos
 
     if (searchText) {
       const lower = searchText.toLowerCase()
@@ -45,7 +104,8 @@ export default function ReporteMargenUtilidadPage() {
 
     if (margenRange !== 'todos') {
       result = result.filter(p => {
-        const m = p.margen_porcentaje || 0
+        const m = p.margen_porcentaje ?? null
+        if (m == null) return margenRange === 'lt10' // sin margen → menor a 10
         switch (margenRange) {
           case 'lt10': return m < 10
           case '10-25': return m >= 10 && m <= 25
@@ -57,18 +117,22 @@ export default function ReporteMargenUtilidadPage() {
     }
 
     return result
-  }, [productos, searchText, margenRange])
+  }, [datosConvertidos, searchText, margenRange])
 
   const stats = useMemo(() => {
-    const margenPromedio = filteredData.length > 0
-      ? filteredData.reduce((sum, p) => sum + (p.margen_porcentaje || 0), 0) / filteredData.length
+    // Solo productos con margen calculable (conversión posible)
+    const conMargen = filteredData.filter(p => p.margen_porcentaje != null && (p.costo_promedio || 0) > 0 && (p.precio_convertido_mxn || 0) > 0)
+    const margenPromedio = conMargen.length > 0
+      ? conMargen.reduce((sum, p) => sum + (p.margen_porcentaje ?? 0), 0) / conMargen.length
       : 0
-    const productoMasRentable = filteredData.length > 0 ? filteredData[0].nombre : '-'
-    const sinPrecio = filteredData.filter(p => !p.precio_venta || p.precio_venta === 0).length
-    return { margenPromedio, productoMasRentable, sinPrecio }
+    const productoMasRentable = conMargen.length > 0
+      ? conMargen.reduce((best, p) => (p.margen_porcentaje ?? 0) > (best.margen_porcentaje ?? 0) ? p : best).nombre
+      : '-'
+    const conMargenNegativo = conMargen.filter(p => (p.margen_porcentaje ?? 0) < 0).length
+    return { margenPromedio, productoMasRentable, conMargenNegativo, totalConMargen: conMargen.length }
   }, [filteredData])
 
-  const columns: ColumnsType<MargenUtilidadRow> = useMemo(() => [
+  const columns: ColumnsType<MargenUtilidadProcessed> = useMemo(() => [
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -89,7 +153,7 @@ export default function ReporteMargenUtilidadPage() {
       key: 'costo_promedio',
       width: 130,
       align: 'right',
-      render: (val: number) => formatMoneySimple(val),
+      render: (val: number | null) => formatMoneySimple(val ?? 0),
       sorter: (a, b) => (a.costo_promedio || 0) - (b.costo_promedio || 0),
     },
     {
@@ -102,12 +166,29 @@ export default function ReporteMargenUtilidadPage() {
       sorter: (a, b) => (a.precio_venta || 0) - (b.precio_venta || 0),
     },
     {
+      title: 'Moneda',
+      dataIndex: 'moneda_precio',
+      key: 'moneda_precio',
+      width: 90,
+      align: 'center',
+      render: (val: string | null) => {
+        const moneda = val || 'MXN'
+        return <Tag color={moneda === 'USD' ? 'blue' : 'default'}>{moneda}</Tag>
+      },
+      filters: [
+        { text: 'MXN', value: 'MXN' },
+        { text: 'USD', value: 'USD' },
+      ],
+      onFilter: (value, record) => (record.moneda_precio || 'MXN') === value,
+    },
+    {
       title: 'Margen $',
       dataIndex: 'margen_bruto',
       key: 'margen_bruto',
       width: 130,
       align: 'right',
-      render: (val: number) => {
+      render: (val: number | null) => {
+        if (val == null) return <span style={{ color: '#999' }}>—</span>
         const color = val >= 0 ? '#52c41a' : '#f5222d'
         return <span style={{ color, fontWeight: 600 }}>{formatMoneySimple(val)}</span>
       },
@@ -119,7 +200,8 @@ export default function ReporteMargenUtilidadPage() {
       key: 'margen_porcentaje',
       width: 120,
       align: 'center',
-      render: (val: number) => {
+      render: (val: number | null) => {
+        if (val == null) return <span style={{ color: '#999' }}>—</span>
         let color: string
         if (val > 25) color = 'green'
         else if (val >= 10) color = 'orange'
@@ -134,7 +216,7 @@ export default function ReporteMargenUtilidadPage() {
     setGenerandoExcel(true)
     try {
       const { data: freshData } = await refetch()
-      const fresh = freshData || []
+      const fresh = (freshData || []).map(p => convertirMargen(p, tipoCambio))
 
       let toExport = fresh
 
@@ -147,7 +229,8 @@ export default function ReporteMargenUtilidadPage() {
 
       if (margenRange !== 'todos') {
         toExport = toExport.filter(p => {
-          const m = p.margen_porcentaje || 0
+          const m = p.margen_porcentaje ?? null
+          if (m == null) return margenRange === 'lt10'
           switch (margenRange) {
             case 'lt10': return m < 10
             case '10-25': return m >= 10 && m <= 25
@@ -160,19 +243,22 @@ export default function ReporteMargenUtilidadPage() {
 
       const exportData = toExport.map(item => ({
         ...item,
-        margen_porcentaje_fmt: `${(item.margen_porcentaje || 0).toFixed(1)}%`,
+        moneda_label: item.moneda_precio || 'MXN',
+        margen_porcentaje_fmt: item.margen_porcentaje != null ? `${item.margen_porcentaje.toFixed(1)}%` : '—',
       }))
 
-      const margenPromedio = exportData.length > 0
-        ? exportData.reduce((sum, i) => sum + (i.margen_porcentaje || 0), 0) / exportData.length
+      const conMargen = exportData.filter(i => i.margen_porcentaje != null && (i.costo_promedio || 0) > 0)
+      const margenPromedio = conMargen.length > 0
+        ? conMargen.reduce((sum, i) => sum + (i.margen_porcentaje ?? 0), 0) / conMargen.length
         : 0
 
       await exportarExcel({
         columnas: [
           { titulo: 'SKU', dataIndex: 'sku' },
           { titulo: 'Producto', dataIndex: 'nombre' },
-          { titulo: 'Costo', dataIndex: 'costo_promedio', formato: 'moneda' },
+          { titulo: 'Costo (MXN)', dataIndex: 'costo_promedio', formato: 'moneda' },
           { titulo: 'Precio Venta', dataIndex: 'precio_venta', formato: 'moneda' },
+          { titulo: 'Moneda', dataIndex: 'moneda_label' },
           { titulo: 'Margen $', dataIndex: 'margen_bruto', formato: 'moneda' },
           { titulo: 'Margen %', dataIndex: 'margen_porcentaje_fmt' },
         ],
@@ -183,6 +269,7 @@ export default function ReporteMargenUtilidadPage() {
         resumen: [
           { etiqueta: 'Margen Promedio', valor: `${margenPromedio.toFixed(1)}%`, formato: 'texto' },
           { etiqueta: 'Num. Productos', valor: exportData.length, formato: 'numero' },
+          ...(tipoCambio ? [{ etiqueta: 'TC USD/MXN', valor: `$${tipoCambio.toFixed(2)}`, formato: 'texto' as const }] : []),
         ],
       })
     } finally {
@@ -190,7 +277,7 @@ export default function ReporteMargenUtilidadPage() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || tcLoading) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
         <Spin size="large" />
@@ -199,7 +286,7 @@ export default function ReporteMargenUtilidadPage() {
   }
 
   return (
-    <div>
+    <div suppressHydrationWarning>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/reportes')}>
@@ -241,14 +328,27 @@ export default function ReporteMargenUtilidadPage() {
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
-              title="Productos Sin Precio"
-              value={stats.sinPrecio}
+              title="Productos con Costo > Precio"
+              value={stats.conMargenNegativo}
+              suffix={`/ ${stats.totalConMargen} con margen`}
               prefix={<WarningOutlined />}
-              valueStyle={{ color: stats.sinPrecio > 0 ? '#f5222d' : '#52c41a' }}
+              valueStyle={{ color: stats.conMargenNegativo > 0 ? '#f5222d' : '#52c41a' }}
             />
           </Card>
         </Col>
       </Row>
+
+      {/* Indicador de tipo de cambio */}
+      {hayProductosUSD && (
+        <div style={{ marginBottom: 12 }}>
+          <Text type="secondary">
+            <DollarOutlined />{' '}
+            {tipoCambio
+              ? `TC USD/MXN: $${tipoCambio.toFixed(2)} — Los precios en USD se convierten a MXN para calcular el margen.`
+              : 'No hay tipo de cambio disponible. Los productos en USD no muestran margen.'}
+          </Text>
+        </div>
+      )}
 
       {/* Tabla */}
       <Card>
@@ -281,7 +381,7 @@ export default function ReporteMargenUtilidadPage() {
           columns={columns}
           rowKey="id"
           loading={isLoading}
-          scroll={{ x: 900 }}
+          scroll={{ x: 1000 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,

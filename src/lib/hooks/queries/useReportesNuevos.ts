@@ -41,10 +41,11 @@ export interface MargenUtilidadRow {
   id: string
   sku: string
   nombre: string
-  costo_promedio: number
+  costo_promedio: number | null
   precio_venta: number | null
-  margen_bruto: number
-  margen_porcentaje: number
+  moneda_precio: string | null
+  margen_bruto: number | null
+  margen_porcentaje: number | null
 }
 
 export interface FacturaSaldoRow {
@@ -243,7 +244,7 @@ export function useMargenUtilidad(orgId?: string) {
         .from('v_margen_utilidad')
         .select('*')
         .eq('organizacion_id', orgId!)
-        .order('margen_porcentaje', { ascending: false })
+        .order('margen_porcentaje', { ascending: false, nullsFirst: false })
 
       if (error) throw error
       return (data || []) as MargenUtilidadRow[]
