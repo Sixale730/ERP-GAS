@@ -26,6 +26,7 @@ import { ArrowLeftOutlined, SaveOutlined, DeleteOutlined, PlusOutlined } from '@
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import DireccionEnvioSelect from '@/components/common/DireccionEnvioSelect'
 import { formatMoney } from '@/lib/utils/format'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { registrarHistorial } from '@/lib/utils/historial'
@@ -93,6 +94,7 @@ export default function EditarFacturaPage() {
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null)
   const [moneda, setMoneda] = useState<CodigoMoneda>('USD')
   const [tipoCambio, setTipoCambio] = useState<number | null>(null)
+  const [direccionEnvioId, setDireccionEnvioId] = useState<string | null>(null)
 
   useEffect(() => {
     if (id) {
@@ -163,9 +165,10 @@ export default function EditarFacturaPage() {
         descuento_porcentaje: factura.descuento_monto > 0 ? Math.round((factura.descuento_monto / factura.subtotal) * 100) : 0,
       })
 
-      // Set moneda y tipo de cambio
+      // Set moneda, tipo de cambio y sucursal
       setMoneda((factura.moneda as CodigoMoneda) || 'USD')
       setTipoCambio(factura.tipo_cambio || null)
+      setDireccionEnvioId(factura.direccion_envio_id || null)
     } catch (error) {
       console.error('Error loading factura:', error)
       message.error('Error al cargar factura')
@@ -178,6 +181,7 @@ export default function EditarFacturaPage() {
   const handleClienteChange = (clienteId: string) => {
     const cliente = clientes.find(c => c.id === clienteId)
     setClienteSeleccionado(cliente || null)
+    setDireccionEnvioId(null)
   }
 
   const handleSearchProducto = (value: string) => {
@@ -284,6 +288,7 @@ export default function EditarFacturaPage() {
         .update({
           cliente_id: values.cliente_id,
           almacen_id: values.almacen_id,
+          direccion_envio_id: direccionEnvioId,
           fecha: values.fecha?.format('YYYY-MM-DD'),
           fecha_vencimiento: values.fecha_vencimiento?.format('YYYY-MM-DD') || null,
           notas: values.notas || null,
@@ -507,6 +512,15 @@ export default function EditarFacturaPage() {
                         value: a.id,
                         label: a.nombre,
                       }))}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Sucursal / Dirección de Envío">
+                    <DireccionEnvioSelect
+                      clienteId={form.getFieldValue('cliente_id') || null}
+                      value={direccionEnvioId}
+                      onChange={(id) => setDireccionEnvioId(id)}
                     />
                   </Form.Item>
                 </Col>
