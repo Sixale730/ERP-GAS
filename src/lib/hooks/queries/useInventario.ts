@@ -30,21 +30,27 @@ export const inventarioKeys = {
 }
 
 // Fetch almacenes activos
-async function fetchAlmacenes(): Promise<Almacen[]> {
+async function fetchAlmacenes(orgId?: string | null): Promise<Almacen[]> {
   const supabase = getSupabaseClient()
-  const { data, error } = await supabase
+  let query = supabase
     .schema('erp')
     .from('almacenes')
     .select('*')
     .eq('is_active', true)
     .order('nombre')
 
+  if (orgId) {
+    query = query.eq('organizacion_id', orgId)
+  }
+
+  const { data, error } = await query
+
   if (error) throw error
   return data || []
 }
 
 // Fetch inventario con filtro opcional de almacen, paginacion y búsqueda
-async function fetchInventario(almacenFilter?: string | null, pagination?: PaginationParams, search?: string): Promise<PaginatedResult<InventarioRow>> {
+async function fetchInventario(almacenFilter?: string | null, pagination?: PaginationParams, search?: string, orgId?: string | null): Promise<PaginatedResult<InventarioRow>> {
   const supabase = getSupabaseClient()
 
   let query = supabase
@@ -52,6 +58,10 @@ async function fetchInventario(almacenFilter?: string | null, pagination?: Pagin
     .from('v_inventario_detalle')
     .select('*', { count: 'exact' })
     .order('producto_nombre')
+
+  if (orgId) {
+    query = query.eq('organizacion_id', orgId)
+  }
 
   if (almacenFilter) {
     query = query.eq('almacen_id', almacenFilter)
@@ -95,19 +105,19 @@ async function fetchMovimientos(almacenFilter?: string | null): Promise<Movimien
 }
 
 // Hook: Almacenes activos
-export function useAlmacenes() {
+export function useAlmacenes(orgId?: string | null) {
   return useQuery({
-    queryKey: inventarioKeys.almacenes(),
-    queryFn: fetchAlmacenes,
+    queryKey: [...inventarioKeys.almacenes(), orgId],
+    queryFn: () => fetchAlmacenes(orgId),
     staleTime: 1000 * 60 * 10, // Catalogo estatico
   })
 }
 
 // Hook: Lista de inventario with optional pagination and search
-export function useInventario(almacenFilter?: string | null, pagination?: PaginationParams, search?: string) {
+export function useInventario(almacenFilter?: string | null, pagination?: PaginationParams, search?: string, orgId?: string | null) {
   return useQuery({
-    queryKey: inventarioKeys.list(almacenFilter, pagination, search),
-    queryFn: () => fetchInventario(almacenFilter, pagination, search),
+    queryKey: [...inventarioKeys.list(almacenFilter, pagination, search), orgId],
+    queryFn: () => fetchInventario(almacenFilter, pagination, search, orgId),
   })
 }
 

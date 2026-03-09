@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Card, Typography, Space, Input, Select, Row, Col, Statistic, Button } from 'antd'
 import { SearchOutlined, ArrowUpOutlined, ArrowDownOutlined, SwapOutlined, ReloadOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
 import { generarPDFReporte } from '@/lib/utils/pdf'
 import { formatDateTime } from '@/lib/utils/format'
@@ -13,6 +14,7 @@ import type { MovimientoView, Almacen } from '@/types/database'
 const { Title } = Typography
 
 export default function MovimientosPage() {
+  const { orgId } = useAuth()
   const [loading, setLoading] = useState(true)
   const [generandoPDF, setGenerandoPDF] = useState(false)
   const [movimientos, setMovimientos] = useState<MovimientoView[]>([])
@@ -24,9 +26,12 @@ export default function MovimientosPage() {
   const [tipoFilter, setTipoFilter] = useState<'entrada' | 'salida' | null>(null)
 
   useEffect(() => {
-    loadAlmacenes()
-    loadMovimientos()
-  }, [])
+    if (orgId) {
+      loadAlmacenes()
+      loadMovimientos()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId])
 
   useEffect(() => {
     loadMovimientos()
@@ -35,12 +40,14 @@ export default function MovimientosPage() {
 
   const loadAlmacenes = async () => {
     const supabase = getSupabaseClient()
-    const { data } = await supabase
+    let query = supabase
       .schema('erp')
       .from('almacenes')
       .select('*')
       .eq('is_active', true)
       .order('nombre')
+    if (orgId) query = query.eq('organizacion_id', orgId)
+    const { data } = await query
     setAlmacenes(data || [])
   }
 
@@ -54,6 +61,10 @@ export default function MovimientosPage() {
         .from('v_movimientos')
         .select('*')
         .order('created_at', { ascending: false })
+
+      if (orgId) {
+        query = query.eq('organizacion_id', orgId)
+      }
 
       if (almacenFilter) {
         query = query.or(`almacen_origen_id.eq.${almacenFilter},almacen_destino_id.eq.${almacenFilter}`)

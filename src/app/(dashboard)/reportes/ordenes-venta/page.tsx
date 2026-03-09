@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useReporteOrdenesVenta, type FiltrosReporteOV } from '@/lib/hooks/queries/useReporteOrdenes'
+import { useAuth } from '@/lib/hooks/useAuth'
 import type { OrdenVentaRow } from '@/lib/hooks/queries/useOrdenesVenta'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatDate, formatMoneyCurrency } from '@/lib/utils/format'
@@ -30,6 +31,7 @@ const STATUS_TAG: Record<string, { color: string; label: string }> = {
 
 export default function ReporteOrdenesVentaPage() {
   const router = useRouter()
+  const { orgId } = useAuth()
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<FiltrosReporteOV['status']>('todas')
   const [monedaFilter, setMonedaFilter] = useState<FiltrosReporteOV['moneda']>('todas')
@@ -41,6 +43,7 @@ export default function ReporteOrdenesVentaPage() {
     moneda: monedaFilter,
     fechaDesde: fechaRange?.[0]?.format('YYYY-MM-DD') ?? null,
     fechaHasta: fechaRange?.[1]?.format('YYYY-MM-DD') ?? null,
+    orgId,
   }
 
   const { data: ordenes = [], isLoading, refetch } = useReporteOrdenesVenta(filtros)

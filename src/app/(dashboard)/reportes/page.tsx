@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Card, Typography, Row, Col } from 'antd'
+import { Card, Typography, Row, Col, Spin } from 'antd'
 import {
   BarChartOutlined,
   DollarOutlined,
@@ -48,6 +48,7 @@ const SECCIONES: SeccionReportes[] = [
         descripcion: 'Ventas diarias con totales y tendencia',
         icono: <BarChartOutlined style={{ fontSize: 28, color: '#1890ff' }} />,
         ruta: '/reportes/ventas-pos',
+        requiereModulo: 'pos',
       },
       {
         key: 'ventas-forma-pago',
@@ -55,6 +56,7 @@ const SECCIONES: SeccionReportes[] = [
         descripcion: 'Distribucion por metodo de pago',
         icono: <CreditCardOutlined style={{ fontSize: 28, color: '#722ed1' }} />,
         ruta: '/reportes/ventas-forma-pago',
+        requiereModulo: 'pos',
       },
       {
         key: 'facturas-saldos',
@@ -158,9 +160,17 @@ const SECCIONES: SeccionReportes[] = [
 
 export default function ReportesHubPage() {
   const router = useRouter()
-  const { organizacion } = useAuth()
+  const { organizacion, loading } = useAuth()
 
   const modulosActivos: string[] = organizacion?.modulos_activos || []
+
+  if (loading || !organizacion) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Spin size="large" />
+      </div>
+    )
+  }
 
   return (
     <div>

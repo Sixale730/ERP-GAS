@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useAlmacenes, useInventario, type InventarioRow } from '@/lib/hooks/queries/useInventario'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { generarPDFReporte } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
@@ -29,12 +30,13 @@ const NIVEL_TAG: Record<string, { color: string; label: string }> = {
 
 export default function ReporteInventarioPage() {
   const router = useRouter()
+  const { orgId } = useAuth()
   const [searchText, setSearchText] = useState('')
   const [almacenFilter, setAlmacenFilter] = useState<string | undefined>(undefined)
   const [nivelFilter, setNivelFilter] = useState<string | undefined>(undefined)
 
-  const { data: almacenes = [] } = useAlmacenes()
-  const { data: inventarioResult, isLoading, refetch } = useInventario(almacenFilter || null)
+  const { data: almacenes = [] } = useAlmacenes(orgId)
+  const { data: inventarioResult, isLoading, refetch } = useInventario(almacenFilter || null, undefined, undefined, orgId)
   const inventario = inventarioResult?.data ?? []
   const [generandoPDF, setGenerandoPDF] = useState(false)
 

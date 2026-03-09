@@ -6,8 +6,8 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 // Query keys factory
 export const serviciosKeys = {
   all: ['servicios'] as const,
-  reporte: () => [...serviciosKeys.all, 'reporte'] as const,
-  movimientos: (productoId?: string) => [...serviciosKeys.all, 'movimientos', { productoId }] as const,
+  reporte: (orgId?: string | null) => [...serviciosKeys.all, 'reporte', orgId] as const,
+  movimientos: (productoId?: string, orgId?: string | null) => [...serviciosKeys.all, 'movimientos', { productoId, orgId }] as const,
 }
 
 // ============ REPORTE DE SERVICIOS ============
@@ -32,18 +32,24 @@ export interface ReporteServiciosData {
   }
 }
 
-export function useReporteServicios() {
+export function useReporteServicios(orgId?: string | null) {
   return useQuery({
-    queryKey: serviciosKeys.reporte(),
+    queryKey: serviciosKeys.reporte(orgId),
     queryFn: async (): Promise<ReporteServiciosData> => {
       const supabase = getSupabaseClient()
 
-      const { data: serviciosData, error: serviciosError } = await supabase
+      let serviciosQuery = supabase
         .schema('erp')
         .from('v_productos_stock')
         .select('id, sku, nombre, categoria_nombre, unidad_medida')
         .eq('es_servicio', true)
         .order('nombre')
+
+      if (orgId) {
+        serviciosQuery = serviciosQuery.eq('organizacion_id', orgId)
+      }
+
+      const { data: serviciosData, error: serviciosError } = await serviciosQuery
 
       if (serviciosError) throw serviciosError
 
@@ -61,12 +67,18 @@ export function useReporteServicios() {
         }
       }
 
-      const { data: movimientos, error: movError } = await supabase
+      let movQuery = supabase
         .schema('erp')
         .from('movimientos_inventario')
         .select('producto_id, cantidad, tipo, created_at')
         .in('producto_id', servicioIds)
         .order('created_at', { ascending: false })
+
+      if (orgId) {
+        movQuery = movQuery.eq('organizacion_id', orgId)
+      }
+
+      const { data: movimientos, error: movError } = await movQuery
 
       if (movError) throw movError
 
@@ -134,9 +146,9 @@ export function useReporteServicios() {
 
 // ============ MOVIMIENTOS DE SERVICIOS ============
 
-export function useMovimientosServicios(productoId?: string, limit = 50) {
+export function useMovimientosServicios(productoId?: string, limit = 50, orgId?: string | null) {
   return useQuery({
-    queryKey: [...serviciosKeys.movimientos(productoId), { limit }],
+    queryKey: [...serviciosKeys.movimientos(productoId, orgId), { limit }],
     queryFn: async () => {
       const supabase = getSupabaseClient()
 
@@ -145,24 +157,35 @@ export function useMovimientosServicios(productoId?: string, limit = 50) {
       if (productoId) {
         servicioIds = [productoId]
       } else {
-        const { data: servicios } = await supabase
+        let prodQuery = supabase
           .schema('erp')
           .from('productos')
           .select('id')
           .eq('es_servicio', true)
 
+        if (orgId) {
+          prodQuery = prodQuery.eq('organizacion_id', orgId)
+        }
+
+        const { data: servicios } = await prodQuery
         servicioIds = (servicios || []).map(s => s.id)
       }
 
       if (servicioIds.length === 0) return []
 
-      const { data, error } = await supabase
+      let movQuery = supabase
         .schema('erp')
         .from('v_movimientos')
         .select('*')
         .in('producto_id', servicioIds)
         .order('created_at', { ascending: false })
         .limit(limit)
+
+      if (orgId) {
+        movQuery = movQuery.eq('organizacion_id', orgId)
+      }
+
+      const { data, error } = await movQuery
 
       if (error) throw error
       return data || []

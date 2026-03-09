@@ -10,6 +10,7 @@ export interface FiltrosReporteOV {
   fechaDesde?: string | null
   fechaHasta?: string | null
   moneda?: 'USD' | 'MXN' | 'todas'
+  orgId?: string | null
 }
 
 async function fetchReporteOrdenesVenta(filtros: FiltrosReporteOV): Promise<OrdenVentaRow[]> {
@@ -39,6 +40,9 @@ async function fetchReporteOrdenesVenta(filtros: FiltrosReporteOV): Promise<Orde
   if (filtros.moneda && filtros.moneda !== 'todas') {
     query = query.eq('moneda', filtros.moneda)
   }
+  if (filtros.orgId) {
+    query = query.eq('organizacion_id', filtros.orgId)
+  }
 
   const { data, error } = await query
 
@@ -60,6 +64,7 @@ export interface FiltrosReporteOC {
   proveedorId?: string | null
   fechaDesde?: string | null
   fechaHasta?: string | null
+  orgId?: string | null
 }
 
 async function fetchReporteOrdenesCompra(filtros: FiltrosReporteOC): Promise<OrdenCompraView[]> {
@@ -82,6 +87,9 @@ async function fetchReporteOrdenesCompra(filtros: FiltrosReporteOC): Promise<Ord
   }
   if (filtros.fechaHasta) {
     query = query.lte('fecha', filtros.fechaHasta)
+  }
+  if (filtros.orgId) {
+    query = query.eq('organizacion_id', filtros.orgId)
   }
 
   const { data, error } = await query

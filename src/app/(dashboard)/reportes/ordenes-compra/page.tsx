@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useReporteOrdenesCompra, type FiltrosReporteOC } from '@/lib/hooks/queries/useReporteOrdenes'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { useProveedoresCompra } from '@/lib/hooks/queries/useOrdenesCompra'
 import type { OrdenCompraView } from '@/types/database'
 import { exportarExcel } from '@/lib/utils/excel'
@@ -34,6 +35,7 @@ const STATUS_TAG: Record<string, { color: string; label: string }> = {
 
 export default function ReporteOrdenesCompraPage() {
   const router = useRouter()
+  const { orgId } = useAuth()
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('todas')
   const [proveedorFilter, setProveedorFilter] = useState<string | undefined>(undefined)
@@ -45,6 +47,7 @@ export default function ReporteOrdenesCompraPage() {
     proveedorId: proveedorFilter ?? null,
     fechaDesde: fechaRange?.[0]?.format('YYYY-MM-DD') ?? null,
     fechaHasta: fechaRange?.[1]?.format('YYYY-MM-DD') ?? null,
+    orgId,
   }
 
   const { data: ordenes = [], isLoading, refetch } = useReporteOrdenesCompra(filtros)

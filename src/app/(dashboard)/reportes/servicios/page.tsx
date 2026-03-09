@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useReporteServicios, useMovimientosServicios } from '@/lib/hooks/queries/useServicios'
+import { useAuth } from '@/lib/hooks/useAuth'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
 import { generarPDFReporte } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
@@ -35,14 +36,15 @@ interface ServicioRow {
 
 export default function ReporteServiciosPage() {
   const router = useRouter()
+  const { orgId } = useAuth()
   const [searchText, setSearchText] = useState('')
   const [servicioFilter, setServicioFilter] = useState<string | undefined>(undefined)
 
   const [generandoPDF, setGenerandoPDF] = useState(false)
 
   // React Query hooks
-  const { data: reporte, isLoading: loadingReporte, refetch } = useReporteServicios()
-  const { data: movimientos = [], isLoading: loadingMovimientos } = useMovimientosServicios(servicioFilter, 100)
+  const { data: reporte, isLoading: loadingReporte, refetch } = useReporteServicios(orgId)
+  const { data: movimientos = [], isLoading: loadingMovimientos } = useMovimientosServicios(servicioFilter, 100, orgId)
 
   const servicios = reporte?.servicios || []
   const stats = reporte?.stats || {
