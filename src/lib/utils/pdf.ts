@@ -79,7 +79,7 @@ function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: st
   // Logo (si existe)
   if (emp.logo) {
     try {
-      doc.addImage(emp.logo, 'PNG', 14, y, 30, 30)
+      doc.addImage(emp.logo, 'PNG', 14, y, 40, 40)
     } catch {
       // Si falla el logo, continuar sin él
     }
@@ -89,30 +89,30 @@ function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: st
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLOR_PRIMARIO)
-  doc.text(emp.nombre, emp.logo ? 50 : 14, y + 5)
+  doc.text(emp.nombre, emp.logo ? 60 : 14, y + 8)
 
   // Datos empresa
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLOR_GRIS)
-  const xDatos = emp.logo ? 50 : 14
-  doc.text(`RFC: ${emp.rfc}`, xDatos, y + 12)
-  doc.text(emp.direccion, xDatos, y + 17)
-  doc.text(`Tel: ${emp.telefono} | ${emp.email}`, xDatos, y + 22)
+  const xDatos = emp.logo ? 60 : 14
+  doc.text(`RFC: ${emp.rfc}`, xDatos, y + 16)
+  doc.text(emp.direccion, xDatos, y + 21)
+  doc.text(`Tel: ${emp.telefono} | ${emp.email}`, xDatos, y + 26)
 
   // Tipo de documento (derecha)
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLOR_PRIMARIO)
-  doc.text(tipo === 'COTIZACION' ? 'COTIZACION' : 'FACTURA', pageWidth - 14, y + 5, { align: 'right' })
+  doc.text(tipo === 'COTIZACION' ? 'COTIZACION' : 'FACTURA', pageWidth - 14, y + 8, { align: 'right' })
 
   doc.setFontSize(14)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLOR_GRIS)
-  doc.text(folio, pageWidth - 14, y + 14, { align: 'right' })
+  doc.text(folio, pageWidth - 14, y + 17, { align: 'right' })
 
   // Línea separadora
-  y += 35
+  y += 44
   doc.setDrawColor(...COLOR_PRIMARIO)
   doc.setLineWidth(0.5)
   doc.line(14, y, pageWidth - 14, y)
