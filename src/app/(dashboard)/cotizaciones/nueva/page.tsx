@@ -69,8 +69,10 @@ export default function NuevaCotizacionPage() {
   const [inventarioMap, setInventarioMap] = useState<Map<string, number>>(new Map())
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(true)
 
-  // Vendedor
+  // Vendedor y atención
   const [vendedorNombre, setVendedorNombre] = useState('')
+  const [atencion, setAtencion] = useState('')
+  const [condicionesPago, setCondicionesPago] = useState('CONTADO')
 
   // Product search
   const [productSearch, setProductSearch] = useState('')
@@ -139,11 +141,26 @@ export default function NuevaCotizacionPage() {
         })
       }
 
+      // Autocompletar atención con contacto del cliente
+      if (cliente.contacto_nombre) {
+        setAtencion(cliente.contacto_nombre)
+      }
+
+      // Mapear días de crédito a condiciones de pago
+      const diasCredito = cliente.dias_credito || 0
+      let condicion = 'CONTADO'
+      if (diasCredito >= 60) condicion = '60 DÍAS'
+      else if (diasCredito >= 45) condicion = '45 DÍAS'
+      else if (diasCredito >= 30) condicion = '30 DÍAS'
+      else if (diasCredito >= 15) condicion = '15 DÍAS'
+      else if (diasCredito >= 8) condicion = '8 DÍAS'
+      setCondicionesPago(condicion)
+
       // Copiar preferencias de pago del cliente
       form.setFieldsValue({
         forma_pago: cliente.forma_pago,
         metodo_pago: cliente.metodo_pago,
-        condiciones_pago: cliente.dias_credito ? `${cliente.dias_credito} días de crédito` : null,
+        condiciones_pago: condicion,
       })
     }
   }, [clienteId, clientes])
@@ -427,8 +444,9 @@ export default function NuevaCotizacionPage() {
           // Datos de pago
           forma_pago: formValues.forma_pago || null,
           metodo_pago: formValues.metodo_pago || null,
-          condiciones_pago: formValues.condiciones_pago || null,
-          // Vendedor
+          condiciones_pago: condicionesPago || 'CONTADO',
+          // Atención y vendedor
+          atencion: atencion || null,
           vendedor_id: erpUser?.id || null,
           vendedor_nombre: vendedorNombre || null,
           // Organizacion (requerido por RLS)
@@ -692,6 +710,44 @@ export default function NuevaCotizacionPage() {
                     />
                   </Form.Item>
                 </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Atención">
+                    <Input
+                      placeholder="Nombre del contacto"
+                      value={atencion}
+                      onChange={(e) => setAtencion(e.target.value)}
+                      suffix={
+                        clienteId && clientes.find(c => c.id === clienteId)?.contacto_nombre ? (
+                          <Tooltip title="Usar contacto del cliente">
+                            <UserOutlined
+                              style={{ cursor: 'pointer', color: '#1890ff' }}
+                              onClick={() => {
+                                const cliente = clientes.find(c => c.id === clienteId)
+                                if (cliente?.contacto_nombre) setAtencion(cliente.contacto_nombre)
+                              }}
+                            />
+                          </Tooltip>
+                        ) : undefined
+                      }
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Condiciones de Pago" required>
+                    <Select
+                      value={condicionesPago}
+                      onChange={setCondicionesPago}
+                      options={[
+                        { value: 'CONTADO', label: 'CONTADO' },
+                        { value: '8 DÍAS', label: '8 DÍAS' },
+                        { value: '15 DÍAS', label: '15 DÍAS' },
+                        { value: '30 DÍAS', label: '30 DÍAS' },
+                        { value: '45 DÍAS', label: '45 DÍAS' },
+                        { value: '60 DÍAS', label: '60 DÍAS' },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
               </Row>
             </Form>
           </Card>
@@ -848,11 +904,6 @@ export default function NuevaCotizacionPage() {
                       <Col xs={24} md={12}>
                         <Form.Item name="metodo_pago" label="Método de Pago">
                           <Select placeholder="Seleccionar" allowClear options={METODOS_PAGO_SAT} />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24}>
-                        <Form.Item name="condiciones_pago" label="Condiciones de Pago">
-                          <Input.TextArea rows={2} placeholder="Condiciones especiales de pago..." />
                         </Form.Item>
                       </Col>
                     </Row>

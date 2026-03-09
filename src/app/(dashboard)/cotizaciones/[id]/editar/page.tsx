@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin, Alert, Collapse
 } from 'antd'
-import { DeleteOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined } from '@ant-design/icons'
+import { DeleteOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, UserOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
 import type { CodigoMoneda } from '@/lib/config/moneda'
@@ -65,6 +65,7 @@ interface CotizacionData {
   forma_pago: string | null
   metodo_pago: string | null
   condiciones_pago: string | null
+  atencion: string | null
   // OC Cliente
   oc_cliente: string | null
 }
@@ -106,6 +107,10 @@ export default function EditarCotizacionPage() {
   const [vendedorId, setVendedorId] = useState<string | null>(null)
   const [vendedorNombre, setVendedorNombre] = useState<string | null>(null)
   const [direccionEnvioId, setDireccionEnvioId] = useState<string | null>(null)
+
+  // Atención y condiciones
+  const [atencion, setAtencion] = useState('')
+  const [condicionesPago, setCondicionesPago] = useState('CONTADO')
 
   // Items
   const [items, setItems] = useState<CotizacionItem[]>([])
@@ -194,6 +199,8 @@ export default function EditarCotizacionPage() {
       setDescuentoGlobal(cotData.descuento_porcentaje || 0)
       setTipoCambio(cotData.tipo_cambio || tcGlobal)
       setMoneda((cotData.moneda as CodigoMoneda) || 'MXN')
+      setAtencion(cotData.atencion || '')
+      setCondicionesPago(cotData.condiciones_pago || 'CONTADO')
       form.setFieldsValue({
         notas: cotData.notas,
         lista_precio_id: cotData.lista_precio_id,
@@ -535,7 +542,8 @@ export default function EditarCotizacionPage() {
           // Pago
           forma_pago: formValues.forma_pago || null,
           metodo_pago: formValues.metodo_pago || null,
-          condiciones_pago: formValues.condiciones_pago || null,
+          condiciones_pago: condicionesPago || 'CONTADO',
+          atencion: atencion || null,
           oc_cliente: formValues.oc_cliente || null,
         })
         .eq('id', cotizacionId)
@@ -864,6 +872,44 @@ export default function EditarCotizacionPage() {
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
+                  <Form.Item label="Atención">
+                    <Input
+                      placeholder="Nombre del contacto"
+                      value={atencion}
+                      onChange={(e) => setAtencion(e.target.value)}
+                      suffix={
+                        clienteId && clientes.find(c => c.id === clienteId)?.contacto_nombre ? (
+                          <Tooltip title="Usar contacto del cliente">
+                            <UserOutlined
+                              style={{ cursor: 'pointer', color: '#1890ff' }}
+                              onClick={() => {
+                                const cliente = clientes.find(c => c.id === clienteId)
+                                if (cliente?.contacto_nombre) setAtencion(cliente.contacto_nombre)
+                              }}
+                            />
+                          </Tooltip>
+                        ) : undefined
+                      }
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Condiciones de Pago" required>
+                    <Select
+                      value={condicionesPago}
+                      onChange={setCondicionesPago}
+                      options={[
+                        { value: 'CONTADO', label: 'CONTADO' },
+                        { value: '8 DÍAS', label: '8 DÍAS' },
+                        { value: '15 DÍAS', label: '15 DÍAS' },
+                        { value: '30 DÍAS', label: '30 DÍAS' },
+                        { value: '45 DÍAS', label: '45 DÍAS' },
+                        { value: '60 DÍAS', label: '60 DÍAS' },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
                   <Form.Item name="oc_cliente" label="OC del Cliente">
                     <Input placeholder="Numero de orden de compra del cliente" />
                   </Form.Item>
@@ -1031,11 +1077,6 @@ export default function EditarCotizacionPage() {
                       <Col xs={24} md={12}>
                         <Form.Item name="metodo_pago" label="Método de Pago">
                           <Select placeholder="Seleccionar" allowClear options={METODOS_PAGO_SAT} />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24}>
-                        <Form.Item name="condiciones_pago" label="Condiciones de Pago">
-                          <Input.TextArea rows={2} placeholder="Condiciones especiales de pago..." />
                         </Form.Item>
                       </Col>
                     </Row>

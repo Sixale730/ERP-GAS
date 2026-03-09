@@ -32,6 +32,9 @@ export interface CotizacionPDF {
   total: number
   notas?: string | null
   vendedor_nombre?: string | null
+  atencion?: string | null
+  condiciones_pago?: string | null
+  moneda?: string
 }
 
 interface ItemPDF {
@@ -114,7 +117,7 @@ function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: st
   doc.setLineWidth(0.5)
   doc.line(14, y, pageWidth - 14, y)
 
-  return y + 10
+  return y + 4
 }
 
 /**
@@ -123,55 +126,62 @@ function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: st
 function generarDatosCliente(
   doc: jsPDF,
   y: number,
-  data: { cliente_nombre: string; cliente_rfc?: string | null; almacen_nombre: string; fecha: string; fecha_vencimiento?: string; vendedor_nombre?: string | null }
+  data: { cliente_nombre: string; cliente_rfc?: string | null; almacen_nombre: string; fecha: string; fecha_vencimiento?: string; vendedor_nombre?: string | null; atencion?: string | null; condiciones_pago?: string | null; moneda?: string }
 ): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const colWidth = (pageWidth - 28) / 2
+  const xDer = 14 + colWidth
+  const labelOffset = 28 // offset para valores después de la etiqueta
+  const labelOffsetDer = 30
+  const rowH = 5 // altura de fila compacta
 
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(0, 0, 0)
-  doc.text('CLIENTE', 14, y)
+  doc.setFontSize(8)
 
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(...COLOR_GRIS)
-  doc.text(data.cliente_nombre, 14, y + 6)
+  // Helper: dibuja "ETIQUETA:  valor" en una línea
+  const drawRow = (x: number, yPos: number, label: string, value: string, lOffset: number) => {
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(0, 0, 0)
+    doc.text(label, x, yPos)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLOR_GRIS)
+    // Truncar si es muy largo para la columna
+    const maxW = colWidth - lOffset - 2
+    const truncated = doc.splitTextToSize(value, maxW)[0] || value
+    doc.text(truncated, x + lOffset, yPos)
+  }
+
+  // === COLUMNA IZQUIERDA ===
+  let yIzq = y
+  drawRow(14, yIzq, 'CLIENTE:', data.cliente_nombre, labelOffset)
+  yIzq += rowH
   if (data.cliente_rfc) {
-    doc.text(`RFC: ${data.cliente_rfc}`, 14, y + 12)
+    drawRow(14, yIzq, 'RFC:', data.cliente_rfc, labelOffset)
+    yIzq += rowH
   }
-  doc.text(`Almacen: ${data.almacen_nombre}`, 14, y + (data.cliente_rfc ? 18 : 12))
+  if (data.atencion) {
+    drawRow(14, yIzq, 'ATENCIÓN:', data.atencion, labelOffset)
+    yIzq += rowH
+  }
+  drawRow(14, yIzq, 'ALMACÉN:', data.almacen_nombre, labelOffset)
 
-  // Columna derecha - fechas y vendedor
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(0, 0, 0)
-  doc.text('FECHA', 14 + colWidth, y)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(...COLOR_GRIS)
-  doc.text(formatDate(data.fecha), 14 + colWidth, y + 6)
-
-  let yDerecha = y + 14
+  // === COLUMNA DERECHA ===
+  let yDer = y
+  drawRow(xDer, yDer, 'FECHA:', formatDate(data.fecha), labelOffsetDer)
+  yDer += rowH
   if (data.fecha_vencimiento) {
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(0, 0, 0)
-    doc.text('VIGENCIA', 14 + colWidth, yDerecha)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(...COLOR_GRIS)
-    doc.text(formatDate(data.fecha_vencimiento), 14 + colWidth, yDerecha + 6)
-    yDerecha += 14
+    drawRow(xDer, yDer, 'VIGENCIA:', formatDate(data.fecha_vencimiento), labelOffsetDer)
+    yDer += rowH
   }
-
-  // Vendedor
   if (data.vendedor_nombre) {
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(0, 0, 0)
-    doc.text('VENDEDOR', 14 + colWidth, yDerecha)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(...COLOR_GRIS)
-    doc.text(data.vendedor_nombre, 14 + colWidth, yDerecha + 6)
+    drawRow(xDer, yDer, 'VENDEDOR:', data.vendedor_nombre, labelOffsetDer)
+    yDer += rowH
   }
+  drawRow(xDer, yDer, 'CONDICIONES:', data.condiciones_pago || 'CONTADO', labelOffsetDer)
+  yDer += rowH
+  drawRow(xDer, yDer, 'MONEDA:', data.moneda || 'MXN', labelOffsetDer)
 
-  return y + 30
+  const yMax = Math.max(yIzq, yDer)
+  return yMax + 4
 }
 
 /**
@@ -298,6 +308,56 @@ function generarNotas(doc: jsPDF, y: number, notas: string | null | undefined): 
 }
 
 /**
+ * Genera sección de datos bancarios para pagos y transferencias
+ */
+function generarDatosBancarios(doc: jsPDF, y: number): number {
+  const pageHeight = doc.internal.pageSize.getHeight()
+  if (y + 32 > pageHeight - 15) {
+    doc.addPage()
+    y = 20
+  }
+
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const boxX = 14
+  const boxW = pageWidth - 28
+  const boxH = 32
+
+  // Fondo gris claro
+  doc.setFillColor(245, 245, 245)
+  doc.rect(boxX, y, boxW, boxH, 'F')
+
+  // Borde izquierdo azul
+  doc.setFillColor(...COLOR_PRIMARIO)
+  doc.rect(boxX, y, 3, boxH, 'F')
+
+  // Título
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(0, 0, 0)
+  doc.text('PAGOS Y TRANSFERENCIAS', boxX + 8, y + 6)
+
+  // Datos bancarios
+  const datos = [
+    { etiqueta: 'Titular:', valor: 'DIANA HIMILCE MORAN CAMPOS' },
+    { etiqueta: 'Banco:', valor: 'HSBC' },
+    { etiqueta: 'Cuenta:', valor: '4069237683' },
+    { etiqueta: 'CLABE:', valor: '021320040692376832' },
+  ]
+
+  let yDato = y + 12
+  doc.setFontSize(8)
+  for (const d of datos) {
+    doc.setFont('helvetica', 'bold')
+    doc.text(d.etiqueta, boxX + 8, yDato)
+    doc.setFont('helvetica', 'normal')
+    doc.text(d.valor, boxX + 28, yDato)
+    yDato += 5
+  }
+
+  return y + boxH + 5
+}
+
+/**
  * Genera PDF de cotización
  */
 export async function generarPDFCotizacion(
@@ -310,7 +370,7 @@ export async function generarPDFCotizacion(
   const { default: autoTable } = await import('jspdf-autotable')
   // Si no se pasan opciones, usar la moneda de la cotización o MXN por defecto
   const opcionesFinales: OpcionesMoneda = opciones || {
-    moneda: ((cotizacion as any).moneda as CodigoMoneda) || 'MXN'
+    moneda: (cotizacion.moneda as CodigoMoneda) || 'MXN'
   }
   const doc = new jsPDFLib()
 
@@ -319,7 +379,8 @@ export async function generarPDFCotizacion(
 
   y = generarTablaProductos(doc, y, items, opcionesFinales, autoTable)
   y = generarTotales(doc, y, cotizacion, opcionesFinales)
-  generarNotas(doc, y, cotizacion.notas)
+  y = generarNotas(doc, y, cotizacion.notas)
+  y = generarDatosBancarios(doc, y + 3)
 
   // Pie de página
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -839,6 +900,9 @@ export function prepararDatosCotizacionPDF(cotData: any): {
     total: cotData.total,
     notas: cotData.notas,
     vendedor_nombre: cotData.vendedor_nombre,
+    atencion: cotData.atencion,
+    condiciones_pago: cotData.condiciones_pago || 'CONTADO',
+    moneda: cotData.moneda || 'MXN',
   }
 
   const opciones: OpcionesMoneda = {

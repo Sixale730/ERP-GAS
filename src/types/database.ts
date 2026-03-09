@@ -476,6 +476,7 @@ export type Database = {
           forma_pago: string | null
           metodo_pago: string | null
           condiciones_pago: string | null
+          atencion: string | null
           oc_cliente: string | null
           cotizacion_origen_id: string | null
           created_at: string
@@ -520,6 +521,7 @@ export type Database = {
           forma_pago?: string | null
           metodo_pago?: string | null
           condiciones_pago?: string | null
+          atencion?: string | null
           oc_cliente?: string | null
           cotizacion_origen_id?: string | null
           created_at?: string
@@ -564,6 +566,7 @@ export type Database = {
           forma_pago?: string | null
           metodo_pago?: string | null
           condiciones_pago?: string | null
+          atencion?: string | null
           oc_cliente?: string | null
           cotizacion_origen_id?: string | null
           created_at?: string

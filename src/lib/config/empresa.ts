@@ -16,7 +16,7 @@ export const EMPRESA: EmpresaData = {
   rfc: 'MOCD830414SL4',
   direccion: 'Calle Magnolia #266, CP 45403, Jalisco',
   telefono: '(33) 1013-1166',
-  email: 'solacgdl@gmail.com',
+  email: 'ventas@solac.com.mx',
   // Logo en base64 o ruta pública (opcional)
   logo: '/solac.png',
   // Datos fiscales para CFDI
