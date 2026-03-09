@@ -130,11 +130,18 @@ export default function FacturasPage() {
       title: 'Vencimiento',
       dataIndex: 'dias_vencida',
       key: 'dias_vencida',
-      width: 120,
+      width: 150,
       render: (dias, record) => {
         if (record.status === 'pagada' || record.status === 'cancelada') return '-'
         if (dias > 0) {
           return <Tag color="red">{dias} dias vencida</Tag>
+        }
+        if (record.fecha_vencimiento && record.fecha) {
+          const diasTranscurridos = dayjs().diff(dayjs(record.fecha), 'day')
+          const diasCredito = dayjs(record.fecha_vencimiento).diff(dayjs(record.fecha), 'day')
+          if (diasCredito > 0) {
+            return <Tag color="green">Dia {diasTranscurridos} de {diasCredito}</Tag>
+          }
         }
         return <Tag color="green">Al dia</Tag>
       },
