@@ -13,6 +13,7 @@ import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { registrarHistorial } from '@/lib/utils/historial'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
+import DireccionEnvioSelect from '@/components/common/DireccionEnvioSelect'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
 import VendedorSelect from '@/components/common/VendedorSelect'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
@@ -104,6 +105,7 @@ export default function EditarCotizacionPage() {
   const [listaPrecioId, setListaPrecioId] = useState<string | null>(null)
   const [vendedorId, setVendedorId] = useState<string | null>(null)
   const [vendedorNombre, setVendedorNombre] = useState<string | null>(null)
+  const [direccionEnvioId, setDireccionEnvioId] = useState<string | null>(null)
 
   // Items
   const [items, setItems] = useState<CotizacionItem[]>([])
@@ -188,6 +190,7 @@ export default function EditarCotizacionPage() {
       setListaPrecioId(cotData.lista_precio_id)
       setVendedorId(cotData.vendedor_id)
       setVendedorNombre(cotData.vendedor_nombre)
+      setDireccionEnvioId(cotData.direccion_envio_id || null)
       setDescuentoGlobal(cotData.descuento_porcentaje || 0)
       setTipoCambio(cotData.tipo_cambio || tcGlobal)
       setMoneda((cotData.moneda as CodigoMoneda) || 'MXN')
@@ -504,6 +507,7 @@ export default function EditarCotizacionPage() {
         .update({
           cliente_id: clienteId,
           almacen_id: almacenId,
+          direccion_envio_id: direccionEnvioId,
           lista_precio_id: listaPrecioId,
           subtotal,
           descuento_porcentaje: descuentoGlobal,
@@ -799,7 +803,7 @@ export default function EditarCotizacionPage() {
                       showSearch
                       placeholder="Seleccionar cliente"
                       value={clienteId}
-                      onChange={setClienteId}
+                      onChange={(id) => { setClienteId(id); setDireccionEnvioId(null) }}
                       filterOption={(input, option) =>
                         (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                       }
@@ -815,6 +819,15 @@ export default function EditarCotizacionPage() {
                       onChange={setAlmacenId}
                       options={almacenes.map(a => ({ value: a.id, label: a.nombre }))}
                       disabled={cotizacion?.status === 'orden_venta'}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Sucursal / Dirección de Envío">
+                    <DireccionEnvioSelect
+                      clienteId={clienteId}
+                      value={direccionEnvioId}
+                      onChange={(id) => setDireccionEnvioId(id)}
                     />
                   </Form.Item>
                 </Col>

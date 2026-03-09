@@ -73,6 +73,7 @@ export default function ClienteDetallePage() {
   const [cliente, setCliente] = useState<ClienteDetalle | null>(null)
   const [facturas, setFacturas] = useState<FacturaResumen[]>([])
   const [listaPrecioNombre, setListaPrecioNombre] = useState<string | null>(null)
+  const [saldosPorSucursal, setSaldosPorSucursal] = useState<Map<string, number>>(new Map())
   const { data: direcciones = [] } = useDireccionesEnvio(id)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,8 +88,8 @@ export default function ClienteDetallePage() {
     setLoading(true)
 
     try {
-      // Load cliente + facturas in parallel (both depend only on id)
-      const [clienteResult, facturasResult] = await Promise.all([
+      // Load cliente + facturas + saldos por sucursal in parallel
+      const [clienteResult, facturasResult, saldosSucursalResult] = await Promise.all([
         supabase
           .schema('erp')
           .from('clientes')
@@ -102,13 +103,33 @@ export default function ClienteDetallePage() {
           .eq('cliente_id', id)
           .order('fecha', { ascending: false })
           .limit(10),
+        // Facturas con saldo pendiente para calcular saldo por sucursal
+        supabase
+          .schema('erp')
+          .from('facturas')
+          .select('direccion_envio_id, saldo')
+          .eq('cliente_id', id)
+          .not('status', 'in', '("cancelada","pagada")')
+          .not('direccion_envio_id', 'is', null)
+          .gt('saldo', 0),
       ])
 
       const { data: clienteData, error: clienteError } = clienteResult
       const { data: facturasData, error: facturasError } = facturasResult
+      const { data: saldosData } = saldosSucursalResult
 
       if (clienteError) throw clienteError
       setCliente(clienteData)
+
+      // Calcular saldo por sucursal desde facturas reales
+      if (saldosData && saldosData.length > 0) {
+        const map = new Map<string, number>()
+        for (const row of saldosData) {
+          const prev = map.get(row.direccion_envio_id) || 0
+          map.set(row.direccion_envio_id, prev + Number(row.saldo))
+        }
+        setSaldosPorSucursal(map)
+      }
 
       // Load lista precio nombre (depends on cliente result)
       if (clienteData.lista_precio_id) {
@@ -322,16 +343,16 @@ export default function ClienteDetallePage() {
             </Space>
           </Card>
 
-          {direcciones.some((d: any) => d.saldo_pendiente > 0) && (
+          {saldosPorSucursal.size > 0 && (
             <Card title="Saldo por Sucursal" style={{ marginTop: 16 }}>
               <Space direction="vertical" style={{ width: '100%' }} size="small">
                 {direcciones
-                  .filter((d: any) => d.saldo_pendiente > 0)
+                  .filter((d: any) => (saldosPorSucursal.get(d.id) || 0) > 0)
                   .map((d: any) => (
                     <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text>{d.alias}</Text>
                       <Text strong style={{ color: '#cf1322' }}>
-                        {formatMoneyMXN(d.saldo_pendiente)}
+                        {formatMoneyMXN(saldosPorSucursal.get(d.id) || 0)}
                       </Text>
                     </div>
                   ))}
