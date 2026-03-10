@@ -52,6 +52,7 @@ interface CotizacionDetalle {
   forma_pago: string | null
   metodo_pago: string | null
   condiciones_pago: string | null
+  atencion: string | null
   // Datos del cliente para días de crédito
   cliente_dias_credito?: number
   // Vendedor
@@ -205,6 +206,7 @@ export default function CotizacionDetallePage() {
         forma_pago: cotData.forma_pago,
         metodo_pago: cotData.metodo_pago,
         condiciones_pago: cotData.condiciones_pago,
+        atencion: cotData.atencion,
         cliente_dias_credito: cotData.clientes?.dias_credito || 0,
         // Vendedor
         vendedor_nombre: cotData.vendedor_nombre,
