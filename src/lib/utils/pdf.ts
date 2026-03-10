@@ -24,7 +24,6 @@ export interface CotizacionPDF {
   fecha_vencimiento?: string
   cliente_nombre: string
   cliente_rfc?: string | null
-  almacen_nombre: string
   subtotal: number
   descuento_porcentaje: number
   descuento_monto: number
@@ -126,7 +125,7 @@ function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: st
 function generarDatosCliente(
   doc: jsPDF,
   y: number,
-  data: { cliente_nombre: string; cliente_rfc?: string | null; almacen_nombre: string; fecha: string; fecha_vencimiento?: string; vendedor_nombre?: string | null; atencion?: string | null; condiciones_pago?: string | null; moneda?: string }
+  data: { cliente_nombre: string; cliente_rfc?: string | null; fecha: string; fecha_vencimiento?: string; vendedor_nombre?: string | null; atencion?: string | null; condiciones_pago?: string | null; moneda?: string }
 ): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const colWidth = (pageWidth - 28) / 2
@@ -162,7 +161,6 @@ function generarDatosCliente(
     drawRow(14, yIzq, 'ATENCIÓN:', data.atencion, labelOffset)
     yIzq += rowH
   }
-  drawRow(14, yIzq, 'ALMACÉN:', data.almacen_nombre, labelOffset)
 
   // === COLUMNA DERECHA ===
   let yDer = y
@@ -892,7 +890,6 @@ export function prepararDatosCotizacionPDF(cotData: any): {
     fecha_vencimiento: fechaVencimiento,
     cliente_nombre: cotData.cliente_nombre,
     cliente_rfc: cotData.cliente_rfc,
-    almacen_nombre: cotData.almacen_nombre,
     subtotal: cotData.subtotal,
     descuento_porcentaje: cotData.descuento_porcentaje || 0,
     descuento_monto: cotData.descuento_monto || 0,
