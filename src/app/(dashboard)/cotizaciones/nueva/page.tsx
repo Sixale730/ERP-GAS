@@ -708,6 +708,25 @@ function NuevaCotizacionContent() {
                   </Text>
                 </Col>
               </Row>
+              {(() => {
+                const clienteSel = clientes.find(c => c.id === clienteId)
+                if (!clienteSel || !clienteSel.limite_credito) return null
+                const tcSugerido = tcGlobal + 0.50
+                return (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#fa8c16' }}>
+                    <InfoCircleOutlined style={{ marginRight: 4 }} />
+                    Cliente de crédito — T/C sugerido: <strong>${tcSugerido.toFixed(4)}</strong>
+                    {' '}(T/C hoy ${tcGlobal.toFixed(4)} + $0.50)
+                    {' '}
+                    <a
+                      onClick={() => handleTipoCambioChange(tcSugerido)}
+                      style={{ color: '#fa8c16', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      Aplicar
+                    </a>
+                  </div>
+                )
+              })()}
             </Card>
           )}
 
