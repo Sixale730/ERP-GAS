@@ -161,8 +161,9 @@ export default function RecibirMercanciaPage() {
     const supabase = getSupabaseClient()
 
     try {
-      // Llamar a la funcion registrar_recepcion por cada item en paralelo
-      await Promise.all(itemsARecibir.map(async (item) => {
+      // Llamar a la funcion registrar_recepcion por cada item secuencialmente
+      // (secuencial para que el último item vea los anteriores y calcule el status correcto)
+      for (const item of itemsARecibir) {
         const { error } = await supabase
           .schema('erp')
           .rpc('registrar_recepcion', {
@@ -176,7 +177,7 @@ export default function RecibirMercanciaPage() {
           console.error('Error en recepcion:', error)
           throw new Error(`Error al recibir ${item.sku}: ${error.message}`)
         }
-      }))
+      }
 
       message.success('Mercancia recibida correctamente. El inventario ha sido actualizado.')
       router.push(`/compras/${ordenId}`)
