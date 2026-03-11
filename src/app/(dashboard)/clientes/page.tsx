@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -13,7 +13,6 @@ import type { Cliente } from '@/types/database'
 const { Title } = Typography
 
 export default function ClientesPage() {
-  const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
@@ -102,11 +101,12 @@ export default function ClientesPage() {
       width: 120,
       render: (_, record) => (
         <Space>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => router.push(`/clientes/${record.id}`)}
-          />
+          <Link href={`/clientes/${record.id}`}>
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+            />
+          </Link>
           <Popconfirm
             title="Eliminar cliente?"
             onConfirm={() => handleDelete(record.id)}
@@ -123,7 +123,7 @@ export default function ClientesPage() {
         </Space>
       ),
     },
-  ], [router, deleteCliente.isPending])
+  ], [deleteCliente.isPending])
 
   if (isError) {
     message.error(`Error al cargar clientes: ${error?.message}`)
@@ -133,13 +133,14 @@ export default function ClientesPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Clientes</Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => router.push('/clientes/nuevo')}
-        >
-          Nuevo Cliente
-        </Button>
+        <Link href="/clientes/nuevo">
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+          >
+            Nuevo Cliente
+          </Button>
+        </Link>
       </div>
 
       <Card>

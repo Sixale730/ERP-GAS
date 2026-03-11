@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -12,7 +12,6 @@ import type { ProductoStock } from '@/types/database'
 const { Title } = Typography
 
 export default function ProductosPage() {
-  const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
@@ -89,11 +88,12 @@ export default function ProductosPage() {
       width: 120,
       render: (_, record) => (
         <Space>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => router.push(`/productos/${record.id}`)}
-          />
+          <Link href={`/productos/${record.id}`}>
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+            />
+          </Link>
           <Popconfirm
             title="Eliminar producto?"
             description="El producto sera desactivado"
@@ -111,7 +111,7 @@ export default function ProductosPage() {
         </Space>
       ),
     },
-  ], [router, deleteProducto.isPending])
+  ], [deleteProducto.isPending])
 
   if (isError) {
     message.error(`Error al cargar productos: ${error?.message}`)
@@ -121,13 +121,14 @@ export default function ProductosPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Productos</Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => router.push('/productos/nuevo')}
-        >
-          Nuevo Producto
-        </Button>
+        <Link href="/productos/nuevo">
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+          >
+            Nuevo Producto
+          </Button>
+        </Link>
       </div>
 
       <Card>

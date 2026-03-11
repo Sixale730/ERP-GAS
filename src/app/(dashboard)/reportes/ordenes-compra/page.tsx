@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   Card, Table, Tag, Typography, Spin, Row, Col, Statistic, Input, Select, Space, Button, DatePicker
 } from 'antd'
@@ -34,7 +34,6 @@ const STATUS_TAG: Record<string, { color: string; label: string }> = {
 }
 
 export default function ReporteOrdenesCompraPage() {
-  const router = useRouter()
   const { orgId } = useAuth()
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('todas')
@@ -235,9 +234,11 @@ export default function ReporteOrdenesCompraPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/')}>
-            Volver
-          </Button>
+          <Link href="/">
+            <Button icon={<ArrowLeftOutlined />}>
+              Volver
+            </Button>
+          </Link>
           <Title level={2} style={{ margin: 0 }}>
             <ShoppingCartOutlined /> Reporte de Ordenes de Compra
           </Title>

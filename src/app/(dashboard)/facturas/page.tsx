@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
 import { SearchOutlined, EyeOutlined, FilePdfOutlined, LoadingOutlined, GlobalOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -30,7 +30,6 @@ const statusLabels: Record<string, string> = {
 }
 
 export default function FacturasPage() {
-  const router = useRouter()
   const { organizacion } = useAuth()
   const esPOS = organizacion?.codigo === 'MASCOTIENDA'
   const [searchText, setSearchText] = useState('')
@@ -171,12 +170,13 @@ export default function FacturasPage() {
       width: 100,
       render: (_, record) => (
         <Space>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => router.push(`/facturas/${record.id}`)}
-            title="Ver detalle"
-          />
+          <Link href={`/facturas/${record.id}`}>
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
+              title="Ver detalle"
+            />
+          </Link>
           <Button
             type="link"
             icon={downloadingPdf === record.id ? <LoadingOutlined /> : <FilePdfOutlined />}
@@ -187,7 +187,7 @@ export default function FacturasPage() {
         </Space>
       ),
     },
-  ], [router, downloadingPdf])
+  ], [downloadingPdf])
 
   // Summary stats - memoized para evitar recalculos en cada render
   const { totalPorCobrarUSD, totalPorCobrarMXN, facturasVencidas } = useMemo(() => {
@@ -221,12 +221,13 @@ export default function FacturasPage() {
         <Space>
           <Title level={2} style={{ margin: 0 }}>Facturas</Title>
           {esPOS && (
-            <Button
-              icon={<GlobalOutlined />}
-              onClick={() => router.push('/facturas/global')}
-            >
-              Factura Global
-            </Button>
+            <Link href="/facturas/global">
+              <Button
+                icon={<GlobalOutlined />}
+              >
+                Factura Global
+              </Button>
+            </Link>
           )}
         </Space>
         <Space wrap>

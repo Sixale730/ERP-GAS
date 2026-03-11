@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, ShoppingCartOutlined, LoadingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -31,7 +31,6 @@ const statusLabels: Record<string, string> = {
 }
 
 export default function CotizacionesPage() {
-  const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
@@ -193,12 +192,13 @@ export default function CotizacionesPage() {
       width: 140,
       render: (_, record) => (
         <Space>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => router.push(`/cotizaciones/${record.id}`)}
-            title="Ver detalle"
-          />
+          <Link href={`/cotizaciones/${record.id}`}>
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
+              title="Ver detalle"
+            />
+          </Link>
           <Button
             type="link"
             icon={downloadingPdf === record.id ? <LoadingOutlined /> : <FilePdfOutlined />}
@@ -227,7 +227,7 @@ export default function CotizacionesPage() {
         </Space>
       ),
     },
-  ], [router, handleDescargarPDF, handleEliminar, deleteCotizacion.isPending, downloadingPdf])
+  ], [handleDescargarPDF, handleEliminar, deleteCotizacion.isPending, downloadingPdf])
 
   if (isError) {
     message.error(`Error al cargar cotizaciones: ${error?.message}`)
@@ -237,13 +237,14 @@ export default function CotizacionesPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Cotizaciones</Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => router.push('/cotizaciones/nueva')}
-        >
-          Nueva Cotizacion
-        </Button>
+        <Link href="/cotizaciones/nueva">
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+          >
+            Nueva Cotizacion
+          </Button>
+        </Link>
       </div>
 
       <Card>

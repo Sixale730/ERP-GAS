@@ -171,20 +171,28 @@ export default function GlobalSearch() {
             style={{ marginTop: 2 }}
           >
             {actions.filter(a => a.show).map((action) => (
-              <Button
+              <a
                 key={action.label}
-                type="link"
-                size="small"
-                style={{ padding: '0 4px', height: 20, fontSize: 12 }}
-                icon={['Cotización', 'OC'].includes(action.label) ? <PlusOutlined /> : action.label === 'Abrir' ? <ArrowRightOutlined /> : <EyeOutlined />}
-                onMouseDown={(e) => {
-                  e.stopPropagation()
-                  e.preventDefault()
-                  navigateTo(action.ruta)
+                href={action.ruta}
+                onClick={(e) => {
+                  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    navigateTo(action.ruta)
+                  }
                 }}
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{ textDecoration: 'none' }}
               >
-                {action.label}
-              </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ padding: '0 4px', height: 20, fontSize: 12 }}
+                  icon={['Cotización', 'OC'].includes(action.label) ? <PlusOutlined /> : action.label === 'Abrir' ? <ArrowRightOutlined /> : <EyeOutlined />}
+                >
+                  {action.label}
+                </Button>
+              </a>
             ))}
           </div>
         </div>

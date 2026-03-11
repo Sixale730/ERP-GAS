@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   Table,
@@ -72,7 +72,6 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 }
 
 export default function ComprasPage() {
-  const router = useRouter()
   const queryClient = useQueryClient()
   const { erpUser, orgId } = useAuth()
   const { getMargenParaCategoria } = useMargenesCategoria()
@@ -462,7 +461,7 @@ export default function ComprasPage() {
       key: 'folio',
       width: 100,
       render: (folio, record) => (
-        <a onClick={() => router.push(`/compras/${record.id}`)}>{folio}</a>
+        <Link href={`/compras/${record.id}`}>{folio}</Link>
       ),
     },
     {
@@ -551,14 +550,15 @@ export default function ComprasPage() {
       key: 'acciones',
       width: 80,
       render: (_, record) => (
-        <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => router.push(`/compras/${record.id}`)}
-        />
+        <Link href={`/compras/${record.id}`}>
+          <Button
+            type="link"
+            icon={<EyeOutlined />}
+          />
+        </Link>
       ),
     },
-  ], [router])
+  ], [])
 
   // Calcular totales para el modal (solo proveedores seleccionados y productos con cantidad > 0)
   // Usar subtotal con margen aplicado
@@ -593,13 +593,14 @@ export default function ComprasPage() {
           >
             Generar Automatica
           </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => router.push('/compras/nueva')}
-          >
-            Nueva Orden
-          </Button>
+          <Link href="/compras/nueva">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+            >
+              Nueva Orden
+            </Button>
+          </Link>
         </Space>
       </div>
 
