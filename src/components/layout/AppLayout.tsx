@@ -296,7 +296,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   if (error) throw error
                   await supabase.auth.refreshSession()
                   await refreshUser()
-                  queryClient.invalidateQueries()
+                  // Let setState propagate to child components before queries refetch
+                  await new Promise(resolve => setTimeout(resolve, 50))
+                  queryClient.removeQueries()
                   const orgName = orgList.find(o => o.id === newOrgId)?.nombre
                   message.success(`Organización: ${orgName}`)
                 } catch (err) {
