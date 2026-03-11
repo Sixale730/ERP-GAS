@@ -309,6 +309,9 @@ export default function DashboardPage() {
               <Col span={12}>
                 <Button block icon={<DollarOutlined />} href="/facturas">Ver Facturas</Button>
               </Col>
+              <Col span={12}>
+                <Button block icon={<FileTextOutlined />} href="/cotizaciones/nueva">Nueva Cotización</Button>
+              </Col>
             </Row>
           </Card>
         </Col>
