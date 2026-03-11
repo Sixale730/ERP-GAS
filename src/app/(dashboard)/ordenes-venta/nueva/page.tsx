@@ -463,13 +463,13 @@ export default function NuevaOrdenVentaPage() {
           href={`/productos/${record.producto_id}`}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: '#1677ff', textDecoration: 'none', fontFamily: 'monospace', fontSize: '12px' }}
+          style={{ color: '#1677ff', textDecoration: 'none', fontFamily: 'monospace', fontSize: 'inherit' }}
           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
         >
           {sku}
         </a>
-      ) : <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>{sku}</span>,
+      ) : <span style={{ fontFamily: 'monospace', fontSize: 'inherit' }}>{sku}</span>,
     },
     {
       title: 'Producto',
