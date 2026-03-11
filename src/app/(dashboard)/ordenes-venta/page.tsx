@@ -6,7 +6,7 @@ import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, FileTextOut
 import type { ColumnsType } from 'antd/es/table'
 import { formatMoneySimple, formatDate, formatDateTime } from '@/lib/utils/format'
 import { generarPDFCotizacion, prepararDatosCotizacionPDF } from '@/lib/utils/pdf'
-import { useOrdenesVenta, type OrdenVentaRow, type FiltroStatusOV } from '@/lib/hooks/queries/useOrdenesVenta'
+import { useOrdenesVenta, useConteosOV, type OrdenVentaRow, type FiltroStatusOV } from '@/lib/hooks/queries/useOrdenesVenta'
 import { TableSkeleton } from '@/components/common/Skeletons'
 import dayjs from 'dayjs'
 
@@ -30,6 +30,7 @@ export default function OrdenesVentaPage() {
   // React Query - datos cacheados automáticamente with server-side pagination
   const { data: ordenesResult, isLoading, isError } = useOrdenesVenta(filtro, pagination)
   const ordenes = ordenesResult?.data ?? []
+  const { data: conteosGlobales } = useConteosOV()
 
   // Para descargar PDF, usamos un estado para el ID seleccionado
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null)
@@ -85,12 +86,8 @@ export default function OrdenesVentaPage() {
     )
   }, [ordenes, searchText])
 
-  // Conteos calculados de los datos cacheados
-  const conteos = useMemo(() => ({
-    todas: ordenes.length,
-    pendientes: ordenes.filter(o => o.status === 'orden_venta').length,
-    facturadas: ordenes.filter(o => o.status === 'facturada').length,
-  }), [ordenes])
+  // Conteos globales (independientes del filtro y paginación activos)
+  const conteos = conteosGlobales ?? { todas: 0, pendientes: 0, facturadas: 0 }
 
   const columns = useMemo<ColumnsType<OrdenVentaRow>>(() => [
     {

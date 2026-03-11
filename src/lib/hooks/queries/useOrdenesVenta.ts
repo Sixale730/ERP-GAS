@@ -28,6 +28,7 @@ export const ordenesVentaKeys = {
   all: ['ordenes-venta'] as const,
   lists: () => [...ordenesVentaKeys.all, 'list'] as const,
   list: (filtro?: FiltroStatusOV, pagination?: PaginationParams) => [...ordenesVentaKeys.lists(), filtro, pagination] as const,
+  conteos: () => [...ordenesVentaKeys.all, 'conteos'] as const,
   details: () => [...ordenesVentaKeys.all, 'detail'] as const,
   detail: (id: string) => [...ordenesVentaKeys.details(), id] as const,
 }
@@ -121,6 +122,32 @@ async function deleteOrdenVenta(orden: OrdenVentaRow) {
   return orden.id
 }
 
+// Fetch conteos globales (sin filtro ni paginación)
+async function fetchConteosOV() {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .schema('erp')
+    .from('v_cotizaciones')
+    .select('status')
+    .like('folio', 'OV-%')
+    .in('status', ['orden_venta', 'facturada'])
+
+  if (error) throw error
+
+  const rows = data || []
+  const pendientes = rows.filter(r => r.status === 'orden_venta').length
+  const facturadas = rows.filter(r => r.status === 'facturada').length
+  return { todas: rows.length, pendientes, facturadas }
+}
+
+// Hook: Conteos globales de OV por status
+export function useConteosOV() {
+  return useQuery({
+    queryKey: ordenesVentaKeys.conteos(),
+    queryFn: fetchConteosOV,
+  })
+}
+
 // Hook: Lista de ordenes de venta with server-side pagination
 export function useOrdenesVenta(filtro?: FiltroStatusOV, pagination?: PaginationParams) {
   return useQuery({
@@ -146,6 +173,7 @@ export function useDeleteOrdenVenta() {
     mutationFn: deleteOrdenVenta,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ordenesVentaKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: ordenesVentaKeys.conteos() })
     },
   })
 }
