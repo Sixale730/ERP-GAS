@@ -7,6 +7,9 @@ export interface DashboardStats {
   cotizacionesPendientes: number
   facturasPorCobrar: number
   totalPorCobrar: number
+  ventasMes: number
+  ventasMesAnterior: number
+  ordenesPorSurtir: number
 }
 
 export interface ProductoStockBajo {
@@ -24,12 +27,22 @@ export interface FacturaReciente {
   saldo: number
   status: string
   moneda: string
+  fecha_vencimiento: string | null
+}
+
+export interface OrdenPorSurtir {
+  id: string
+  folio: string
+  fecha: string
+  total: number
+  cliente_nombre: string
 }
 
 export interface DashboardData {
   stats: DashboardStats
   productosStockBajo: ProductoStockBajo[]
   facturasRecientes: FacturaReciente[]
+  ordenesPorSurtir: OrdenPorSurtir[]
 }
 
 // Query keys
@@ -42,12 +55,21 @@ export const dashboardKeys = {
 async function fetchDashboardData(): Promise<DashboardData> {
   const supabase = getSupabaseClient()
 
+  // Calcular fechas para ventas del mes
+  const ahora = new Date()
+  const primerDiaMesActual = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-01`
+  const mesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1)
+  const primerDiaMesAnterior = `${mesAnterior.getFullYear()}-${String(mesAnterior.getMonth() + 1).padStart(2, '0')}-01`
+
   // Ejecutar todas las queries en paralelo
   const [
     totalProductosResult,
     stockBajoResult,
     cotizacionesPendientesResult,
     facturasResult,
+    ventasMesResult,
+    ventasMesAnteriorResult,
+    ordenesPorSurtirResult,
   ] = await Promise.all([
     // Total productos
     supabase
@@ -77,9 +99,35 @@ async function fetchDashboardData(): Promise<DashboardData> {
     supabase
       .schema('erp')
       .from('v_facturas')
-      .select('id, folio, cliente_nombre, total, saldo, status, moneda', { count: 'exact' })
+      .select('id, folio, cliente_nombre, total, saldo, status, moneda, fecha_vencimiento', { count: 'exact' })
       .in('status', ['pendiente', 'parcial'])
       .order('fecha', { ascending: false })
+      .limit(5),
+
+    // Ventas del mes actual
+    supabase
+      .schema('erp')
+      .from('facturas')
+      .select('total')
+      .neq('status', 'cancelada')
+      .gte('fecha', primerDiaMesActual),
+
+    // Ventas del mes anterior
+    supabase
+      .schema('erp')
+      .from('facturas')
+      .select('total')
+      .neq('status', 'cancelada')
+      .gte('fecha', primerDiaMesAnterior)
+      .lt('fecha', primerDiaMesActual),
+
+    // Órdenes por surtir (cotizaciones con status orden_venta)
+    supabase
+      .schema('erp')
+      .from('v_cotizaciones')
+      .select('id, folio, fecha, total, cliente_nombre')
+      .eq('status', 'orden_venta')
+      .order('fecha', { ascending: true })
       .limit(5),
   ])
 
@@ -91,6 +139,12 @@ async function fetchDashboardData(): Promise<DashboardData> {
   const facturasPorCobrar = facturasResult.count || 0
   const totalPorCobrar = facturas.reduce((sum, f) => sum + (f.saldo || 0), 0)
 
+  const ventasMesData = ventasMesResult.data || []
+  const ventasMes = ventasMesData.reduce((sum, f) => sum + (Number(f.total) || 0), 0)
+  const ventasMesAntData = ventasMesAnteriorResult.data || []
+  const ventasMesAnterior = ventasMesAntData.reduce((sum, f) => sum + (Number(f.total) || 0), 0)
+  const ordenesSurtir = ordenesPorSurtirResult.data || []
+
   return {
     stats: {
       totalProductos,
@@ -98,9 +152,13 @@ async function fetchDashboardData(): Promise<DashboardData> {
       cotizacionesPendientes,
       facturasPorCobrar,
       totalPorCobrar,
+      ventasMes,
+      ventasMesAnterior,
+      ordenesPorSurtir: ordenesSurtir.length,
     },
     productosStockBajo: stockBajo as ProductoStockBajo[],
     facturasRecientes: facturas as FacturaReciente[],
+    ordenesPorSurtir: ordenesSurtir as OrdenPorSurtir[],
   }
 }
 

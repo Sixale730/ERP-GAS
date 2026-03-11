@@ -9,7 +9,11 @@ import {
   WarningOutlined,
   ShoppingCartOutlined,
   PlusOutlined,
+  UserAddOutlined,
+  RiseOutlined,
+  FallOutlined,
 } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { useDashboard } from '@/lib/hooks/queries/useDashboard'
 import { useTipoCambioBanxico } from '@/lib/hooks/queries/useTipoCambioBanxico'
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -94,6 +98,34 @@ export default function DashboardPage() {
         return <Tag color={colors[status]}>{status.toUpperCase()}</Tag>
       },
     },
+    {
+      title: 'Días Venc.',
+      dataIndex: 'fecha_vencimiento',
+      key: 'dias_vencidos',
+      width: 100,
+      render: (fechaVenc: string | null) => {
+        if (!fechaVenc) return <span style={{ color: '#999' }}>—</span>
+        const dias = dayjs().diff(dayjs(fechaVenc), 'day')
+        if (dias > 0) return <Tag color="red">{dias}d vencida</Tag>
+        if (dias === 0) return <Tag color="orange">Hoy</Tag>
+        return <Tag color="green">{Math.abs(dias)}d restantes</Tag>
+      },
+    },
+  ], [])
+
+  const ordenesColumns = useMemo(() => [
+    { title: 'Folio', dataIndex: 'folio', key: 'folio' },
+    { title: 'Cliente', dataIndex: 'cliente_nombre', key: 'cliente_nombre', ellipsis: true },
+    { title: 'Fecha', dataIndex: 'fecha', key: 'fecha', width: 100, render: (f: string) => dayjs(f).format('DD/MM/YYYY') },
+    { title: 'Total', dataIndex: 'total', key: 'total', width: 120, align: 'right' as const, render: (v: number) => formatMoneyMXN(v) },
+    {
+      title: '', key: 'acciones', width: 80,
+      render: (_: any, record: any) => (
+        <Button type="link" size="small" href={`/cotizaciones/${record.id}/editar`}>
+          Surtir
+        </Button>
+      ),
+    },
   ], [])
 
   if (esPOS) {
@@ -115,7 +147,7 @@ export default function DashboardPage() {
     )
   }
 
-  const { stats, productosStockBajo, facturasRecientes } = data
+  const { stats, productosStockBajo, facturasRecientes, ordenesPorSurtir } = data
 
   return (
     <div>
@@ -132,7 +164,7 @@ export default function DashboardPage() {
       </div>
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={4}>
           <Card>
             <Statistic
               title="Total Productos"
@@ -142,7 +174,7 @@ export default function DashboardPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={4}>
           <Card>
             <Statistic
               title="Stock Bajo"
@@ -152,7 +184,7 @@ export default function DashboardPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={4}>
           <Card hoverable style={{ cursor: 'pointer', position: 'relative' }}>
             <Statistic
               title="Cotizaciones Pendientes"
@@ -163,7 +195,7 @@ export default function DashboardPage() {
             <a href="/cotizaciones" style={{ position: 'absolute', inset: 0, opacity: 0 }} tabIndex={-1} aria-hidden="true" />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={4}>
           <Card>
             <Statistic
               title="Por Cobrar"
@@ -173,6 +205,39 @@ export default function DashboardPage() {
               formatter={(value) => formatMoneyMXN(Number(value))}
               valueStyle={{ color: '#cf1322' }}
             />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={4}>
+          <Card>
+            <Statistic
+              title="Ventas del Mes"
+              value={stats.ventasMes}
+              prefix={<DollarOutlined />}
+              precision={2}
+              formatter={(value) => formatMoneyMXN(Number(value))}
+              valueStyle={{ color: '#3f8600' }}
+            />
+            <div style={{ marginTop: 4 }}>
+              {stats.ventasMesAnterior > 0 ? (() => {
+                const pct = ((stats.ventasMes - stats.ventasMesAnterior) / stats.ventasMesAnterior * 100)
+                return (
+                  <Tag color={pct >= 0 ? 'green' : 'red'} icon={pct >= 0 ? <RiseOutlined /> : <FallOutlined />}>
+                    {pct >= 0 ? '+' : ''}{pct.toFixed(1)}% vs mes anterior
+                  </Tag>
+                )
+              })() : <Tag>Sin datos mes anterior</Tag>}
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={4}>
+          <Card hoverable style={{ cursor: 'pointer', position: 'relative' }}>
+            <Statistic
+              title="Órdenes por Surtir"
+              value={stats.ordenesPorSurtir}
+              prefix={<ShoppingCartOutlined />}
+              valueStyle={{ color: stats.ordenesPorSurtir > 0 ? '#faad14' : '#3f8600' }}
+            />
+            <a href="/cotizaciones?status=orden_venta" style={{ position: 'absolute', inset: 0, opacity: 0 }} tabIndex={-1} aria-hidden="true" />
           </Card>
         </Col>
       </Row>
@@ -218,6 +283,40 @@ export default function DashboardPage() {
               scroll={{ x: 'max-content' }}
               locale={{ emptyText: 'No hay facturas pendientes' }}
             />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+        <Col xs={24} lg={12}>
+          <Card title="Órdenes por Surtir" extra={<ShoppingCartOutlined style={{ color: '#faad14' }} />}>
+            <Table
+              dataSource={ordenesPorSurtir}
+              columns={ordenesColumns}
+              rowKey="id"
+              pagination={false}
+              size="small"
+              scroll={{ x: 'max-content' }}
+              locale={{ emptyText: 'No hay órdenes pendientes de surtir' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="Acciones Rápidas">
+            <Row gutter={[12, 12]}>
+              <Col span={12}>
+                <Button block icon={<PlusOutlined />} href="/cotizaciones/nueva">Nueva Cotización</Button>
+              </Col>
+              <Col span={12}>
+                <Button block icon={<ShoppingCartOutlined />} href="/ordenes-venta/nueva">Nueva Orden de Venta</Button>
+              </Col>
+              <Col span={12}>
+                <Button block icon={<UserAddOutlined />} href="/clientes/nuevo">Nuevo Cliente</Button>
+              </Col>
+              <Col span={12}>
+                <Button block icon={<DollarOutlined />} href="/facturas">Ver Facturas</Button>
+              </Col>
+            </Row>
           </Card>
         </Col>
       </Row>
