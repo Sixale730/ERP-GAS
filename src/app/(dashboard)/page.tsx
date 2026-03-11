@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Row, Col, Card, Statistic, Table, Tag, Typography, Button, Space } from 'antd'
 import {
   ShoppingOutlined,
@@ -21,7 +21,6 @@ import DashboardPOS from '@/components/dashboard/DashboardPOS'
 const { Title } = Typography
 
 export default function DashboardPage() {
-  const router = useRouter()
   const { loading: authLoading, organizacion } = useAuth()
 
   const esPOS = organizacion?.codigo === 'MASCOTIENDA'
@@ -124,19 +123,16 @@ export default function DashboardPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={2} style={{ margin: 0 }}>Dashboard</Title>
         <Space>
-          <Button
-            icon={<FileTextOutlined />}
-            onClick={() => router.push('/cotizaciones?status=propuesta')}
-          >
-            Ver Pendientes
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => router.push('/cotizaciones/nueva')}
-          >
-            Nueva Cotización
-          </Button>
+          <Link href="/cotizaciones?status=propuesta">
+            <Button icon={<FileTextOutlined />}>
+              Ver Pendientes
+            </Button>
+          </Link>
+          <Link href="/cotizaciones/nueva">
+            <Button type="primary" icon={<PlusOutlined />}>
+              Nueva Cotización
+            </Button>
+          </Link>
         </Space>
       </div>
 
@@ -162,11 +158,8 @@ export default function DashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card
-            hoverable
-            onClick={() => router.push('/cotizaciones')}
-            style={{ cursor: 'pointer' }}
-          >
+          <Link href="/cotizaciones" style={{ textDecoration: 'none' }}>
+          <Card hoverable>
             <Statistic
               title="Cotizaciones Pendientes"
               value={stats.cotizacionesPendientes}
@@ -174,6 +167,7 @@ export default function DashboardPage() {
               valueStyle={{ color: '#faad14' }}
             />
           </Card>
+          </Link>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
@@ -195,15 +189,16 @@ export default function DashboardPage() {
             title="Productos con Stock Bajo"
             extra={
               <Space>
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<ShoppingCartOutlined />}
-                  onClick={() => router.push('/compras/nueva?stock_bajo=true')}
-                  disabled={productosStockBajo.length === 0}
-                >
-                  Generar OC
-                </Button>
+                <Link href="/compras/nueva?stock_bajo=true">
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<ShoppingCartOutlined />}
+                    disabled={productosStockBajo.length === 0}
+                  >
+                    Generar OC
+                  </Button>
+                </Link>
                 <WarningOutlined style={{ color: '#faad14' }} />
               </Space>
             }
