@@ -125,10 +125,9 @@ async function fetchDashboardData(): Promise<DashboardData> {
     supabase
       .schema('erp')
       .from('v_cotizaciones')
-      .select('id, folio, fecha, total, cliente_nombre')
+      .select('id, folio, fecha, total, cliente_nombre', { count: 'exact' })
       .eq('status', 'orden_venta')
-      .order('fecha', { ascending: true })
-      .limit(5),
+      .order('fecha', { ascending: true }),
   ])
 
   // Procesar resultados
@@ -154,7 +153,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
       totalPorCobrar,
       ventasMes,
       ventasMesAnterior,
-      ordenesPorSurtir: ordenesSurtir.length,
+      ordenesPorSurtir: ordenesPorSurtirResult.count || 0,
     },
     productosStockBajo: stockBajo as ProductoStockBajo[],
     facturasRecientes: facturas as FacturaReciente[],
