@@ -641,6 +641,18 @@ export default function EditarCotizacionPage() {
       title: 'SKU',
       dataIndex: 'sku',
       width: 80,
+      render: (sku: string, record: any) => record.producto_id ? (
+        <a
+          href={`/productos/${record.producto_id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: '#1677ff', textDecoration: 'none', fontFamily: 'monospace', fontSize: '12px' }}
+          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+        >
+          {sku}
+        </a>
+      ) : <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>{sku}</span>,
     },
     {
       title: 'Producto',
