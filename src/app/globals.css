@@ -238,3 +238,14 @@ body {
 .ant-menu-item {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
+
+/* Global Search - hover actions */
+.global-search-actions {
+  display: none;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.global-search-item:hover .global-search-actions {
+  display: flex;
+}
