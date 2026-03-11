@@ -265,7 +265,16 @@ export default function DetalleOrdenCompraPage() {
       title: 'SKU',
       key: 'sku',
       width: 100,
-      render: (_, record) => record.producto?.sku || '-',
+      render: (_: any, record: any) => {
+        const sku = record.producto?.sku || '-'
+        return record.producto_id ? (
+          <a href={`/productos/${record.producto_id}`} target="_blank" rel="noopener noreferrer"
+            style={{ color: '#1677ff', textDecoration: 'none', fontFamily: 'monospace', fontSize: 'inherit' }}
+            onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+            onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+          >{sku}</a>
+        ) : <span style={{ fontFamily: 'monospace' }}>{sku}</span>
+      },
     },
     {
       title: 'Producto',

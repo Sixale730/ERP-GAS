@@ -369,6 +369,13 @@ function NuevaOrdenCompraContent() {
       dataIndex: 'sku',
       key: 'sku',
       width: 100,
+      render: (sku: string, record: any) => record.producto_id ? (
+        <a href={`/productos/${record.producto_id}`} target="_blank" rel="noopener noreferrer"
+          style={{ color: '#1677ff', textDecoration: 'none', fontFamily: 'monospace', fontSize: 'inherit' }}
+          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+        >{sku}</a>
+      ) : <span style={{ fontFamily: 'monospace' }}>{sku}</span>,
     },
     {
       title: 'Producto',
