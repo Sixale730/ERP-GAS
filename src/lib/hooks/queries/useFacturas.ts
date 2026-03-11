@@ -36,7 +36,7 @@ async function fetchFacturas(statusFilter?: string | null, pagination?: Paginati
     .schema('erp')
     .from('v_facturas')
     .select(FACTURAS_LIST_COLUMNS, { count: 'exact' })
-    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (statusFilter) {
     query = query.eq('status', statusFilter)

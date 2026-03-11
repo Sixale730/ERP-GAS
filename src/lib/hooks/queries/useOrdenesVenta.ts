@@ -42,7 +42,7 @@ async function fetchOrdenesVenta(filtro?: FiltroStatusOV, pagination?: Paginatio
     .from('v_cotizaciones')
     .select(OV_LIST_COLUMNS, { count: 'exact' })
     .like('folio', 'OV-%')
-    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (filtro === 'pendientes') {
     query = query.eq('status', 'orden_venta')

@@ -37,7 +37,7 @@ async function fetchCotizaciones(statusFilter?: string | null, pagination?: Pagi
     .from('v_cotizaciones')
     .select(COTIZACIONES_LIST_COLUMNS, { count: 'exact' })
     .like('folio', 'COT-%')
-    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (statusFilter) {
     query = query.eq('status', statusFilter)
