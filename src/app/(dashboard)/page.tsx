@@ -153,14 +153,6 @@ export default function DashboardPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={2} style={{ margin: 0 }}>Dashboard</Title>
-        <Space>
-          <Button icon={<FileTextOutlined />} href="/cotizaciones?status=propuesta">
-            Ver Pendientes
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} href="/cotizaciones/nueva">
-            Nueva Cotización
-          </Button>
-        </Space>
       </div>
 
       <Row gutter={[16, 16]}>
@@ -218,14 +210,18 @@ export default function DashboardPage() {
               valueStyle={{ color: '#3f8600' }}
             />
             <div style={{ marginTop: 4 }}>
-              {stats.ventasMesAnterior > 0 ? (() => {
-                const pct = ((stats.ventasMes - stats.ventasMesAnterior) / stats.ventasMesAnterior * 100)
-                return (
-                  <Tag color={pct >= 0 ? 'green' : 'red'} icon={pct >= 0 ? <RiseOutlined /> : <FallOutlined />}>
-                    {pct >= 0 ? '+' : ''}{pct.toFixed(1)}% vs mes anterior
-                  </Tag>
-                )
-              })() : <Tag>Sin datos mes anterior</Tag>}
+              {stats.ventasMesAnterior === 0
+                ? <Tag color="default">Sin comparativa</Tag>
+                : (() => {
+                    const pct = ((stats.ventasMes - stats.ventasMesAnterior) / stats.ventasMesAnterior * 100)
+                    const capped = pct > 999 ? '+999' : pct < -999 ? '-999' : `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}`
+                    return (
+                      <Tag color={pct >= 0 ? 'green' : 'red'} icon={pct >= 0 ? <RiseOutlined /> : <FallOutlined />}>
+                        {capped}% vs mes anterior
+                      </Tag>
+                    )
+                  })()
+              }
             </div>
           </Card>
         </Col>
@@ -304,9 +300,6 @@ export default function DashboardPage() {
         <Col xs={24} lg={12}>
           <Card title="Acciones Rápidas">
             <Row gutter={[12, 12]}>
-              <Col span={12}>
-                <Button block icon={<PlusOutlined />} href="/cotizaciones/nueva">Nueva Cotización</Button>
-              </Col>
               <Col span={12}>
                 <Button block icon={<ShoppingCartOutlined />} href="/ordenes-venta/nueva">Nueva Orden de Venta</Button>
               </Col>
