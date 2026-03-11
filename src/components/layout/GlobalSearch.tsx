@@ -171,8 +171,10 @@ export default function GlobalSearch() {
             style={{ marginTop: 2 }}
           >
             {actions.filter(a => a.show).map((action) => (
-              <a
+              <Button
                 key={action.label}
+                type="link"
+                size="small"
                 href={action.ruta}
                 onClick={(e) => {
                   if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
@@ -182,17 +184,11 @@ export default function GlobalSearch() {
                   }
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
-                style={{ textDecoration: 'none' }}
+                style={{ padding: '0 4px', height: 20, fontSize: 12 }}
+                icon={['Cotización', 'OC'].includes(action.label) ? <PlusOutlined /> : action.label === 'Abrir' ? <ArrowRightOutlined /> : <EyeOutlined />}
               >
-                <Button
-                  type="link"
-                  size="small"
-                  style={{ padding: '0 4px', height: 20, fontSize: 12 }}
-                  icon={['Cotización', 'OC'].includes(action.label) ? <PlusOutlined /> : action.label === 'Abrir' ? <ArrowRightOutlined /> : <EyeOutlined />}
-                >
-                  {action.label}
-                </Button>
-              </a>
+                {action.label}
+              </Button>
             ))}
           </div>
         </div>

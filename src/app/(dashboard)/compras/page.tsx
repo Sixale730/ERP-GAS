@@ -550,12 +550,11 @@ export default function ComprasPage() {
       key: 'acciones',
       width: 80,
       render: (_, record) => (
-        <Link href={`/compras/${record.id}`}>
-          <Button
+        <Button
             type="link"
             icon={<EyeOutlined />}
+            href={`/compras/${record.id}`}
           />
-        </Link>
       ),
     },
   ], [])
@@ -593,14 +592,13 @@ export default function ComprasPage() {
           >
             Generar Automatica
           </Button>
-          <Link href="/compras/nueva">
-            <Button
+          <Button
               type="primary"
               icon={<PlusOutlined />}
+              href="/compras/nueva"
             >
               Nueva Orden
             </Button>
-          </Link>
         </Space>
       </div>
 

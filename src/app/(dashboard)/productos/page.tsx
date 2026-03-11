@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -88,12 +87,11 @@ export default function ProductosPage() {
       width: 120,
       render: (_, record) => (
         <Space>
-          <Link href={`/productos/${record.id}`}>
-            <Button
+          <Button
               type="link"
               icon={<EditOutlined />}
+              href={`/productos/${record.id}`}
             />
-          </Link>
           <Popconfirm
             title="Eliminar producto?"
             description="El producto sera desactivado"
@@ -121,14 +119,13 @@ export default function ProductosPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Productos</Title>
-        <Link href="/productos/nuevo">
-          <Button
+        <Button
             type="primary"
             icon={<PlusOutlined />}
+            href="/productos/nuevo"
           >
             Nuevo Producto
           </Button>
-        </Link>
       </div>
 
       <Card>

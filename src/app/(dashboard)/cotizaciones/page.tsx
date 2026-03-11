@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import Link from 'next/link'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, ShoppingCartOutlined, LoadingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -192,13 +191,12 @@ export default function CotizacionesPage() {
       width: 140,
       render: (_, record) => (
         <Space>
-          <Link href={`/cotizaciones/${record.id}`}>
-            <Button
+          <Button
               type="link"
               icon={<EyeOutlined />}
               title="Ver detalle"
+              href={`/cotizaciones/${record.id}`}
             />
-          </Link>
           <Button
             type="link"
             icon={downloadingPdf === record.id ? <LoadingOutlined /> : <FilePdfOutlined />}
@@ -237,14 +235,13 @@ export default function CotizacionesPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Cotizaciones</Title>
-        <Link href="/cotizaciones/nueva">
-          <Button
+        <Button
             type="primary"
             icon={<PlusOutlined />}
+            href="/cotizaciones/nueva"
           >
             Nueva Cotizacion
           </Button>
-        </Link>
       </div>
 
       <Card>

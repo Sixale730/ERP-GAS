@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo } from 'react'
-import Link from 'next/link'
 import { Row, Col, Card, Statistic, Table, Tag, Typography, Button, Space } from 'antd'
 import {
   ShoppingOutlined,
@@ -123,16 +122,12 @@ export default function DashboardPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={2} style={{ margin: 0 }}>Dashboard</Title>
         <Space>
-          <Link href="/cotizaciones?status=propuesta">
-            <Button icon={<FileTextOutlined />}>
-              Ver Pendientes
-            </Button>
-          </Link>
-          <Link href="/cotizaciones/nueva">
-            <Button type="primary" icon={<PlusOutlined />}>
-              Nueva Cotización
-            </Button>
-          </Link>
+          <Button icon={<FileTextOutlined />} href="/cotizaciones?status=propuesta">
+            Ver Pendientes
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} href="/cotizaciones/nueva">
+            Nueva Cotización
+          </Button>
         </Space>
       </div>
 
@@ -158,16 +153,15 @@ export default function DashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Link href="/cotizaciones" style={{ textDecoration: 'none' }}>
-          <Card hoverable>
+          <Card hoverable style={{ cursor: 'pointer', position: 'relative' }}>
             <Statistic
               title="Cotizaciones Pendientes"
               value={stats.cotizacionesPendientes}
               prefix={<FileTextOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
+            <a href="/cotizaciones" style={{ position: 'absolute', inset: 0, opacity: 0 }} tabIndex={-1} aria-hidden="true" />
           </Card>
-          </Link>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
@@ -189,16 +183,15 @@ export default function DashboardPage() {
             title="Productos con Stock Bajo"
             extra={
               <Space>
-                <Link href="/compras/nueva?stock_bajo=true">
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<ShoppingCartOutlined />}
-                    disabled={productosStockBajo.length === 0}
-                  >
-                    Generar OC
-                  </Button>
-                </Link>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<ShoppingCartOutlined />}
+                  href="/compras/nueva?stock_bajo=true"
+                  disabled={productosStockBajo.length === 0}
+                >
+                  Generar OC
+                </Button>
                 <WarningOutlined style={{ color: '#faad14' }} />
               </Space>
             }

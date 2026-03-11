@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { Card, Typography, Tag, Button, Segmented, Empty, Spin, Row, Col } from 'antd'
 import {
   SearchOutlined,
@@ -335,11 +334,10 @@ function BuscarContent() {
               <Row gutter={[12, 12]}>
                 {items.map((item) => (
                   <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-                    <Link href={item.ruta} style={{ textDecoration: 'none' }}>
                     <Card
                       size="small"
                       hoverable
-                      style={{ height: '100%' }}
+                      style={{ height: '100%', position: 'relative' }}
                     >
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                         <div style={{ marginTop: 2, fontSize: 16 }}>{iconByType[item.tipo]}</div>
@@ -367,28 +365,24 @@ function BuscarContent() {
                           {item.subtitulo && (
                             <Text type="secondary" style={{ fontSize: 12 }}>{item.subtitulo}</Text>
                           )}
-                          <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
                             {getActions(item).map((action) => (
-                              <Link
+                              <Button
                                 key={action.label}
+                                type="link"
+                                size="small"
+                                icon={action.icon}
                                 href={action.ruta}
-                                onClick={(e) => e.stopPropagation()}
+                                style={{ padding: '0 4px', height: 22, fontSize: 12 }}
                               >
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  icon={action.icon}
-                                  style={{ padding: '0 4px', height: 22, fontSize: 12 }}
-                                >
-                                  {action.label}
-                                </Button>
-                              </Link>
+                                {action.label}
+                              </Button>
                             ))}
                           </div>
                         </div>
                       </div>
+                      <a href={item.ruta} style={{ position: 'absolute', inset: 0, opacity: 0 }} tabIndex={-1} aria-hidden="true" />
                     </Card>
-                    </Link>
                   </Col>
                 ))}
               </Row>
