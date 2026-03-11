@@ -85,6 +85,8 @@ export default function GlobalSearch() {
   const { modulosActivos } = useModulos()
   const [searchValue, setSearchValue] = useState('')
   const [options, setOptions] = useState<OptionGroup[]>([])
+  const [dropdownWidth, setDropdownWidth] = useState(520)
+  const containerRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
@@ -93,6 +95,18 @@ export default function GlobalSearch() {
       if (debounceRef.current) clearTimeout(debounceRef.current)
       if (abortControllerRef.current) abortControllerRef.current.abort()
     }
+  }, [])
+
+  // Track container width for dropdown sizing
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width
+      if (width) setDropdownWidth(width)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [])
 
   const navigateTo = useCallback((ruta: string) => {
@@ -429,21 +443,23 @@ export default function GlobalSearch() {
   }
 
   return (
-    <AutoComplete
-      style={{ width: '100%', margin: 'auto 0' }}
-      options={options}
-      onSearch={handleSearch}
-      onSelect={handleSelect}
-      value={searchValue}
-      popupMatchSelectWidth={520}
-    >
-      <Input
-        placeholder="Buscar productos, clientes, facturas..."
-        prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-        allowClear
-        style={{ borderRadius: 8, height: 36 }}
-        onKeyDown={handleKeyDown}
-      />
-    </AutoComplete>
+    <div ref={containerRef} style={{ width: '100%' }}>
+      <AutoComplete
+        style={{ width: '100%', margin: 'auto 0' }}
+        options={options}
+        onSearch={handleSearch}
+        onSelect={handleSelect}
+        value={searchValue}
+        popupMatchSelectWidth={Math.max(dropdownWidth, 480)}
+      >
+        <Input
+          placeholder="Buscar productos, clientes, facturas..."
+          prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+          allowClear
+          style={{ borderRadius: 8, height: 36 }}
+          onKeyDown={handleKeyDown}
+        />
+      </AutoComplete>
+    </div>
   )
 }
