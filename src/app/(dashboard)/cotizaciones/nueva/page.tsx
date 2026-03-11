@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, useMemo, useCallback, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Alert, Collapse
 } from 'antd'
@@ -34,10 +34,20 @@ interface CotizacionItem {
 }
 
 export default function NuevaCotizacionPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 24, textAlign: 'center' }}>Cargando...</div>}>
+      <NuevaCotizacionContent />
+    </Suspense>
+  )
+}
+
+function NuevaCotizacionContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const { orgId, erpUser } = useAuth()
+  const queryParamsProcessed = useRef(false)
 
   // Configuracion global
   const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
@@ -172,6 +182,64 @@ export default function NuevaCotizacionPage() {
       loadProductosConPrecios()
     }
   }, [listaPrecioId])
+
+  // Auto-agregar producto/cliente desde query params (búsqueda global)
+  useEffect(() => {
+    if (queryParamsProcessed.current) return
+
+    const clienteParam = searchParams.get('cliente')
+    const productoParam = searchParams.get('producto')
+    if (!clienteParam && !productoParam) {
+      queryParamsProcessed.current = true
+      return
+    }
+
+    // Wait for clientes to be loaded
+    if (clienteParam && clientes.length === 0) return
+    // Wait for productos and precios to be loaded
+    if (productoParam && (productos.length === 0 || preciosMap.size === 0)) return
+
+    queryParamsProcessed.current = true
+
+    // Pre-select client
+    if (clienteParam) {
+      const cliente = clientes.find(c => c.id === clienteParam)
+      if (cliente) {
+        setClienteId(cliente.id)
+        message.info(`Cliente ${cliente.nombre_comercial} seleccionado desde búsqueda`)
+      }
+    }
+
+    // Auto-add product
+    if (productoParam) {
+      const producto = productos.find((p: any) => p.id === productoParam)
+      if (producto) {
+        const precioData = preciosMap.get(producto.id) || { precio: 0, moneda: 'USD' as CodigoMoneda }
+        const precioFinal = calcularPrecioFinal(precioData.precio, precioData.moneda as CodigoMoneda, 0)
+
+        const newItem: CotizacionItem = {
+          key: producto.id,
+          producto_id: producto.id,
+          producto_nombre: producto.nombre,
+          sku: producto.sku,
+          descripcion: producto.nombre,
+          precio_lista: precioData.precio,
+          moneda_precio: precioData.moneda as CodigoMoneda,
+          margen_porcentaje: 0,
+          cantidad: 1,
+          precio_unitario: precioFinal,
+          subtotal: precioFinal,
+        }
+
+        setItems(prev => {
+          if (prev.find(i => i.producto_id === producto.id)) return prev
+          return [...prev, newItem]
+        })
+        message.info(`Producto ${producto.nombre} agregado desde búsqueda`)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientes, productos, preciosMap, searchParams])
 
   // Cuando cambia el almacén, cargar inventario para alertas
   // eslint-disable-next-line react-hooks/exhaustive-deps

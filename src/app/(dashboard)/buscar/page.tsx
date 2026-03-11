@@ -263,19 +263,19 @@ function BuscarContent() {
       case 'producto':
         actions.push({ label: 'Ver detalle', ruta: `/productos/${item.id}`, icon: <EyeOutlined /> })
         if (modulosActivos.includes('cotizaciones')) {
-          actions.push({ label: '+ Cotización', ruta: `/cotizaciones/nueva?producto=${item.id}`, icon: <PlusOutlined /> })
+          actions.push({ label: 'Cotización', ruta: `/cotizaciones/nueva?producto=${item.id}`, icon: <PlusOutlined /> })
         }
         break
       case 'cliente':
         actions.push({ label: 'Ver detalle', ruta: `/clientes/${item.id}`, icon: <EyeOutlined /> })
         if (modulosActivos.includes('cotizaciones')) {
-          actions.push({ label: '+ Cotización', ruta: `/cotizaciones/nueva?cliente=${item.id}`, icon: <PlusOutlined /> })
+          actions.push({ label: 'Cotización', ruta: `/cotizaciones/nueva?cliente=${item.id}`, icon: <PlusOutlined /> })
         }
         break
       case 'proveedor':
         actions.push({ label: 'Ver', ruta: item.ruta, icon: <EyeOutlined /> })
         if (modulosActivos.includes('compras')) {
-          actions.push({ label: '+ OC', ruta: `/compras/nueva?proveedor=${item.id}`, icon: <PlusOutlined /> })
+          actions.push({ label: 'OC', ruta: `/compras/nueva?proveedor=${item.id}`, icon: <PlusOutlined /> })
         }
         break
       case 'reporte':
@@ -344,7 +344,14 @@ function BuscarContent() {
                         <div style={{ marginTop: 2, fontSize: 16 }}>{iconByType[item.tipo]}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
-                            <Text strong style={{ fontSize: 14 }}>{item.titulo}</Text>
+                            <Text strong style={{
+                              fontSize: 14,
+                              overflow: 'hidden',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical' as const,
+                              wordBreak: 'break-word',
+                            }}>{item.titulo}</Text>
                             {item.tipo === 'producto' && item.stock_disponible !== undefined && (
                               <Tag color={item.stock_disponible > 0 ? 'green' : 'red'} style={{ margin: 0, fontSize: 11 }}>
                                 {item.stock_disponible > 0 ? `Stock: ${item.stock_disponible}` : 'Sin stock'}

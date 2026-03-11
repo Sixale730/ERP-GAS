@@ -108,19 +108,19 @@ export default function GlobalSearch() {
       case 'producto':
         actions.push({ label: 'Ver detalle', ruta: `/productos/${item.id}`, show: true })
         if (modulosActivos.includes('cotizaciones')) {
-          actions.push({ label: '+ Cotización', ruta: `/cotizaciones/nueva?producto=${item.id}`, show: true })
+          actions.push({ label: 'Cotización', ruta: `/cotizaciones/nueva?producto=${item.id}`, show: true })
         }
         break
       case 'cliente':
         actions.push({ label: 'Ver detalle', ruta: `/clientes/${item.id}`, show: true })
         if (modulosActivos.includes('cotizaciones')) {
-          actions.push({ label: '+ Cotización', ruta: `/cotizaciones/nueva?cliente=${item.id}`, show: true })
+          actions.push({ label: 'Cotización', ruta: `/cotizaciones/nueva?cliente=${item.id}`, show: true })
         }
         break
       case 'proveedor':
         actions.push({ label: 'Ver', ruta: item.ruta, show: true })
         if (modulosActivos.includes('compras')) {
-          actions.push({ label: '+ OC', ruta: `/compras/nueva?proveedor=${item.id}`, show: true })
+          actions.push({ label: 'OC', ruta: `/compras/nueva?proveedor=${item.id}`, show: true })
         }
         break
       case 'reporte':
@@ -162,7 +162,7 @@ export default function GlobalSearch() {
                 type="link"
                 size="small"
                 style={{ padding: '0 4px', height: 20, fontSize: 12 }}
-                icon={action.label.startsWith('+') ? <PlusOutlined /> : action.label === 'Abrir' ? <ArrowRightOutlined /> : <EyeOutlined />}
+                icon={['Cotización', 'OC'].includes(action.label) ? <PlusOutlined /> : action.label === 'Abrir' ? <ArrowRightOutlined /> : <EyeOutlined />}
                 onMouseDown={(e) => {
                   e.stopPropagation()
                   e.preventDefault()
