@@ -237,7 +237,7 @@ export default function DashboardPage() {
               prefix={<ShoppingCartOutlined />}
               valueStyle={{ color: stats.ordenesPorSurtir > 0 ? '#faad14' : '#3f8600' }}
             />
-            <a href="/cotizaciones?status=orden_venta" style={{ position: 'absolute', inset: 0, opacity: 0 }} tabIndex={-1} aria-hidden="true" />
+            <a href="/ordenes-venta" style={{ position: 'absolute', inset: 0, opacity: 0 }} tabIndex={-1} aria-hidden="true" />
           </Card>
         </Col>
       </Row>
