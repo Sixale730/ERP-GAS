@@ -18,6 +18,14 @@ import {
 
 const { Title, Text } = Typography
 
+function calcularNivel(row: InventarioRow): string {
+  if (row.cantidad < 0) return 'negativo'
+  if (row.cantidad === 0) return 'sin_stock'
+  if (row.stock_minimo > 0 && row.cantidad <= row.stock_minimo) return 'bajo'
+  if (row.stock_maximo > 0 && row.cantidad > row.stock_maximo) return 'exceso'
+  return 'normal'
+}
+
 export default function InventarioPage() {
   const router = useRouter()
   const [almacenFilter, setAlmacenFilter] = useState<string | null>(null)
@@ -124,8 +132,9 @@ export default function InventarioPage() {
   // Stats calculados de datos del servidor
   const stats = useMemo(() => ({
     totalItems: inventarioResult?.total ?? 0,
-    stockBajo: inventario.filter(i => i.nivel_stock === 'bajo').length,
-    stockExceso: inventario.filter(i => i.nivel_stock === 'exceso').length,
+    stockBajo: inventario.filter(i => i.stock_minimo > 0 && i.cantidad > 0 && i.cantidad <= i.stock_minimo).length,
+    stockNegativo: inventario.filter(i => i.cantidad < 0).length,
+    stockExceso: inventario.filter(i => i.stock_maximo > 0 && i.cantidad > i.stock_maximo).length,
   }), [inventarioResult?.total, inventario])
 
   const columns = useMemo<ColumnsType<InventarioRow>>(() => [
@@ -180,8 +189,10 @@ export default function InventarioPage() {
       dataIndex: 'nivel_stock',
       key: 'nivel_stock',
       width: 100,
-      render: (nivel) => {
+      render: (_, record) => {
+        const nivel = calcularNivel(record)
         const config: Record<string, { color: string; label: string }> = {
+          negativo: { color: '#ff4d4f', label: 'Negativo' },
           bajo: { color: 'red', label: 'Bajo' },
           normal: { color: 'green', label: 'Normal' },
           exceso: { color: 'orange', label: 'Exceso' },
@@ -221,7 +232,7 @@ export default function InventarioPage() {
       <Title level={2}>Inventario</Title>
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Card>
             <Statistic
               title="Total Registros"
@@ -230,7 +241,7 @@ export default function InventarioPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Card>
             <Statistic
               title="Stock Bajo"
@@ -240,7 +251,17 @@ export default function InventarioPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Stock Negativo"
+              value={stats.stockNegativo}
+              prefix={<WarningOutlined style={{ color: '#ff4d4f' }} />}
+              valueStyle={{ color: stats.stockNegativo > 0 ? '#ff4d4f' : '#8c8c8c' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
           <Card>
             <Statistic
               title="Stock en Exceso"
@@ -289,7 +310,9 @@ export default function InventarioPage() {
               onChange: (page, pageSize) => setPagination({ page, pageSize }),
             }}
             rowClassName={(record) => {
-              if (record.nivel_stock === 'bajo') return 'row-stock-bajo'
+              const nivel = calcularNivel(record)
+              if (nivel === 'negativo') return 'row-stock-negativo'
+              if (nivel === 'bajo') return 'row-stock-bajo'
               return ''
             }}
           />
@@ -474,6 +497,9 @@ export default function InventarioPage() {
       <style jsx global>{`
         .row-stock-bajo {
           background-color: #fff2f0;
+        }
+        .row-stock-negativo {
+          background-color: #ffccc7;
         }
       `}</style>
     </div>
