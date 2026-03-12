@@ -115,7 +115,20 @@ export default function DashboardPage() {
 
   const ordenesColumns = useMemo(() => [
     { title: 'Folio', dataIndex: 'folio', key: 'folio' },
-    { title: 'Cliente', dataIndex: 'cliente_nombre', key: 'cliente_nombre', ellipsis: true },
+    {
+      title: 'Cliente',
+      dataIndex: 'cliente_nombre',
+      key: 'cliente_nombre',
+      ellipsis: true,
+      render: (nombre: string, record: any) => (
+        <div>
+          <div>{nombre}</div>
+          {record.sucursal_nombre && (
+            <div style={{ fontSize: 12, color: '#888' }}>{record.sucursal_nombre}</div>
+          )}
+        </div>
+      ),
+    },
     { title: 'Fecha', dataIndex: 'fecha', key: 'fecha', width: 100, render: (f: string) => dayjs(f).format('DD/MM/YYYY') },
     { title: 'Total', dataIndex: 'total', key: 'total', width: 120, align: 'right' as const, render: (v: number) => formatMoneyMXN(v) },
     {

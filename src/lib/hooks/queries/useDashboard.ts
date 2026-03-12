@@ -36,6 +36,7 @@ export interface OrdenPorSurtir {
   fecha: string
   total: number
   cliente_nombre: string
+  sucursal_nombre: string | null
 }
 
 export interface DashboardData {
@@ -125,7 +126,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
     supabase
       .schema('erp')
       .from('v_cotizaciones')
-      .select('id, folio, fecha, total, cliente_nombre', { count: 'exact' })
+      .select('id, folio, fecha, total, cliente_nombre, sucursal_nombre', { count: 'exact' })
       .eq('status', 'orden_venta')
       .order('fecha', { ascending: true }),
   ])

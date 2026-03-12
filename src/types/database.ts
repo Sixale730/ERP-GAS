@@ -1084,6 +1084,8 @@ export type Database = {
           cliente_rfc: string | null
           almacen_id: string
           almacen_nombre: string
+          direccion_envio_id: string | null
+          sucursal_nombre: string | null
           fecha: string
           status: string
           status_actual: string
