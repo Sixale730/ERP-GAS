@@ -2,12 +2,13 @@
 
 import { useState, useMemo } from 'react'
 import { Table, Input, Select, Space, Card, Typography, Tag, Button, Popconfirm, message } from 'antd'
-import { SearchOutlined, EditOutlined, DeleteOutlined, PlusOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { SearchOutlined, EditOutlined, DeleteOutlined, PlusOutlined, FilePdfOutlined, FileExcelOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { usePreciosProductos, useProveedores, useListasPrecios } from '@/lib/hooks/queries/useCatalogos'
 import { useDeletePrecioProducto } from '@/lib/hooks/usePreciosProductos'
 import PrecioProductoModal from '@/components/precios/PrecioProductoModal'
 import { generarPDFReporte } from '@/lib/utils/pdf'
+import { exportarExcel } from '@/lib/utils/excel'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
@@ -33,6 +34,7 @@ export default function PreciosProductosPage() {
   const [monedaFilter, setMonedaFilter] = useState<string | null>(null)
 
   const [generandoPDF, setGenerandoPDF] = useState(false)
+  const [generandoExcel, setGenerandoExcel] = useState(false)
 
   // Estado para el modal de edicion
   const [modalOpen, setModalOpen] = useState(false)
@@ -186,6 +188,71 @@ export default function PreciosProductosPage() {
     }
   }
 
+  const handleDescargarExcel = async () => {
+    setGenerandoExcel(true)
+    try {
+      const { data: freshData } = await refetch()
+      const dataToExport = (freshData || []).filter((row) => {
+        const matchesSearch =
+          !searchText ||
+          row.sku.toLowerCase().includes(searchText.toLowerCase()) ||
+          row.nombre.toLowerCase().includes(searchText.toLowerCase())
+        const matchesProveedor =
+          !proveedorFilter || row.proveedor_id === proveedorFilter
+        const matchesLista = !listaFilter || row.lista_id === listaFilter
+        const matchesMoneda = !monedaFilter || row.moneda === monedaFilter
+        return matchesSearch && matchesProveedor && matchesLista && matchesMoneda
+      })
+
+      const conPrecio = dataToExport.filter((r) => r.precio !== null).length
+      const sinPrecio = dataToExport.filter((r) => r.precio === null).length
+
+      const filtrosAplicados: string[] = []
+      if (proveedorFilter) {
+        const prov = proveedores?.find((p) => p.id === proveedorFilter)
+        if (prov) filtrosAplicados.push(`Proveedor: ${prov.razon_social}`)
+      }
+      if (listaFilter) {
+        const lista = listasPrecios?.find((l) => l.id === listaFilter)
+        if (lista) filtrosAplicados.push(`Lista: ${lista.nombre}`)
+      }
+      if (monedaFilter) filtrosAplicados.push(`Moneda: ${monedaFilter}`)
+      if (searchText) filtrosAplicados.push(`Búsqueda: "${searchText}"`)
+
+      await exportarExcel({
+        columnas: [
+          { titulo: 'SKU', dataIndex: 'sku', ancho: 15 },
+          { titulo: 'Producto', dataIndex: 'nombre', ancho: 35 },
+          { titulo: 'Proveedor', dataIndex: 'proveedor_nombre' },
+          { titulo: 'Precio', dataIndex: 'precio', formato: 'moneda' },
+          { titulo: 'Precio c/IVA', dataIndex: 'precio_con_iva', formato: 'moneda' },
+          { titulo: 'Moneda', dataIndex: 'moneda', ancho: 10 },
+          { titulo: 'Lista', dataIndex: 'lista_nombre', ancho: 20 },
+        ],
+        datos: dataToExport.map((row) => ({
+          sku: row.sku,
+          nombre: row.nombre,
+          proveedor_nombre: row.proveedor_nombre || 'Sin proveedor',
+          precio: row.precio,
+          precio_con_iva: row.precio_con_iva,
+          moneda: row.moneda || '-',
+          lista_nombre: row.lista_nombre || 'Sin precio',
+        })),
+        nombreArchivo: `catalogo-precios-productos-${dayjs().format('YYYY-MM-DD')}`,
+        nombreHoja: 'Precios Productos',
+        tituloReporte: 'CATÁLOGO DE PRECIOS DE PRODUCTOS',
+        subtitulo: filtrosAplicados.length > 0 ? filtrosAplicados.join(' | ') : 'Todos los productos',
+        resumen: [
+          { etiqueta: 'Total Registros', valor: dataToExport.length, formato: 'numero' },
+          { etiqueta: 'Con Precio', valor: conPrecio, formato: 'numero' },
+          { etiqueta: 'Sin Precio', valor: sinPrecio, formato: 'numero' },
+        ],
+      })
+    } finally {
+      setGenerandoExcel(false)
+    }
+  }
+
   const columns: ColumnsType<PrecioProductoRow> = useMemo(() => [
     {
       title: 'SKU',
@@ -303,13 +370,22 @@ export default function PreciosProductosPage() {
         <Title level={2} style={{ margin: 0 }}>
           Precios de Productos
         </Title>
-        <Button
-          icon={<FilePdfOutlined />}
-          loading={generandoPDF}
-          onClick={handleDescargarPDF}
-        >
-          Descargar PDF
-        </Button>
+        <Space>
+          <Button
+            icon={<FileExcelOutlined />}
+            loading={generandoExcel}
+            onClick={handleDescargarExcel}
+          >
+            Descargar Excel
+          </Button>
+          <Button
+            icon={<FilePdfOutlined />}
+            loading={generandoPDF}
+            onClick={handleDescargarPDF}
+          >
+            Descargar PDF
+          </Button>
+        </Space>
       </div>
 
       <Card>
