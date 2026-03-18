@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchInProgressRef = useRef<Promise<{erpUser: ERPUser | null, organizacion: Organizacion | null}> | null>(null)
   const initialFetchDoneRef = useRef(false)
+  const ultimoAccesoUpdatedRef = useRef(false)
 
   const fetchERPUser = useCallback(async () => {
     if (fetchInProgressRef.current) {
@@ -143,6 +144,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               email: row.org_email || null,
               logo_url: row.org_logo_url || null,
             } : null
+
+            // Actualizar ultimo_acceso una vez por sesión (fire-and-forget)
+            if (!ultimoAccesoUpdatedRef.current) {
+              ultimoAccesoUpdatedRef.current = true
+              supabase
+                .schema('erp')
+                .from('usuarios')
+                .update({ ultimo_acceso: new Date().toISOString() })
+                .eq('id', erpUser.id)
+                .then()
+            }
 
             return { erpUser, organizacion }
           }

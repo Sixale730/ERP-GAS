@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Row, Col, Card, Statistic, Table, Tag, Typography, Button, Space } from 'antd'
+import { Row, Col, Card, Statistic, Table, Tag, Typography, Button, Space, Tooltip } from 'antd'
 import {
   ShoppingOutlined,
   DollarOutlined,
@@ -12,6 +12,8 @@ import {
   UserAddOutlined,
   RiseOutlined,
   FallOutlined,
+  FundProjectionScreenOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useDashboard } from '@/lib/hooks/queries/useDashboard'
@@ -250,6 +252,42 @@ export default function DashboardPage() {
           </Card>
         </Col>
       </Row>
+
+      {(stats.totalPipeline > 0) && (
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Col xs={24} lg={12}>
+            <Card title={<Space><FundProjectionScreenOutlined /> Pipeline Comercial</Space>}>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Statistic
+                    title="Total cotizaciones abiertas"
+                    value={stats.totalPipeline}
+                    precision={2}
+                    formatter={(value) => formatMoneyMXN(Number(value))}
+                    valueStyle={{ color: '#1890ff' }}
+                  />
+                </Col>
+                <Col span={12}>
+                  <Statistic
+                    title={
+                      <Space size={4}>
+                        Pipeline ponderado
+                        <Tooltip title="Suma de cotizaciones ponderadas por su probabilidad de cierre">
+                          <InfoCircleOutlined style={{ color: '#999' }} />
+                        </Tooltip>
+                      </Space>
+                    }
+                    value={stats.pipelinePonderado}
+                    precision={2}
+                    formatter={(value) => formatMoneyMXN(Number(value))}
+                    valueStyle={{ color: '#3f8600' }}
+                  />
+                </Col>
+              </Row>
+            </Card>
+          </Col>
+        </Row>
+      )}
 
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col xs={24} lg={12}>

@@ -479,6 +479,7 @@ export type Database = {
           atencion: string | null
           oc_cliente: string | null
           cotizacion_origen_id: string | null
+          probabilidad: number | null
           created_at: string
           updated_at: string
         }
@@ -524,6 +525,7 @@ export type Database = {
           atencion?: string | null
           oc_cliente?: string | null
           cotizacion_origen_id?: string | null
+          probabilidad?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -569,6 +571,7 @@ export type Database = {
           atencion?: string | null
           oc_cliente?: string | null
           cotizacion_origen_id?: string | null
+          probabilidad?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -1104,6 +1107,7 @@ export type Database = {
           created_at: string
           updated_at: string
           organizacion_id: string | null
+          probabilidad: number | null
           cotizacion_origen_id: string | null
           cotizacion_origen_folio: string | null
           num_ovs_generadas: number

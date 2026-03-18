@@ -2,13 +2,14 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
-import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, ShoppingCartOutlined, LoadingOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, ShoppingCartOutlined, LoadingOutlined, StarOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useQuery } from '@tanstack/react-query'
 import { useCotizaciones, useDeleteCotizacion, type CotizacionRow } from '@/lib/hooks/queries/useCotizaciones'
 import { TableSkeleton } from '@/components/common/Skeletons'
 import BotonExportar from '@/components/common/BotonExportar'
 import { getSupabaseClient } from '@/lib/supabase/client'
-import { formatDate, formatDateTime } from '@/lib/utils/format'
+import { formatDate, formatDateTime, formatMoneyMXN } from '@/lib/utils/format'
 import { generarPDFCotizacion, prepararDatosCotizacionPDF } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 
@@ -49,6 +50,26 @@ export default function CotizacionesPage() {
   const { data: cotizacionesResult, isLoading, isError, error } = useCotizaciones(statusFilter, pagination, debouncedSearch)
   const cotizaciones = cotizacionesResult?.data ?? []
   const deleteCotizacion = useDeleteCotizacion()
+
+  // Pipeline stats (cotizaciones abiertas)
+  const { data: pipelineStats } = useQuery({
+    queryKey: ['cotizaciones', 'pipeline'],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      const { data, error: err } = await supabase
+        .schema('erp')
+        .from('cotizaciones')
+        .select('total, probabilidad')
+        .in('status', ['propuesta'])
+      if (err) throw err
+      const rows = data || []
+      const totalPipeline = rows.reduce((sum, r) => sum + (r.total || 0), 0)
+      const pipelinePonderado = rows
+        .filter(r => r.probabilidad != null)
+        .reduce((sum, r) => sum + (r.total || 0) * ((r.probabilidad || 0) / 100), 0)
+      return { count: rows.length, totalPipeline, pipelinePonderado }
+    },
+  })
 
   const handleDescargarPDF = useCallback(async (cotizacionId: string) => {
     setDownloadingPdf(cotizacionId)
@@ -161,6 +182,21 @@ export default function CotizacionesPage() {
       ),
     },
     {
+      title: 'Prob.',
+      dataIndex: 'probabilidad',
+      key: 'probabilidad',
+      width: 80,
+      align: 'center',
+      render: (prob: number | null) => {
+        if (prob == null) return <span style={{ color: '#999' }}>—</span>
+        if (prob >= 90) return <Tag color="blue" icon={<StarOutlined />}>{prob}%</Tag>
+        if (prob >= 70) return <Tag color="green">{prob}%</Tag>
+        if (prob >= 30) return <Tag color="gold">{prob}%</Tag>
+        return <Tag color="red">{prob}%</Tag>
+      },
+      sorter: (a, b) => (a.probabilidad ?? -1) - (b.probabilidad ?? -1),
+    },
+    {
       title: 'OVs',
       dataIndex: 'num_ovs_generadas',
       key: 'num_ovs_generadas',
@@ -248,6 +284,7 @@ export default function CotizacionesPage() {
               { titulo: 'Total', dataIndex: 'total', formato: 'moneda' },
               { titulo: 'Moneda', dataIndex: 'moneda' },
               { titulo: 'Status', dataIndex: 'status' },
+              { titulo: 'Prob.', dataIndex: 'probabilidad', formato: 'numero' },
             ]}
             datos={[]}
             fetchTodos={async () => {
@@ -255,7 +292,7 @@ export default function CotizacionesPage() {
               let query = supabase
                 .schema('erp')
                 .from('v_cotizaciones')
-                .select('folio, cliente_nombre, fecha, vigencia_dias, total, moneda, status')
+                .select('folio, cliente_nombre, fecha, vigencia_dias, total, moneda, status, probabilidad')
                 .like('folio', 'COT-%')
                 .order('created_at', { ascending: false })
               if (statusFilter) query = query.eq('status', statusFilter)
@@ -270,6 +307,7 @@ export default function CotizacionesPage() {
                 total: r.total,
                 moneda: r.moneda,
                 status: statusLabels[r.status] || r.status,
+                probabilidad: r.probabilidad != null ? `${r.probabilidad}%` : '',
               }))
             }}
           />
@@ -305,6 +343,20 @@ export default function CotizacionesPage() {
             ]}
           />
         </Space>
+
+        {pipelineStats && pipelineStats.count > 0 && (!statusFilter || statusFilter === 'propuesta') && (
+          <div style={{ marginBottom: 16, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <Tag color="blue" style={{ fontSize: 13, padding: '4px 10px' }}>
+              {pipelineStats.count} cotizaciones abiertas
+            </Tag>
+            <Tag color="blue" style={{ fontSize: 13, padding: '4px 10px' }}>
+              Valor total: {formatMoneyMXN(pipelineStats.totalPipeline)}
+            </Tag>
+            <Tag color="green" style={{ fontSize: 13, padding: '4px 10px' }}>
+              Pipeline ponderado: {formatMoneyMXN(pipelineStats.pipelinePonderado)}
+            </Tag>
+          </div>
+        )}
 
         {isLoading ? (
           <TableSkeleton rows={8} columns={7} />

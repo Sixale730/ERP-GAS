@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Alert, Collapse
+  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Alert, Collapse, Segmented
 } from 'antd'
 import { DeleteOutlined, SaveOutlined, InfoCircleOutlined, DollarOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, UserOutlined } from '@ant-design/icons'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
@@ -83,6 +83,7 @@ function NuevaCotizacionContent() {
   const [vendedorNombre, setVendedorNombre] = useState('')
   const [atencion, setAtencion] = useState('')
   const [condicionesPago, setCondicionesPago] = useState('CONTADO')
+  const [probabilidad, setProbabilidad] = useState<number | null>(null)
 
   // Product search
   const [productSearch, setProductSearch] = useState('')
@@ -517,6 +518,7 @@ function NuevaCotizacionContent() {
           atencion: atencion || null,
           vendedor_id: erpUser?.id || null,
           vendedor_nombre: vendedorNombre || null,
+          probabilidad,
           // Organizacion (requerido por RLS)
           organizacion_id: orgId,
         })
@@ -845,6 +847,34 @@ function NuevaCotizacionContent() {
                         { value: '60 DÍAS', label: '60 DÍAS' },
                       ]}
                     />
+                  </Form.Item>
+                </Col>
+                <Col xs={24}>
+                  <Form.Item label="Probabilidad de cierre">
+                    <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                      <Segmented
+                        value={probabilidad === 25 ? 'Baja' : probabilidad === 50 ? 'Media' : probabilidad === 75 ? 'Alta' : probabilidad === 90 ? 'Segura' : ''}
+                        onChange={(val) => {
+                          const map: Record<string, number> = { Baja: 25, Media: 50, Alta: 75, Segura: 90 }
+                          setProbabilidad(map[val as string] ?? null)
+                        }}
+                        options={[
+                          { value: 'Baja', label: 'Baja (25%)' },
+                          { value: 'Media', label: 'Media (50%)' },
+                          { value: 'Alta', label: 'Alta (75%)' },
+                          { value: 'Segura', label: 'Segura (90%)' },
+                        ]}
+                      />
+                      <InputNumber
+                        min={0}
+                        max={100}
+                        value={probabilidad}
+                        onChange={(val) => setProbabilidad(val)}
+                        suffix="%"
+                        placeholder="0-100"
+                        style={{ width: 120 }}
+                      />
+                    </Space>
                   </Form.Item>
                 </Col>
               </Row>

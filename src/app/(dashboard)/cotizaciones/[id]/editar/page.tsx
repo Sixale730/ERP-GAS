@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin, Alert, Collapse
+  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin, Alert, Collapse, Segmented
 } from 'antd'
 import { DeleteOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, UserOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
@@ -111,6 +111,7 @@ export default function EditarCotizacionPage() {
   // Atención y condiciones
   const [atencion, setAtencion] = useState('')
   const [condicionesPago, setCondicionesPago] = useState('CONTADO')
+  const [probabilidad, setProbabilidad] = useState<number | null>(null)
 
   // Items
   const [items, setItems] = useState<CotizacionItem[]>([])
@@ -201,6 +202,7 @@ export default function EditarCotizacionPage() {
       setMoneda((cotData.moneda as CodigoMoneda) || 'MXN')
       setAtencion(cotData.atencion || '')
       setCondicionesPago(cotData.condiciones_pago || 'CONTADO')
+      setProbabilidad(cotData.probabilidad ?? null)
       form.setFieldsValue({
         notas: cotData.notas,
         lista_precio_id: cotData.lista_precio_id,
@@ -545,6 +547,7 @@ export default function EditarCotizacionPage() {
           condiciones_pago: condicionesPago || 'CONTADO',
           atencion: atencion || null,
           oc_cliente: formValues.oc_cliente || null,
+          probabilidad,
         })
         .eq('id', cotizacionId)
 
@@ -945,6 +948,36 @@ export default function EditarCotizacionPage() {
                     <Input placeholder="Numero de orden de compra del cliente" />
                   </Form.Item>
                 </Col>
+                {cotizacion?.status === 'propuesta' && (
+                <Col xs={24}>
+                  <Form.Item label="Probabilidad de cierre">
+                    <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                      <Segmented
+                        value={probabilidad === 25 ? 'Baja' : probabilidad === 50 ? 'Media' : probabilidad === 75 ? 'Alta' : probabilidad === 90 ? 'Segura' : ''}
+                        onChange={(val) => {
+                          const map: Record<string, number> = { Baja: 25, Media: 50, Alta: 75, Segura: 90 }
+                          setProbabilidad(map[val as string] ?? null)
+                        }}
+                        options={[
+                          { value: 'Baja', label: 'Baja (25%)' },
+                          { value: 'Media', label: 'Media (50%)' },
+                          { value: 'Alta', label: 'Alta (75%)' },
+                          { value: 'Segura', label: 'Segura (90%)' },
+                        ]}
+                      />
+                      <InputNumber
+                        min={0}
+                        max={100}
+                        value={probabilidad}
+                        onChange={(val) => setProbabilidad(val)}
+                        suffix="%"
+                        placeholder="0-100"
+                        style={{ width: 120 }}
+                      />
+                    </Space>
+                  </Form.Item>
+                </Col>
+                )}
               </Row>
             </Form>
           </Card>

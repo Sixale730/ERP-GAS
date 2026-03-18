@@ -10,6 +10,8 @@ export interface DashboardStats {
   ventasMes: number
   ventasMesAnterior: number
   ordenesPorSurtir: number
+  totalPipeline: number
+  pipelinePonderado: number
 }
 
 export interface ProductoStockBajo {
@@ -71,6 +73,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
     ventasMesResult,
     ventasMesAnteriorResult,
     ordenesPorSurtirResult,
+    pipelineResult,
   ] = await Promise.all([
     // Total productos
     supabase
@@ -129,6 +132,13 @@ async function fetchDashboardData(): Promise<DashboardData> {
       .select('id, folio, fecha, total, cliente_nombre, sucursal_nombre', { count: 'exact' })
       .eq('status', 'orden_venta')
       .order('fecha', { ascending: true }),
+
+    // Pipeline comercial (cotizaciones abiertas)
+    supabase
+      .schema('erp')
+      .from('cotizaciones')
+      .select('total, probabilidad')
+      .in('status', ['propuesta']),
   ])
 
   // Procesar resultados
@@ -145,6 +155,12 @@ async function fetchDashboardData(): Promise<DashboardData> {
   const ventasMesAnterior = ventasMesAntData.reduce((sum, f) => sum + (Number(f.total) || 0), 0)
   const ordenesSurtir = ordenesPorSurtirResult.data || []
 
+  const pipelineRows = pipelineResult.data || []
+  const totalPipeline = pipelineRows.reduce((sum, r) => sum + (Number(r.total) || 0), 0)
+  const pipelinePonderado = pipelineRows
+    .filter(r => r.probabilidad != null)
+    .reduce((sum, r) => sum + (Number(r.total) || 0) * ((r.probabilidad || 0) / 100), 0)
+
   return {
     stats: {
       totalProductos,
@@ -155,6 +171,8 @@ async function fetchDashboardData(): Promise<DashboardData> {
       ventasMes,
       ventasMesAnterior,
       ordenesPorSurtir: ordenesPorSurtirResult.count || 0,
+      totalPipeline,
+      pipelinePonderado,
     },
     productosStockBajo: stockBajo as ProductoStockBajo[],
     facturasRecientes: facturas as FacturaReciente[],
