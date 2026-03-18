@@ -178,10 +178,22 @@ export default function EditarFacturaPage() {
     }
   }
 
+  const recalcularFechaVencimiento = (fecha: dayjs.Dayjs | null, diasCredito: number | null | undefined) => {
+    if (fecha && diasCredito) {
+      form.setFieldsValue({ fecha_vencimiento: fecha.add(diasCredito, 'day') })
+    }
+  }
+
   const handleClienteChange = (clienteId: string) => {
     const cliente = clientes.find(c => c.id === clienteId)
     setClienteSeleccionado(cliente || null)
     setDireccionEnvioId(null)
+    const fecha = form.getFieldValue('fecha')
+    recalcularFechaVencimiento(fecha, cliente?.dias_credito)
+  }
+
+  const handleFechaChange = (fecha: dayjs.Dayjs | null) => {
+    recalcularFechaVencimiento(fecha, clienteSeleccionado?.dias_credito)
   }
 
   const handleSearchProducto = (value: string) => {
@@ -538,7 +550,7 @@ export default function EditarFacturaPage() {
                 </Col>
                 <Col xs={24} md={8}>
                   <Form.Item name="fecha" label="Fecha" rules={[{ required: true }]}>
-                    <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                    <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" onChange={handleFechaChange} />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={8}>
