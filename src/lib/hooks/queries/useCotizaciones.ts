@@ -22,7 +22,7 @@ export interface CotizacionRow {
 export const cotizacionesKeys = {
   all: ['cotizaciones'] as const,
   lists: () => [...cotizacionesKeys.all, 'list'] as const,
-  list: (filters?: { status?: string | null; pagination?: PaginationParams }) => [...cotizacionesKeys.lists(), filters] as const,
+  list: (filters?: { status?: string | null; pagination?: PaginationParams; search?: string }) => [...cotizacionesKeys.lists(), filters] as const,
   details: () => [...cotizacionesKeys.all, 'detail'] as const,
   detail: (id: string) => [...cotizacionesKeys.details(), id] as const,
 }
@@ -30,7 +30,7 @@ export const cotizacionesKeys = {
 const COTIZACIONES_LIST_COLUMNS = 'id, folio, fecha, vigencia_dias, status, total, moneda, cliente_nombre, cliente_rfc, almacen_nombre, num_ovs_generadas, created_at, updated_at'
 
 // Fetch cotizaciones with optional status filter and pagination
-async function fetchCotizaciones(statusFilter?: string | null, pagination?: PaginationParams): Promise<PaginatedResult<CotizacionRow>> {
+async function fetchCotizaciones(statusFilter?: string | null, pagination?: PaginationParams, search?: string): Promise<PaginatedResult<CotizacionRow>> {
   const supabase = getSupabaseClient()
   let query = supabase
     .schema('erp')
@@ -41,6 +41,10 @@ async function fetchCotizaciones(statusFilter?: string | null, pagination?: Pagi
 
   if (statusFilter) {
     query = query.eq('status', statusFilter)
+  }
+
+  if (search) {
+    query = query.or(`folio.ilike.%${search}%,cliente_nombre.ilike.%${search}%`)
   }
 
   if (pagination) {
@@ -105,10 +109,10 @@ async function deleteCotizacion(cotizacion: CotizacionRow) {
 }
 
 // Hook: Lista de cotizaciones with server-side pagination
-export function useCotizaciones(statusFilter?: string | null, pagination?: PaginationParams) {
+export function useCotizaciones(statusFilter?: string | null, pagination?: PaginationParams, search?: string) {
   return useQuery({
-    queryKey: cotizacionesKeys.list({ status: statusFilter, pagination }),
-    queryFn: () => fetchCotizaciones(statusFilter, pagination),
+    queryKey: cotizacionesKeys.list({ status: statusFilter, pagination, search }),
+    queryFn: () => fetchCotizaciones(statusFilter, pagination, search),
   })
 }
 

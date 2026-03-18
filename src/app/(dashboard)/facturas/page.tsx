@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
 import { SearchOutlined, EyeOutlined, FilePdfOutlined, LoadingOutlined, GlobalOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -32,12 +32,21 @@ export default function FacturasPage() {
   const { organizacion } = useAuth()
   const esPOS = organizacion?.codigo === 'MASCOTIENDA'
   const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
-  // React Query hooks with server-side pagination
-  const { data: facturasResult, isLoading, isError, error } = useFacturas(statusFilter, pagination)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText)
+      setPagination(prev => ({ ...prev, page: 1 }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // React Query hooks with server-side pagination and search
+  const { data: facturasResult, isLoading, isError, error } = useFacturas(statusFilter, pagination, debouncedSearch)
   const facturas = facturasResult?.data ?? []
 
   const handleDescargarPDF = async (facturaId: string) => {
@@ -71,16 +80,6 @@ export default function FacturasPage() {
       setDownloadingPdf(null)
     }
   }
-
-  // Filtrar con useMemo
-  const filteredFacturas = useMemo(() =>
-    facturas.filter(
-      (f) =>
-        f.folio.toLowerCase().includes(searchText.toLowerCase()) ||
-        (f.cliente_nombre && f.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
-    ),
-    [facturas, searchText]
-  )
 
   const columns: ColumnsType<FacturaRow> = useMemo(() => [
     {
@@ -193,7 +192,7 @@ export default function FacturasPage() {
     let porCobrarMXN = 0
     let vencidas = 0
 
-    for (const f of filteredFacturas) {
+    for (const f of facturas) {
       if (f.status !== 'cancelada') {
         if (f.moneda === 'MXN') {
           porCobrarMXN += f.saldo
@@ -207,7 +206,7 @@ export default function FacturasPage() {
     }
 
     return { totalPorCobrarUSD: porCobrarUSD, totalPorCobrarMXN: porCobrarMXN, facturasVencidas: vencidas }
-  }, [filteredFacturas])
+  }, [facturas])
 
   if (isError) {
     message.error(`Error al cargar facturas: ${error?.message}`)
@@ -275,7 +274,7 @@ export default function FacturasPage() {
           <TableSkeleton rows={8} columns={8} />
         ) : (
           <Table
-            dataSource={filteredFacturas}
+            dataSource={facturas}
             columns={columns}
             rowKey="id"
             scroll={{ x: 900 }}

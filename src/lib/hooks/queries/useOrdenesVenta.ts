@@ -27,7 +27,7 @@ export type FiltroStatusOV = 'todas' | 'pendientes' | 'facturadas'
 export const ordenesVentaKeys = {
   all: ['ordenes-venta'] as const,
   lists: () => [...ordenesVentaKeys.all, 'list'] as const,
-  list: (filtro?: FiltroStatusOV, pagination?: PaginationParams) => [...ordenesVentaKeys.lists(), filtro, pagination] as const,
+  list: (filtro?: FiltroStatusOV, pagination?: PaginationParams, search?: string) => [...ordenesVentaKeys.lists(), filtro, pagination, search] as const,
   conteos: () => [...ordenesVentaKeys.all, 'conteos'] as const,
   details: () => [...ordenesVentaKeys.all, 'detail'] as const,
   detail: (id: string) => [...ordenesVentaKeys.details(), id] as const,
@@ -36,7 +36,7 @@ export const ordenesVentaKeys = {
 const OV_LIST_COLUMNS = 'id, folio, fecha, vigencia_dias, status, total, moneda, cliente_nombre, cliente_rfc, almacen_nombre, factura_id, oc_cliente, cotizacion_origen_id, cotizacion_origen_folio, created_at, updated_at'
 
 // Fetch ordenes de venta with optional status filter and pagination
-async function fetchOrdenesVenta(filtro?: FiltroStatusOV, pagination?: PaginationParams): Promise<PaginatedResult<OrdenVentaRow>> {
+async function fetchOrdenesVenta(filtro?: FiltroStatusOV, pagination?: PaginationParams, search?: string): Promise<PaginatedResult<OrdenVentaRow>> {
   const supabase = getSupabaseClient()
   let query = supabase
     .schema('erp')
@@ -51,6 +51,10 @@ async function fetchOrdenesVenta(filtro?: FiltroStatusOV, pagination?: Paginatio
     query = query.eq('status', 'facturada')
   } else {
     query = query.in('status', ['orden_venta', 'facturada'])
+  }
+
+  if (search) {
+    query = query.or(`folio.ilike.%${search}%,cliente_nombre.ilike.%${search}%`)
   }
 
   if (pagination) {
@@ -149,10 +153,10 @@ export function useConteosOV() {
 }
 
 // Hook: Lista de ordenes de venta with server-side pagination
-export function useOrdenesVenta(filtro?: FiltroStatusOV, pagination?: PaginationParams) {
+export function useOrdenesVenta(filtro?: FiltroStatusOV, pagination?: PaginationParams, search?: string) {
   return useQuery({
-    queryKey: ordenesVentaKeys.list(filtro, pagination),
-    queryFn: () => fetchOrdenesVenta(filtro, pagination),
+    queryKey: ordenesVentaKeys.list(filtro, pagination, search),
+    queryFn: () => fetchOrdenesVenta(filtro, pagination, search),
   })
 }
 

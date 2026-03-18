@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, ShoppingCartOutlined, LoadingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -31,12 +31,21 @@ const statusLabels: Record<string, string> = {
 
 export default function CotizacionesPage() {
   const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
-  // React Query hooks with server-side pagination
-  const { data: cotizacionesResult, isLoading, isError, error } = useCotizaciones(statusFilter, pagination)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText)
+      setPagination(prev => ({ ...prev, page: 1 }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // React Query hooks with server-side pagination and search
+  const { data: cotizacionesResult, isLoading, isError, error } = useCotizaciones(statusFilter, pagination, debouncedSearch)
   const cotizaciones = cotizacionesResult?.data ?? []
   const deleteCotizacion = useDeleteCotizacion()
 
@@ -93,15 +102,6 @@ export default function CotizacionesPage() {
       message.error('Error al eliminar la cotizacion')
     }
   }, [deleteCotizacion])
-
-  const filteredCotizaciones = useMemo(() =>
-    cotizaciones.filter(
-      (c) =>
-        c.folio.toLowerCase().includes(searchText.toLowerCase()) ||
-        (c.cliente_nombre && c.cliente_nombre.toLowerCase().includes(searchText.toLowerCase()))
-    ),
-    [cotizaciones, searchText]
-  )
 
   const columns: ColumnsType<CotizacionRow> = useMemo(() => [
     {
@@ -271,7 +271,7 @@ export default function CotizacionesPage() {
           <TableSkeleton rows={8} columns={7} />
         ) : (
           <Table
-            dataSource={filteredCotizaciones}
+            dataSource={cotizaciones}
             columns={columns}
             rowKey="id"
             scroll={{ x: 800 }}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Table, Button, Input, Space, Tag, Card, Typography, message, Segmented } from 'antd'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, FileTextOutlined, LinkOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -24,11 +24,20 @@ const statusLabels: Record<string, string> = {
 
 export default function OrdenesVentaPage() {
   const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filtro, setFiltro] = useState<FiltroStatusOV>('todas')
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
-  // React Query - datos cacheados automáticamente with server-side pagination
-  const { data: ordenesResult, isLoading, isError } = useOrdenesVenta(filtro, pagination)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText)
+      setPagination(prev => ({ ...prev, page: 1 }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // React Query - datos cacheados automáticamente with server-side pagination and search
+  const { data: ordenesResult, isLoading, isError } = useOrdenesVenta(filtro, pagination, debouncedSearch)
   const ordenes = ordenesResult?.data ?? []
   const { data: conteosGlobales } = useConteosOV()
 
@@ -74,17 +83,6 @@ export default function OrdenesVentaPage() {
       setDownloadingPdfId(null)
     }
   }
-
-  // Filtrar localmente por búsqueda
-  const filteredOrdenes = useMemo(() => {
-    if (!searchText) return ordenes
-    const search = searchText.toLowerCase()
-    return ordenes.filter(
-      (o) =>
-        o.folio.toLowerCase().includes(search) ||
-        (o.cliente_nombre && o.cliente_nombre.toLowerCase().includes(search))
-    )
-  }, [ordenes, searchText])
 
   // Conteos globales (independientes del filtro y paginación activos)
   const conteos = conteosGlobales ?? { todas: 0, pendientes: 0, facturadas: 0 }
@@ -239,7 +237,7 @@ export default function OrdenesVentaPage() {
             <TableSkeleton rows={5} columns={7} />
           ) : (
             <Table
-              dataSource={filteredOrdenes}
+              dataSource={ordenes}
               columns={columns}
               rowKey="id"
               scroll={{ x: 800 }}

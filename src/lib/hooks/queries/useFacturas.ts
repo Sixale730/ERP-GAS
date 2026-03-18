@@ -22,7 +22,7 @@ export interface FacturaRow {
 export const facturasKeys = {
   all: ['facturas'] as const,
   lists: () => [...facturasKeys.all, 'list'] as const,
-  list: (filters?: { status?: string | null; pagination?: PaginationParams }) => [...facturasKeys.lists(), filters] as const,
+  list: (filters?: { status?: string | null; pagination?: PaginationParams; search?: string }) => [...facturasKeys.lists(), filters] as const,
   details: () => [...facturasKeys.all, 'detail'] as const,
   detail: (id: string) => [...facturasKeys.details(), id] as const,
 }
@@ -30,7 +30,7 @@ export const facturasKeys = {
 const FACTURAS_LIST_COLUMNS = 'id, folio, fecha, fecha_vencimiento, status, total, saldo, moneda, direccion_envio_id, sucursal_nombre, dias_vencida, cliente_nombre, almacen_nombre'
 
 // Fetch facturas with optional status filter and pagination
-async function fetchFacturas(statusFilter?: string | null, pagination?: PaginationParams): Promise<PaginatedResult<FacturaRow>> {
+async function fetchFacturas(statusFilter?: string | null, pagination?: PaginationParams, search?: string): Promise<PaginatedResult<FacturaRow>> {
   const supabase = getSupabaseClient()
   let query = supabase
     .schema('erp')
@@ -40,6 +40,10 @@ async function fetchFacturas(statusFilter?: string | null, pagination?: Paginati
 
   if (statusFilter) {
     query = query.eq('status', statusFilter)
+  }
+
+  if (search) {
+    query = query.or(`folio.ilike.%${search}%,cliente_nombre.ilike.%${search}%`)
   }
 
   if (pagination) {
@@ -85,10 +89,10 @@ async function fetchFactura(id: string) {
 }
 
 // Hook: Lista de facturas with server-side pagination
-export function useFacturas(statusFilter?: string | null, pagination?: PaginationParams) {
+export function useFacturas(statusFilter?: string | null, pagination?: PaginationParams, search?: string) {
   return useQuery({
-    queryKey: facturasKeys.list({ status: statusFilter, pagination }),
-    queryFn: () => fetchFacturas(statusFilter, pagination),
+    queryKey: facturasKeys.list({ status: statusFilter, pagination, search }),
+    queryFn: () => fetchFacturas(statusFilter, pagination, search),
   })
 }
 
