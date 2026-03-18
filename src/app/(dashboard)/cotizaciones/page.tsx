@@ -6,6 +6,7 @@ import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircle
 import type { ColumnsType } from 'antd/es/table'
 import { useCotizaciones, useDeleteCotizacion, type CotizacionRow } from '@/lib/hooks/queries/useCotizaciones'
 import { TableSkeleton } from '@/components/common/Skeletons'
+import BotonExportar from '@/components/common/BotonExportar'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatDate, formatDateTime } from '@/lib/utils/format'
 import { generarPDFCotizacion, prepararDatosCotizacionPDF } from '@/lib/utils/pdf'
@@ -235,13 +236,50 @@ export default function CotizacionesPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Cotizaciones</Title>
-        <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            href="/cotizaciones/nueva"
-          >
-            Nueva Cotizacion
-          </Button>
+        <Space>
+          <BotonExportar
+            nombre="Cotizaciones"
+            columnas={[
+              { titulo: 'Folio', key: 'folio' },
+              { titulo: 'Cliente', key: 'cliente' },
+              { titulo: 'Fecha', key: 'fecha' },
+              { titulo: 'Vigencia', key: 'vigencia' },
+              { titulo: 'Total', key: 'total' },
+              { titulo: 'Moneda', key: 'moneda' },
+              { titulo: 'Status', key: 'status' },
+            ]}
+            datos={[]}
+            fetchTodos={async () => {
+              const supabase = getSupabaseClient()
+              let query = supabase
+                .schema('erp')
+                .from('v_cotizaciones')
+                .select('folio, cliente_nombre, fecha, vigencia_dias, total, moneda, status')
+                .like('folio', 'COT-%')
+                .order('created_at', { ascending: false })
+              if (statusFilter) query = query.eq('status', statusFilter)
+              if (debouncedSearch) query = query.or(`folio.ilike.%${debouncedSearch}%,cliente_nombre.ilike.%${debouncedSearch}%`)
+              const { data, error: err } = await query
+              if (err) throw err
+              return (data || []).map((r: any) => ({
+                folio: r.folio,
+                cliente: r.cliente_nombre,
+                fecha: formatDate(r.fecha),
+                vigencia: r.vigencia_dias,
+                total: r.total,
+                moneda: r.moneda,
+                status: statusLabels[r.status] || r.status,
+              }))
+            }}
+          />
+          <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              href="/cotizaciones/nueva"
+            >
+              Nueva Cotizacion
+            </Button>
+        </Space>
       </div>
 
       <Card>

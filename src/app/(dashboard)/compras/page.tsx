@@ -34,6 +34,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useOrdenesCompra, useProveedoresCompra, useAlmacenesCompra, ordenesCompraKeys } from '@/lib/hooks/queries/useOrdenesCompra'
+import BotonExportar from '@/components/common/BotonExportar'
 import type { OrdenCompraView } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -586,6 +587,37 @@ export default function ComprasPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Ordenes de Compra</Title>
         <Space wrap>
+          <BotonExportar
+            nombre="Ordenes_de_Compra"
+            columnas={[
+              { titulo: 'Folio', key: 'folio' },
+              { titulo: 'Proveedor', key: 'proveedor' },
+              { titulo: 'Fecha', key: 'fecha' },
+              { titulo: 'Total', key: 'total' },
+              { titulo: 'Status', key: 'status' },
+            ]}
+            datos={[]}
+            fetchTodos={async () => {
+              const supabase = getSupabaseClient()
+              let query = supabase
+                .schema('erp')
+                .from('v_ordenes_compra')
+                .select('folio, proveedor_nombre, fecha, total, status')
+                .order('created_at', { ascending: false })
+              if (statusFilter) query = query.eq('status', statusFilter)
+              if (proveedorFilter) query = query.eq('proveedor_id', proveedorFilter)
+              if (searchText) query = query.or(`folio.ilike.%${searchText}%,proveedor_nombre.ilike.%${searchText}%`)
+              const { data, error: err } = await query
+              if (err) throw err
+              return (data || []).map((r: any) => ({
+                folio: r.folio,
+                proveedor: r.proveedor_nombre,
+                fecha: formatDate(r.fecha),
+                total: r.total,
+                status: STATUS_CONFIG[r.status]?.label || r.status,
+              }))
+            }}
+          />
           <Button
             icon={<ThunderboltOutlined />}
             onClick={handleOpenModal}

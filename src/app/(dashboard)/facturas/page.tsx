@@ -6,6 +6,7 @@ import { SearchOutlined, EyeOutlined, FilePdfOutlined, LoadingOutlined, GlobalOu
 import type { ColumnsType } from 'antd/es/table'
 import { useFacturas, type FacturaRow } from '@/lib/hooks/queries/useFacturas'
 import { TableSkeleton } from '@/components/common/Skeletons'
+import BotonExportar from '@/components/common/BotonExportar'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyCurrency, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura, prepararDatosFacturaPDF } from '@/lib/utils/pdf'
@@ -242,6 +243,48 @@ export default function FacturasPage() {
               {facturasVencidas} vencidas
             </Tag>
           )}
+          <BotonExportar
+            nombre="Facturas"
+            columnas={[
+              { titulo: 'Folio', key: 'folio' },
+              { titulo: 'Cliente', key: 'cliente' },
+              { titulo: 'Fecha', key: 'fecha' },
+              { titulo: 'Fecha Vencimiento', key: 'fecha_vencimiento' },
+              { titulo: 'Total', key: 'total' },
+              { titulo: 'Saldo', key: 'saldo' },
+              { titulo: 'Días Vencidos', key: 'dias_vencidos' },
+              { titulo: 'Status', key: 'status' },
+            ]}
+            datos={[]}
+            fetchTodos={async () => {
+              const supabase = getSupabaseClient()
+              let query = supabase
+                .schema('erp')
+                .from('v_facturas')
+                .select('folio, cliente_nombre, fecha, fecha_vencimiento, total, saldo, moneda, status')
+                .order('created_at', { ascending: false })
+              if (statusFilter) query = query.eq('status', statusFilter)
+              if (debouncedSearch) query = query.or(`folio.ilike.%${debouncedSearch}%,cliente_nombre.ilike.%${debouncedSearch}%`)
+              const { data, error: err } = await query
+              if (err) throw err
+              return (data || []).map((r: any) => {
+                let diasVencidos: number | string = ''
+                if (r.fecha_vencimiento && r.status !== 'pagada' && r.status !== 'cancelada') {
+                  diasVencidos = dayjs().diff(dayjs(r.fecha_vencimiento), 'day')
+                }
+                return {
+                  folio: r.folio,
+                  cliente: r.cliente_nombre,
+                  fecha: formatDate(r.fecha),
+                  fecha_vencimiento: r.fecha_vencimiento ? formatDate(r.fecha_vencimiento) : '',
+                  total: r.total,
+                  saldo: r.saldo,
+                  dias_vencidos: diasVencidos,
+                  status: statusLabels[r.status] || r.status,
+                }
+              })
+            }}
+          />
         </Space>
       </div>
 

@@ -8,6 +8,8 @@ import { formatMoneySimple, formatDate, formatDateTime } from '@/lib/utils/forma
 import { generarPDFCotizacion, prepararDatosCotizacionPDF } from '@/lib/utils/pdf'
 import { useOrdenesVenta, useConteosOV, type OrdenVentaRow, type FiltroStatusOV } from '@/lib/hooks/queries/useOrdenesVenta'
 import { TableSkeleton } from '@/components/common/Skeletons'
+import BotonExportar from '@/components/common/BotonExportar'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
@@ -202,13 +204,50 @@ export default function OrdenesVentaPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Ordenes de Venta</Title>
-        <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            href="/ordenes-venta/nueva"
-          >
-            Nueva Orden de Venta
-          </Button>
+        <Space>
+          <BotonExportar
+            nombre="Ordenes_de_Venta"
+            columnas={[
+              { titulo: 'Folio', key: 'folio' },
+              { titulo: 'Cliente', key: 'cliente' },
+              { titulo: 'Fecha', key: 'fecha' },
+              { titulo: 'Total', key: 'total' },
+              { titulo: 'Moneda', key: 'moneda' },
+              { titulo: 'Status', key: 'status' },
+            ]}
+            datos={[]}
+            fetchTodos={async () => {
+              const supabase = getSupabaseClient()
+              let query = supabase
+                .schema('erp')
+                .from('v_cotizaciones')
+                .select('folio, cliente_nombre, fecha, total, moneda, status')
+                .like('folio', 'OV-%')
+                .order('created_at', { ascending: false })
+              if (filtro === 'pendientes') query = query.eq('status', 'orden_venta')
+              else if (filtro === 'facturadas') query = query.eq('status', 'facturada')
+              else query = query.in('status', ['orden_venta', 'facturada'])
+              if (debouncedSearch) query = query.or(`folio.ilike.%${debouncedSearch}%,cliente_nombre.ilike.%${debouncedSearch}%`)
+              const { data, error: err } = await query
+              if (err) throw err
+              return (data || []).map((r: any) => ({
+                folio: r.folio,
+                cliente: r.cliente_nombre,
+                fecha: formatDate(r.fecha),
+                total: r.total,
+                moneda: r.moneda,
+                status: statusLabels[r.status] || r.status,
+              }))
+            }}
+          />
+          <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              href="/ordenes-venta/nueva"
+            >
+              Nueva Orden de Venta
+            </Button>
+        </Space>
       </div>
 
       <Card>
