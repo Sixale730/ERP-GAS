@@ -245,15 +245,17 @@ export default function FacturasPage() {
           )}
           <BotonExportar
             nombre="Facturas"
+            tituloReporte="LISTADO DE FACTURAS"
             columnas={[
-              { titulo: 'Folio', key: 'folio' },
-              { titulo: 'Cliente', key: 'cliente' },
-              { titulo: 'Fecha', key: 'fecha' },
-              { titulo: 'Fecha Vencimiento', key: 'fecha_vencimiento' },
-              { titulo: 'Total', key: 'total' },
-              { titulo: 'Saldo', key: 'saldo' },
-              { titulo: 'Días Vencidos', key: 'dias_vencidos' },
-              { titulo: 'Status', key: 'status' },
+              { titulo: 'Folio', dataIndex: 'folio' },
+              { titulo: 'Cliente', dataIndex: 'cliente' },
+              { titulo: 'Sucursal', dataIndex: 'sucursal' },
+              { titulo: 'Fecha', dataIndex: 'fecha' },
+              { titulo: 'Fecha Vencimiento', dataIndex: 'fecha_vencimiento' },
+              { titulo: 'Total', dataIndex: 'total', formato: 'moneda' },
+              { titulo: 'Saldo', dataIndex: 'saldo', formato: 'moneda' },
+              { titulo: 'Días Vencidos', dataIndex: 'dias_vencidos', formato: 'numero' },
+              { titulo: 'Status', dataIndex: 'status' },
             ]}
             datos={[]}
             fetchTodos={async () => {
@@ -261,7 +263,7 @@ export default function FacturasPage() {
               let query = supabase
                 .schema('erp')
                 .from('v_facturas')
-                .select('folio, cliente_nombre, fecha, fecha_vencimiento, total, saldo, moneda, status')
+                .select('folio, cliente_nombre, sucursal_nombre, fecha, fecha_vencimiento, total, saldo, moneda, status')
                 .order('created_at', { ascending: false })
               if (statusFilter) query = query.eq('status', statusFilter)
               if (debouncedSearch) query = query.or(`folio.ilike.%${debouncedSearch}%,cliente_nombre.ilike.%${debouncedSearch}%`)
@@ -275,6 +277,7 @@ export default function FacturasPage() {
                 return {
                   folio: r.folio,
                   cliente: r.cliente_nombre,
+                  sucursal: r.sucursal_nombre || '',
                   fecha: formatDate(r.fecha),
                   fecha_vencimiento: r.fecha_vencimiento ? formatDate(r.fecha_vencimiento) : '',
                   total: r.total,

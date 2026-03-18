@@ -589,12 +589,13 @@ export default function ComprasPage() {
         <Space wrap>
           <BotonExportar
             nombre="Ordenes_de_Compra"
+            tituloReporte="LISTADO DE ÓRDENES DE COMPRA"
             columnas={[
-              { titulo: 'Folio', key: 'folio' },
-              { titulo: 'Proveedor', key: 'proveedor' },
-              { titulo: 'Fecha', key: 'fecha' },
-              { titulo: 'Total', key: 'total' },
-              { titulo: 'Status', key: 'status' },
+              { titulo: 'Folio', dataIndex: 'folio' },
+              { titulo: 'Proveedor', dataIndex: 'proveedor' },
+              { titulo: 'Fecha', dataIndex: 'fecha' },
+              { titulo: 'Total', dataIndex: 'total', formato: 'moneda' },
+              { titulo: 'Status', dataIndex: 'status' },
             ]}
             datos={[]}
             fetchTodos={async () => {

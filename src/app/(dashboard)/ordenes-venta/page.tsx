@@ -207,13 +207,14 @@ export default function OrdenesVentaPage() {
         <Space>
           <BotonExportar
             nombre="Ordenes_de_Venta"
+            tituloReporte="LISTADO DE ÓRDENES DE VENTA"
             columnas={[
-              { titulo: 'Folio', key: 'folio' },
-              { titulo: 'Cliente', key: 'cliente' },
-              { titulo: 'Fecha', key: 'fecha' },
-              { titulo: 'Total', key: 'total' },
-              { titulo: 'Moneda', key: 'moneda' },
-              { titulo: 'Status', key: 'status' },
+              { titulo: 'Folio', dataIndex: 'folio' },
+              { titulo: 'Cliente', dataIndex: 'cliente' },
+              { titulo: 'Fecha', dataIndex: 'fecha' },
+              { titulo: 'Total', dataIndex: 'total', formato: 'moneda' },
+              { titulo: 'Moneda', dataIndex: 'moneda' },
+              { titulo: 'Status', dataIndex: 'status' },
             ]}
             datos={[]}
             fetchTodos={async () => {

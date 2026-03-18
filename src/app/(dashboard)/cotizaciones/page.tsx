@@ -239,14 +239,15 @@ export default function CotizacionesPage() {
         <Space>
           <BotonExportar
             nombre="Cotizaciones"
+            tituloReporte="LISTADO DE COTIZACIONES"
             columnas={[
-              { titulo: 'Folio', key: 'folio' },
-              { titulo: 'Cliente', key: 'cliente' },
-              { titulo: 'Fecha', key: 'fecha' },
-              { titulo: 'Vigencia', key: 'vigencia' },
-              { titulo: 'Total', key: 'total' },
-              { titulo: 'Moneda', key: 'moneda' },
-              { titulo: 'Status', key: 'status' },
+              { titulo: 'Folio', dataIndex: 'folio' },
+              { titulo: 'Cliente', dataIndex: 'cliente' },
+              { titulo: 'Fecha', dataIndex: 'fecha' },
+              { titulo: 'Vigencia', dataIndex: 'vigencia', formato: 'numero' },
+              { titulo: 'Total', dataIndex: 'total', formato: 'moneda' },
+              { titulo: 'Moneda', dataIndex: 'moneda' },
+              { titulo: 'Status', dataIndex: 'status' },
             ]}
             datos={[]}
             fetchTodos={async () => {
