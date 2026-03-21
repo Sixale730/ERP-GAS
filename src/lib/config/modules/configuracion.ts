@@ -16,6 +16,7 @@ export const configuracionManifest = {
       children: [
         { key: '/configuracion', label: 'General', icono: 'SettingOutlined' },
         { key: '/configuracion/usuarios', label: 'Usuarios', icono: 'UserSwitchOutlined' },
+        { key: '/admin/leads', label: 'Leads Demo', icono: 'TeamOutlined', roles: ['super_admin'] },
         { key: '/configuracion/admin', label: 'Administracion', icono: 'WarningOutlined', roles: ['super_admin'] },
       ],
     },

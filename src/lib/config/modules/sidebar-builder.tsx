@@ -112,7 +112,7 @@ export function buildMenuItems(): MenuItemWithRoles[] {
 
   // Dashboard is always first and visible to all
   items.push({
-    key: '/',
+    key: '/dashboard',
     icon: getIcon('DashboardOutlined'),
     label: 'Dashboard',
   })

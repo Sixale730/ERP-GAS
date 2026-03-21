@@ -184,7 +184,7 @@ export default function ModulosPage() {
               label="Dashboard"
               descripcion="Estadisticas y resumen general"
               icono="DashboardOutlined"
-              href="/"
+              href="/dashboard"
             />
           </Col>
 

@@ -83,16 +83,21 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Rutas publicas (no requieren auth)
-  const publicRoutes = ['/login', '/auth/callback', '/invitacion', '/registro-pendiente', '/setup', '/solicitar-acceso', '/solicitud-pendiente']
+  const publicRoutes = ['/login', '/auth/callback', '/invitacion', '/registro-pendiente', '/setup', '/solicitar-acceso', '/solicitud-pendiente', '/api/leads']
   const isPublicRoute = publicRoutes.some(route =>
     request.nextUrl.pathname.startsWith(route)
-  )
+  ) || request.nextUrl.pathname === '/'
 
   // Si no hay usuario y la ruta no es publica, redirigir a login
   if (!user && !isPublicRoute) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', request.nextUrl.pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Usuarios autenticados en / → redirigir al dashboard
+  if (user && request.nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   // Si hay usuario y esta en login, redirigir segun rol
@@ -103,7 +108,7 @@ export async function middleware(request: NextRequest) {
     if (loginRole === 'super_admin') {
       return NextResponse.redirect(new URL('/modulos', request.url))
     }
-    return NextResponse.redirect(new URL('/', request.url))
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   // Para rutas protegidas, verificar que el usuario tiene rol en el ERP
@@ -136,7 +141,12 @@ export async function middleware(request: NextRequest) {
 
     // Proteger rutas de admin
     if (request.nextUrl.pathname.startsWith('/configuracion/admin') && role !== 'super_admin') {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
+    // Proteger panel de leads — solo super_admin
+    if (request.nextUrl.pathname.startsWith('/admin/leads') && role !== 'super_admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
 

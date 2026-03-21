@@ -210,7 +210,7 @@ export default function ReporteServiciosPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/')}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/dashboard')}>
             Volver
           </Button>
           <Title level={2} style={{ margin: 0 }}>

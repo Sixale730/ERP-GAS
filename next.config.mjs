@@ -73,6 +73,17 @@ const nextConfig = {
     ]
   },
 
+  // Redirects
+  async redirects() {
+    return [
+      {
+        source: '/app',
+        destination: '/login',
+        permanent: false,
+      },
+    ]
+  },
+
   // Optimizaciones de imagen
   images: {
     formats: ['image/avif', 'image/webp'],

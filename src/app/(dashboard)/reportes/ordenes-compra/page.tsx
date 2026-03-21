@@ -233,7 +233,7 @@ export default function ReporteOrdenesCompraPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Space>
-          <Button icon={<ArrowLeftOutlined />} href="/">
+          <Button icon={<ArrowLeftOutlined />} href="/dashboard">
               Volver
             </Button>
           <Title level={2} style={{ margin: 0 }}>

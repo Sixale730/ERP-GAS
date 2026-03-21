@@ -2,7 +2,7 @@
   "name": "CUANTY ERP",
   "short_name": "ERP",
   "description": "Sistema ERP de Inventario, Ventas y Finanzas",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1890ff",
