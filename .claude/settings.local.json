@@ -35,7 +35,8 @@
       "mcp__supabase__list_extensions",
       "Bash(npx next:*)",
       "Bash(wc:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(taskkill //F //IM node.exe)"
     ]
   },
   "enableAllProjectMcpServers": true,
