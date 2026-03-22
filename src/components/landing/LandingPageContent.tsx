@@ -19,6 +19,7 @@ import {
 import DashboardMockup from '@/components/landing/DashboardMockup'
 import { generarURLPDFDemo } from '@/components/landing/cotizacion-demo'
 import InventarioDemo from '@/components/landing/InventarioDemo'
+import POSDemo from '@/components/landing/POSDemo'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -58,6 +59,7 @@ export default function LandingPage() {
   const [pdfModal, setPdfModal] = useState(false)
   const [pdfUrl, setPdfUrl] = useState('')
   const [invModal, setInvModal] = useState(false)
+  const [posModal, setPosModal] = useState(false)
 
   // Limpiar blob URL al desmontar
   useEffect(() => {
@@ -210,10 +212,10 @@ export default function LandingPage() {
                   borderRadius: 12,
                   border: '1px solid #f0f0f0',
                   background: '#fff',
-                  cursor: i <= 1 ? 'pointer' : undefined,
+                  cursor: i <= 2 ? 'pointer' : undefined,
                 }}
                 styles={{ body: { padding: 24 } }}
-                onClick={i === 0 ? handleOpenPdfDemo : i === 1 ? () => setInvModal(true) : undefined}
+                onClick={i === 0 ? handleOpenPdfDemo : i === 1 ? () => setInvModal(true) : i === 2 ? () => setPosModal(true) : undefined}
               >
                 <div style={{ marginBottom: 16 }}>{f.icon}</div>
                 <Title level={4} style={{ marginBottom: 8 }}>{f.title}</Title>
@@ -224,6 +226,9 @@ export default function LandingPage() {
                   <span style={{ fontSize: 12, color: '#1677ff', marginTop: 8, display: 'inline-block' }}>Ver ejemplo →</span>
                 )}
                 {i === 1 && (
+                  <span style={{ fontSize: 12, color: '#1677ff', marginTop: 8, display: 'inline-block' }}>Ver demo interactiva →</span>
+                )}
+                {i === 2 && (
                   <span style={{ fontSize: 12, color: '#1677ff', marginTop: 8, display: 'inline-block' }}>Ver demo interactiva →</span>
                 )}
               </Card>
@@ -396,6 +401,20 @@ export default function LandingPage() {
         destroyOnClose
       >
         <InventarioDemo />
+      </Modal>
+
+      {/* ─── Modal POS Demo ─────────────────────────────────────── */}
+      <Modal
+        open={posModal}
+        onCancel={() => setPosModal(false)}
+        footer={null}
+        width="90vw"
+        style={{ top: 10 }}
+        styles={{ body: { padding: 0 } }}
+        title="Demo interactiva — Punto de Venta"
+        destroyOnClose
+      >
+        <POSDemo />
       </Modal>
     </div>
   )
