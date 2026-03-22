@@ -110,7 +110,7 @@ export default function DashboardMockup() {
         style={{
           background: '#f5f5f5',
           borderRadius: 12,
-          padding: 20,
+          padding: 12,
           boxShadow: '0 24px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.10)',
           maxWidth: 900,
           margin: '0 auto',
@@ -145,7 +145,7 @@ export default function DashboardMockup() {
                 title={<span style={{ fontSize: 11 }}>Ventas del Mes</span>}
                 value={ventas}
                 prefix={<DollarOutlined />}
-                valueStyle={{ color: '#3f8600', fontSize: 18 }}
+                valueStyle={{ color: '#3f8600', fontSize: 16 }}
                 formatter={(v) => `$${Number(v).toLocaleString('es-MX')}`}
               />
               <Tag color="green" style={{ marginTop: 4, fontSize: 10 }}>
@@ -159,7 +159,7 @@ export default function DashboardMockup() {
                 title={<span style={{ fontSize: 11 }}>Cotizaciones Activas</span>}
                 value={cotizacionesCount}
                 prefix={<FileTextOutlined />}
-                valueStyle={{ color: '#faad14', fontSize: 18 }}
+                valueStyle={{ color: '#faad14', fontSize: 16 }}
               />
             </Card>
           </Col>
@@ -169,7 +169,7 @@ export default function DashboardMockup() {
                 title={<span style={{ fontSize: 11 }}>Productos en Stock</span>}
                 value={productos}
                 prefix={<ShoppingOutlined />}
-                valueStyle={{ color: '#1890ff', fontSize: 18 }}
+                valueStyle={{ color: '#1890ff', fontSize: 16 }}
               />
             </Card>
           </Col>
@@ -179,7 +179,7 @@ export default function DashboardMockup() {
                 title={<span style={{ fontSize: 11 }}>Por Cobrar</span>}
                 value={porCobrar}
                 prefix={<DollarOutlined />}
-                valueStyle={{ color: '#cf1322', fontSize: 18 }}
+                valueStyle={{ color: '#cf1322', fontSize: 16 }}
                 formatter={(v) => `$${Number(v).toLocaleString('es-MX')}`}
               />
             </Card>
@@ -198,6 +198,7 @@ export default function DashboardMockup() {
             pagination={false}
             size="small"
             style={{ fontSize: 12 }}
+            scroll={{ x: 500 }}
             onRow={onRow}
           />
         </Card>

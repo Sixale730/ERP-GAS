@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Button, Card, Col, Divider, Form, Input, Modal, Row, Select, Tag, Typography, message, Space } from 'antd'
+import { Button, Card, Col, Divider, Form, Input, Modal, Row, Select, Tag, Typography, message } from 'antd'
 import {
   FileTextOutlined,
   InboxOutlined,
@@ -185,21 +185,21 @@ export default function LandingPage() {
           <Tag color="blue" style={{ marginBottom: 16, fontSize: 13, padding: '4px 12px' }}>
             <RocketOutlined /> ERP en la nube para PyMEs mexicanas
           </Tag>
-          <Title level={1} style={{ fontSize: 42, marginBottom: 16, lineHeight: 1.2 }}>
+          <Title level={1} style={{ fontSize: 'clamp(26px, 6vw, 42px)', marginBottom: 16, lineHeight: 1.2 }}>
             Tu negocio bajo control,{' '}
             <span style={{ color: '#1890ff' }}>simple y poderoso</span>
           </Title>
-          <Paragraph style={{ fontSize: 18, color: '#595959', marginBottom: 32 }}>
+          <Paragraph style={{ fontSize: 'clamp(14px, 3.5vw, 18px)', color: '#595959', marginBottom: 32 }}>
             Inventario, cotizaciones, facturación CFDI 4.0 y punto de venta en una sola plataforma.
             Sin instalaciones, sin complicaciones.
           </Paragraph>
-          <Space size="middle">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
             <Button
               type="primary"
               size="large"
               icon={<SendOutlined />}
               onClick={() => scrollTo('demo')}
-              style={{ height: 48, paddingInline: 32, fontSize: 16 }}
+              style={{ height: 48, paddingInline: 32, fontSize: 16, flex: '0 0 auto' }}
             >
               Solicitar demo
             </Button>
@@ -207,11 +207,11 @@ export default function LandingPage() {
               size="large"
               icon={<PlayCircleOutlined />}
               onClick={() => scrollTo('features')}
-              style={{ height: 48, paddingInline: 32, fontSize: 16 }}
+              style={{ height: 48, paddingInline: 32, fontSize: 16, flex: '0 0 auto' }}
             >
               Ver cómo funciona
             </Button>
-          </Space>
+          </div>
         </div>
 
         {/* Dashboard Mockup */}
@@ -377,9 +377,9 @@ export default function LandingPage() {
                       key={opt}
                       onClick={() => toggleChip(controlActual, setControlActual, opt)}
                       style={{
-                        padding: '4px 14px',
+                        padding: '8px 14px',
                         borderRadius: 20,
-                        fontSize: 12,
+                        fontSize: 13,
                         cursor: 'pointer',
                         border: controlActual.has(opt) ? '1px solid #1677ff' : '1px solid #d9d9d9',
                         background: controlActual.has(opt) ? '#e6f4ff' : '#fff',
@@ -402,9 +402,9 @@ export default function LandingPage() {
                       key={opt}
                       onClick={() => toggleChip(comoVende, setComoVende, opt)}
                       style={{
-                        padding: '4px 14px',
+                        padding: '8px 14px',
                         borderRadius: 20,
-                        fontSize: 12,
+                        fontSize: 13,
                         cursor: 'pointer',
                         border: comoVende.has(opt) ? '1px solid #1677ff' : '1px solid #d9d9d9',
                         background: comoVende.has(opt) ? '#e6f4ff' : '#fff',
@@ -427,9 +427,9 @@ export default function LandingPage() {
                       key={opt}
                       onClick={() => toggleChip(tipoCliente, setTipoCliente, opt)}
                       style={{
-                        padding: '4px 14px',
+                        padding: '8px 14px',
                         borderRadius: 20,
-                        fontSize: 12,
+                        fontSize: 13,
                         cursor: 'pointer',
                         border: tipoCliente.has(opt) ? '1px solid #1677ff' : '1px solid #d9d9d9',
                         background: tipoCliente.has(opt) ? '#e6f4ff' : '#fff',
@@ -452,9 +452,9 @@ export default function LandingPage() {
                       key={opt}
                       onClick={() => toggleChip(numUsuarios, setNumUsuarios, opt)}
                       style={{
-                        padding: '4px 14px',
+                        padding: '8px 14px',
                         borderRadius: 20,
-                        fontSize: 12,
+                        fontSize: 13,
                         cursor: 'pointer',
                         border: numUsuarios.has(opt) ? '1px solid #1677ff' : '1px solid #d9d9d9',
                         background: numUsuarios.has(opt) ? '#e6f4ff' : '#fff',
@@ -477,9 +477,9 @@ export default function LandingPage() {
                       key={opt}
                       onClick={() => toggleChip(numSucursales, setNumSucursales, opt)}
                       style={{
-                        padding: '4px 14px',
+                        padding: '8px 14px',
                         borderRadius: 20,
-                        fontSize: 12,
+                        fontSize: 13,
                         cursor: 'pointer',
                         border: numSucursales.has(opt) ? '1px solid #1677ff' : '1px solid #d9d9d9',
                         background: numSucursales.has(opt) ? '#e6f4ff' : '#fff',
@@ -548,7 +548,7 @@ export default function LandingPage() {
         onCancel={handleClosePdfDemo}
         footer={null}
         width="80vw"
-        style={{ top: 20 }}
+        style={{ top: 10, maxWidth: '98vw' }}
         styles={{ body: { padding: 0, height: '85vh' } }}
         title="Vista previa — Cotización"
         destroyOnClose
@@ -568,7 +568,7 @@ export default function LandingPage() {
         onCancel={() => setInvModal(false)}
         footer={null}
         width="85vw"
-        style={{ top: 20 }}
+        style={{ top: 10, maxWidth: '98vw' }}
         styles={{ body: { padding: 0 } }}
         title="Demo interactiva — Inventario"
         destroyOnClose
@@ -582,7 +582,7 @@ export default function LandingPage() {
         onCancel={() => setPosModal(false)}
         footer={null}
         width="90vw"
-        style={{ top: 10 }}
+        style={{ top: 10, maxWidth: '98vw' }}
         styles={{ body: { padding: 0 } }}
         title="Demo interactiva — Punto de Venta"
         destroyOnClose
@@ -596,7 +596,7 @@ export default function LandingPage() {
         onCancel={() => setFactModal(false)}
         footer={null}
         width="92vw"
-        style={{ top: 10 }}
+        style={{ top: 10, maxWidth: '98vw' }}
         styles={{ body: { padding: 16, maxHeight: '85vh', overflowY: 'auto' } }}
         title="Demo interactiva — Facturación CFDI 4.0"
         destroyOnClose

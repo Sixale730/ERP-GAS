@@ -215,6 +215,7 @@ export default function FacturaDemo() {
               columns={productosColumns}
               pagination={false}
               size="small"
+              scroll={{ x: 600 }}
               summary={() => (
                 <Table.Summary>
                   <Table.Summary.Row>
@@ -382,7 +383,8 @@ export default function FacturaDemo() {
         onCancel={() => setPagoModal(false)}
         footer={null}
         title="Registrar Pago"
-        width={400}
+        width="95vw"
+        style={{ maxWidth: 400 }}
         destroyOnClose
       >
         <div style={{ marginBottom: 16 }}>

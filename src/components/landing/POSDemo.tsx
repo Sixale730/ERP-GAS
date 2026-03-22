@@ -196,7 +196,7 @@ export default function POSDemo() {
   if (paso === 'turno') {
     return (
       <div style={{ background: '#f5f5f5', minHeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Card style={{ width: 400, borderRadius: 12 }}>
+        <Card style={{ maxWidth: 400, width: '100%', borderRadius: 12 }}>
           <Title level={4} style={{ marginBottom: 20 }}>
             <ClockCircleOutlined style={{ marginRight: 8 }} />
             Abrir Turno — {cajaSeleccionada}
@@ -292,9 +292,9 @@ export default function POSDemo() {
         <Button size="small" danger onClick={cerrarTurno} icon={<PoweroffOutlined />}>Cerrar Turno</Button>
       </div>
 
-      <div style={{ display: 'flex', minHeight: 460 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', minHeight: 460 }}>
         {/* ─── Panel izquierdo: Productos ──────────────────────────── */}
-        <div style={{ flex: 1, padding: 12, overflowY: 'auto', borderRight: '1px solid #f0f0f0' }}>
+        <div style={{ flex: '1 1 300px', minWidth: 0, padding: 12, overflowY: 'auto', borderRight: '1px solid #f0f0f0' }}>
           <Input
             placeholder="Buscar por SKU o nombre..."
             prefix={<SearchOutlined style={{ color: '#bbb' }} />}
@@ -332,7 +332,7 @@ export default function POSDemo() {
         </div>
 
         {/* ─── Panel derecho: Carrito ───────────────────────────────── */}
-        <div style={{ width: 340, display: 'flex', flexDirection: 'column', background: '#fff' }}>
+        <div style={{ flex: '0 0 340px', minWidth: 280, maxWidth: '100%', display: 'flex', flexDirection: 'column', background: '#fff' }}>
           <div style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0', fontWeight: 600, fontSize: 13 }}>
             Carrito ({carrito.reduce((s, i) => s + i.cantidad, 0)} items)
           </div>
@@ -430,7 +430,8 @@ export default function POSDemo() {
         onCancel={() => setCobroModal(false)}
         footer={null}
         title="Cobrar venta"
-        width={420}
+        width="95vw"
+        style={{ maxWidth: 420 }}
         destroyOnClose
       >
         <div style={{ marginBottom: 16 }}>

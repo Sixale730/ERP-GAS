@@ -121,7 +121,7 @@ export default function InventarioDemo() {
             size="small"
             icon={<MinusOutlined />}
             onClick={() => cambiarQty(record._idx, -1)}
-            style={{ width: 24, height: 24, minWidth: 24, padding: 0 }}
+            style={{ width: 28, height: 28, minWidth: 28, padding: 0 }}
           />
           <span
             style={{
@@ -138,7 +138,7 @@ export default function InventarioDemo() {
             size="small"
             icon={<PlusOutlined />}
             onClick={() => cambiarQty(record._idx, 1)}
-            style={{ width: 24, height: 24, minWidth: 24, padding: 0 }}
+            style={{ width: 28, height: 28, minWidth: 28, padding: 0 }}
           />
         </Space>
       ),
@@ -256,7 +256,7 @@ export default function InventarioDemo() {
             placeholder="Buscar por SKU o nombre..."
             prefix={<SearchOutlined style={{ color: '#bbb' }} />}
             size="small"
-            style={{ width: 220, marginLeft: 'auto' }}
+            style={{ flex: '1 1 180px', minWidth: 150 }}
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
             allowClear
@@ -271,6 +271,7 @@ export default function InventarioDemo() {
             rowKey="sku"
             pagination={false}
             size="small"
+            scroll={{ x: 700 }}
             rowClassName={(record) => record.qty < 0 ? 'inv-demo-row-negative' : ''}
             style={{ fontSize: 13 }}
           />
