@@ -95,8 +95,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Usuarios autenticados en / → redirigir al dashboard
-  if (user && request.nextUrl.pathname === '/') {
+  // Usuarios autenticados en / → redirigir al dashboard (excepto si ?landing=1)
+  if (user && request.nextUrl.pathname === '/' && !request.nextUrl.searchParams.has('landing')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 

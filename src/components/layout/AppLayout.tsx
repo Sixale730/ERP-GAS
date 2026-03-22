@@ -321,7 +321,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           )}
 
           {isSuperAdmin && (
-            <Button type="text" icon={<HomeOutlined />} href="/" target="_blank" size="small">
+            <Button type="text" icon={<HomeOutlined />} href="/?landing=1" target="_blank" size="small">
               {!isMobile && 'Landing'}
             </Button>
           )}
