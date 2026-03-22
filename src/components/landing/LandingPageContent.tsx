@@ -20,6 +20,7 @@ import DashboardMockup from '@/components/landing/DashboardMockup'
 import { generarURLPDFDemo } from '@/components/landing/cotizacion-demo'
 import InventarioDemo from '@/components/landing/InventarioDemo'
 import POSDemo from '@/components/landing/POSDemo'
+import FacturaDemo from '@/components/landing/FacturaDemo'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -60,6 +61,7 @@ export default function LandingPage() {
   const [pdfUrl, setPdfUrl] = useState('')
   const [invModal, setInvModal] = useState(false)
   const [posModal, setPosModal] = useState(false)
+  const [factModal, setFactModal] = useState(false)
 
   // Limpiar blob URL al desmontar
   useEffect(() => {
@@ -212,10 +214,10 @@ export default function LandingPage() {
                   borderRadius: 12,
                   border: '1px solid #f0f0f0',
                   background: '#fff',
-                  cursor: i <= 2 ? 'pointer' : undefined,
+                  cursor: 'pointer',
                 }}
                 styles={{ body: { padding: 24 } }}
-                onClick={i === 0 ? handleOpenPdfDemo : i === 1 ? () => setInvModal(true) : i === 2 ? () => setPosModal(true) : undefined}
+                onClick={i === 0 ? handleOpenPdfDemo : i === 1 ? () => setInvModal(true) : i === 2 ? () => setPosModal(true) : () => setFactModal(true)}
               >
                 <div style={{ marginBottom: 16 }}>{f.icon}</div>
                 <Title level={4} style={{ marginBottom: 8 }}>{f.title}</Title>
@@ -229,6 +231,9 @@ export default function LandingPage() {
                   <span style={{ fontSize: 12, color: '#1677ff', marginTop: 8, display: 'inline-block' }}>Ver demo interactiva →</span>
                 )}
                 {i === 2 && (
+                  <span style={{ fontSize: 12, color: '#1677ff', marginTop: 8, display: 'inline-block' }}>Ver demo interactiva →</span>
+                )}
+                {i === 3 && (
                   <span style={{ fontSize: 12, color: '#1677ff', marginTop: 8, display: 'inline-block' }}>Ver demo interactiva →</span>
                 )}
               </Card>
@@ -415,6 +420,20 @@ export default function LandingPage() {
         destroyOnClose
       >
         <POSDemo />
+      </Modal>
+
+      {/* ─── Modal Factura Demo ─────────────────────────────────── */}
+      <Modal
+        open={factModal}
+        onCancel={() => setFactModal(false)}
+        footer={null}
+        width="92vw"
+        style={{ top: 10 }}
+        styles={{ body: { padding: 16, maxHeight: '85vh', overflowY: 'auto' } }}
+        title="Demo interactiva — Facturación CFDI 4.0"
+        destroyOnClose
+      >
+        <FacturaDemo />
       </Modal>
     </div>
   )

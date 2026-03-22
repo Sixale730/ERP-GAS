@@ -229,3 +229,186 @@ export function generarURLPDFDemo(): string {
   const blob = doc.output('blob')
   return URL.createObjectURL(blob)
 }
+
+// ─── PDF Factura Demo ──────────────────────────────────────────────────────
+
+export function generarURLPDFFacturaDemo(): string {
+  const doc = new jsPDF()
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const hoy = new Date()
+  const vencimiento = new Date(hoy)
+  vencimiento.setDate(vencimiento.getDate() + 30)
+  const UUID_FICTICIO = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+
+  let y = 20
+
+  // Logo placeholder
+  doc.setFillColor(220, 220, 220)
+  doc.roundedRect(14, y, 40, 18, 3, 3, 'F')
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(150, 150, 150)
+  doc.text('TU LOGO', 34, y + 11, { align: 'center' })
+
+  // Nombre empresa
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLOR_PRIMARIO)
+  doc.text('TU EMPRESA S.A. de C.V.', 60, y + 8)
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLOR_GRIS)
+  doc.text('RFC: XAXX010101000', 60, y + 14)
+  doc.text('Av. Principal #123, Col. Centro, CDMX, C.P. 06000', 60, y + 19)
+  doc.text('Tel: (55) 1234-5678 | contacto@tuempresa.com', 60, y + 24)
+
+  // Tipo de documento
+  doc.setFontSize(20)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLOR_PRIMARIO)
+  doc.text('FACTURA', pageWidth - 14, y + 8, { align: 'right' })
+
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLOR_GRIS)
+  doc.text('FAC-00001', pageWidth - 14, y + 17, { align: 'right' })
+
+  // Línea separadora
+  y += 32
+  doc.setDrawColor(...COLOR_PRIMARIO)
+  doc.setLineWidth(0.5)
+  doc.line(14, y, pageWidth - 14, y)
+  y += 6
+
+  // UUID CFDI
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLOR_GRIS)
+  doc.text(`UUID: ${UUID_FICTICIO}`, 14, y)
+  y += 6
+
+  // Datos cliente (2 columnas)
+  const colWidth = (pageWidth - 28) / 2
+  const xDer = 14 + colWidth
+  const rowH = 5
+
+  const drawRow = (x: number, yPos: number, label: string, value: string, offset: number) => {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(0, 0, 0)
+    doc.text(label, x, yPos)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLOR_GRIS)
+    doc.text(value, x + offset, yPos)
+  }
+
+  drawRow(14, y, 'CLIENTE:', 'Tu Cliente S.A. de C.V.', 28)
+  y += rowH
+  drawRow(14, y, 'RFC:', 'TUC000000XX0', 28)
+
+  let yDer = y - rowH
+  drawRow(xDer, yDer, 'FECHA:', formatFecha(hoy), 30)
+  yDer += rowH
+  drawRow(xDer, yDer, 'VENCIMIENTO:', formatFecha(vencimiento), 30)
+  yDer += rowH
+  drawRow(xDer, yDer, 'VENDEDOR:', 'Tu Vendedor', 30)
+  yDer += rowH
+  drawRow(xDer, yDer, 'OV ORIGEN:', 'OV-00001', 30)
+  yDer += rowH
+  drawRow(xDer, yDer, 'MONEDA:', 'MXN', 30)
+
+  y = Math.max(y, yDer) + 8
+
+  // Tabla de productos
+  const items = [
+    { sku: 'PROD-001', desc: 'Producto de Ejemplo A', qty: 2, price: 4500 },
+    { sku: 'PROD-002', desc: 'Servicio de Instalación', qty: 1, price: 2800 },
+    { sku: 'PROD-003', desc: 'Producto de Ejemplo B', qty: 3, price: 1200 },
+  ]
+
+  const tableData = items.map(item => [
+    item.sku,
+    item.desc,
+    item.qty.toString(),
+    formatMoney(item.price),
+    '-',
+    formatMoney(item.qty * item.price),
+  ])
+
+  autoTable(doc, {
+    startY: y,
+    head: [['SKU', 'Descripción', 'Cant.', 'P. Unitario', 'Desc.', 'Subtotal']],
+    body: tableData,
+    theme: 'striped',
+    headStyles: { fillColor: COLOR_PRIMARIO, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+    bodyStyles: { fontSize: 9, textColor: COLOR_GRIS },
+    columnStyles: {
+      0: { cellWidth: 25 },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 30, halign: 'right' },
+      4: { cellWidth: 20, halign: 'center' },
+      5: { cellWidth: 30, halign: 'right' },
+    },
+    margin: { left: 14, right: 14 },
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  y = (doc as any).lastAutoTable.finalY + 10
+
+  // Totales
+  const subtotal = 15400.00
+  const iva = subtotal * 0.16
+  const total = subtotal + iva
+
+  const xLabel = pageWidth - 80
+  const xValue = pageWidth - 14
+
+  const drawTotalRow = (yPos: number, label: string, value: string, bold = false) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setFontSize(bold ? 11 : 9)
+    doc.setTextColor(bold ? 0 : 100, bold ? 0 : 100, bold ? 0 : 100)
+    doc.text(label, xLabel, yPos, { align: 'right' })
+    doc.text(value, xValue, yPos, { align: 'right' })
+  }
+
+  drawTotalRow(y, 'Subtotal:', formatMoney(subtotal))
+  y += 6
+  drawTotalRow(y, 'IVA (16%):', formatMoney(iva))
+  y += 8
+
+  doc.setDrawColor(...COLOR_PRIMARIO)
+  doc.setLineWidth(0.3)
+  doc.line(xLabel - 10, y - 3, xValue, y - 3)
+
+  drawTotalRow(y, 'TOTAL:', formatMoney(total), true)
+  y += 14
+
+  // Notas
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(0, 0, 0)
+  doc.text('Notas:', 14, y)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLOR_GRIS)
+  doc.text('Entrega inmediata. Precios sujetos a cambio.', 14, y + 6)
+  y += 16
+
+  // Footer
+  doc.setDrawColor(200, 200, 200)
+  doc.setLineWidth(0.3)
+  doc.line(14, y, pageWidth - 14, y)
+  y += 6
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLOR_GRIS)
+  doc.text('Gracias por su preferencia', pageWidth / 2, y, { align: 'center' })
+
+  doc.setFontSize(7)
+  doc.text('Este es un documento de demostración generado por CUANTY ERP', pageWidth / 2, y + 5, { align: 'center' })
+
+  const blob = doc.output('blob')
+  return URL.createObjectURL(blob)
+}

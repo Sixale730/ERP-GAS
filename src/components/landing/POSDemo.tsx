@@ -28,7 +28,7 @@ interface Producto {
   precio: number
 }
 
-const PRODUCTOS_DEMO: Producto[] = [
+const PRODUCTOS_MASCOTIENDA: Producto[] = [
   { sku: 'PROD-001', nombre: 'Alimento Perro Premium 5kg', unidad: 'PZA', precio: 285.00 },
   { sku: 'PROD-002', nombre: 'Collar Ajustable Mediano', unidad: 'PZA', precio: 89.00 },
   { sku: 'PROD-003', nombre: 'Shampoo Mascota 500ml', unidad: 'PZA', precio: 145.00 },
@@ -39,6 +39,19 @@ const PRODUCTOS_DEMO: Producto[] = [
   { sku: 'PROD-008', nombre: 'Correa Retráctil 5m', unidad: 'PZA', precio: 320.00 },
   { sku: 'PROD-009', nombre: 'Antiparasitario Pipeta', unidad: 'PZA', precio: 98.00 },
   { sku: 'PROD-010', nombre: 'Cama Mascota Mediana', unidad: 'PZA', precio: 450.00 },
+]
+
+const PRODUCTOS_ABARROTES: Producto[] = [
+  { sku: 'ABR-001', nombre: 'Cereal Hojuelas 500g', unidad: 'PZA', precio: 62.00 },
+  { sku: 'ABR-002', nombre: 'Shampoo Cabello Liso 400ml', unidad: 'PZA', precio: 89.00 },
+  { sku: 'ABR-003', nombre: 'Refresco Cola 2L', unidad: 'PZA', precio: 32.00 },
+  { sku: 'ABR-004', nombre: 'Aceite Vegetal 1L', unidad: 'PZA', precio: 48.00 },
+  { sku: 'ABR-005', nombre: 'Leche Entera 1L', unidad: 'PZA', precio: 28.50 },
+  { sku: 'ABR-006', nombre: 'Jabón de Tocador 3 pack', unidad: 'PQT', precio: 45.00 },
+  { sku: 'ABR-007', nombre: 'Pasta Dental 150ml', unidad: 'PZA', precio: 55.00 },
+  { sku: 'ABR-008', nombre: 'Arroz Grano Largo 1kg', unidad: 'PZA', precio: 34.00 },
+  { sku: 'ABR-009', nombre: 'Detergente Líquido 1L', unidad: 'PZA', precio: 72.00 },
+  { sku: 'ABR-010', nombre: 'Papel Higiénico 4 rollos', unidad: 'PQT', precio: 58.00 },
 ]
 
 interface CartItem {
@@ -66,15 +79,17 @@ export default function POSDemo() {
   const [ticketNum, setTicketNum] = useState(1)
   const [horaInicio, setHoraInicio] = useState('')
 
+  const productosActivos = cajaSeleccionada === 'Caja 2' ? PRODUCTOS_ABARROTES : PRODUCTOS_MASCOTIENDA
+
   useEffect(() => {
     setHoraInicio(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
   }, [paso])
 
   const productosFiltrados = useMemo(() => {
-    if (!busqueda) return PRODUCTOS_DEMO
+    if (!busqueda) return productosActivos
     const q = busqueda.toLowerCase()
-    return PRODUCTOS_DEMO.filter(p => p.nombre.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
-  }, [busqueda])
+    return productosActivos.filter(p => p.nombre.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
+  }, [busqueda, productosActivos])
 
   const totales = useMemo(() => {
     const subtotal = carrito.reduce((s, item) => s + item.producto.precio * item.cantidad, 0)
