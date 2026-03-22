@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Button, Card, Col, Form, Input, Modal, Row, Select, Tag, Typography, message, Space } from 'antd'
+import { Button, Card, Col, Divider, Form, Input, Modal, Row, Select, Tag, Typography, message, Space } from 'antd'
 import {
   FileTextOutlined,
   InboxOutlined,
@@ -63,6 +63,13 @@ export default function LandingPage() {
   const [posModal, setPosModal] = useState(false)
   const [factModal, setFactModal] = useState(false)
 
+  // Chips de cualificación
+  const [controlActual, setControlActual] = useState<Set<string>>(new Set())
+  const [comoVende, setComoVende] = useState<Set<string>>(new Set())
+  const [tipoCliente, setTipoCliente] = useState<Set<string>>(new Set())
+  const [numUsuarios, setNumUsuarios] = useState<Set<string>>(new Set())
+  const [numSucursales, setNumSucursales] = useState<Set<string>>(new Set())
+
   // Limpiar blob URL al desmontar
   useEffect(() => {
     return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }
@@ -80,19 +87,37 @@ export default function LandingPage() {
     setPdfUrl('')
   }, [pdfUrl])
 
-  const handleSubmit = async (values: { nombre: string; empresa?: string; telefono?: string; correo: string; giro?: string }) => {
+  const toggleChip = (set: Set<string>, setFn: (s: Set<string>) => void, value: string) => {
+    const next = new Set(set)
+    if (next.has(value)) next.delete(value); else next.add(value)
+    setFn(next)
+  }
+
+  const handleSubmit = async (values: { nombre: string; empresa?: string; telefono?: string; correo: string; giro?: string; necesidad_principal?: string }) => {
     setLoading(true)
     try {
       const res = await fetch('/api/leads/demo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          control_actual: Array.from(controlActual).join(', ') || null,
+          como_vende: Array.from(comoVende).join(', ') || null,
+          tipo_cliente: Array.from(tipoCliente).join(', ') || null,
+          num_usuarios: Array.from(numUsuarios).join(', ') || null,
+          num_sucursales: Array.from(numSucursales).join(', ') || null,
+        }),
       })
       const data = await res.json()
       if (res.ok && data.success) {
         setSubmitted(true)
         message.success('Solicitud enviada. Nos pondremos en contacto contigo pronto.')
         form.resetFields()
+        setControlActual(new Set())
+        setComoVende(new Set())
+        setTipoCliente(new Set())
+        setNumUsuarios(new Set())
+        setNumSucursales(new Set())
       } else {
         message.error(data.error || 'Error al enviar. Intenta de nuevo.')
       }
@@ -247,7 +272,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
           <Title level={3}>Para cualquier giro de negocio</Title>
           <Paragraph style={{ color: '#595959', marginBottom: 24 }}>
-            CUANTY se adapta a las necesidades de tu industria
+            CUANTY crece contigo. Arrancas con lo que necesitas hoy y vas sumando módulos conforme tu operación lo pide. Sin pagar por lo que no usas, sin cambiar la forma en que trabajas.
           </Paragraph>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
             {giros.map((g) => (
@@ -269,7 +294,7 @@ export default function LandingPage() {
       </section>
 
       {/* ─── Demo Form ───────────────────────────────────────────── */}
-      <section id="demo" style={{ padding: '40px 24px', maxWidth: 600, margin: '0 auto' }}>
+      <section id="demo" style={{ padding: '40px 24px', maxWidth: 700, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Title level={2}>Solicita tu demo gratuita</Title>
           <Paragraph style={{ fontSize: 16, color: '#595959' }}>
@@ -334,6 +359,149 @@ export default function LandingPage() {
                     <Select.Option key={g} value={g}>{g}</Select.Option>
                   ))}
                 </Select>
+              </Form.Item>
+
+              <Divider style={{ marginBottom: 12, marginTop: 4 }}>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Cuéntanos tu operación</span>
+              </Divider>
+              <div style={{ textAlign: 'center', marginBottom: 16, marginTop: -8 }}>
+                <span style={{ fontSize: 12, color: '#999' }}>(nos ayuda a preparar tu demo)</span>
+              </div>
+
+              {/* Pregunta 1 */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>¿Cómo controlas tu negocio hoy?</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {['Excel', 'Otro ERP o sistema', 'Papel / manual', 'Sin sistema'].map(opt => (
+                    <span
+                      key={opt}
+                      onClick={() => toggleChip(controlActual, setControlActual, opt)}
+                      style={{
+                        padding: '4px 14px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        border: controlActual.has(opt) ? '1px solid #1677ff' : '1px solid #d9d9d9',
+                        background: controlActual.has(opt) ? '#e6f4ff' : '#fff',
+                        color: controlActual.has(opt) ? '#1677ff' : '#595959',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {opt}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pregunta 2 */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>¿Cómo vendes?</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {['Mostrador / POS', 'Cotizaciones', 'Visita a cliente', 'En línea'].map(opt => (
+                    <span
+                      key={opt}
+                      onClick={() => toggleChip(comoVende, setComoVende, opt)}
+                      style={{
+                        padding: '4px 14px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        border: comoVende.has(opt) ? '1px solid #1677ff' : '1px solid #d9d9d9',
+                        background: comoVende.has(opt) ? '#e6f4ff' : '#fff',
+                        color: comoVende.has(opt) ? '#1677ff' : '#595959',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {opt}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pregunta 3 */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>¿A quién le vendes?</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {['Público general', 'Empresas (B2B)', 'Ambos'].map(opt => (
+                    <span
+                      key={opt}
+                      onClick={() => toggleChip(tipoCliente, setTipoCliente, opt)}
+                      style={{
+                        padding: '4px 14px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        border: tipoCliente.has(opt) ? '1px solid #1677ff' : '1px solid #d9d9d9',
+                        background: tipoCliente.has(opt) ? '#e6f4ff' : '#fff',
+                        color: tipoCliente.has(opt) ? '#1677ff' : '#595959',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {opt}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pregunta 4 */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>¿Cuántas personas usarían el sistema?</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {['Solo yo', '2 a 5', '6 a 15', 'Más de 15'].map(opt => (
+                    <span
+                      key={opt}
+                      onClick={() => toggleChip(numUsuarios, setNumUsuarios, opt)}
+                      style={{
+                        padding: '4px 14px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        border: numUsuarios.has(opt) ? '1px solid #1677ff' : '1px solid #d9d9d9',
+                        background: numUsuarios.has(opt) ? '#e6f4ff' : '#fff',
+                        color: numUsuarios.has(opt) ? '#1677ff' : '#595959',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {opt}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pregunta 5 */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>¿Manejas sucursales o almacenes separados?</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {['Solo uno', '2 a 3', 'Más de 3'].map(opt => (
+                    <span
+                      key={opt}
+                      onClick={() => toggleChip(numSucursales, setNumSucursales, opt)}
+                      style={{
+                        padding: '4px 14px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        border: numSucursales.has(opt) ? '1px solid #1677ff' : '1px solid #d9d9d9',
+                        background: numSucursales.has(opt) ? '#e6f4ff' : '#fff',
+                        color: numSucursales.has(opt) ? '#1677ff' : '#595959',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {opt}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pregunta 6 — textarea */}
+              <Form.Item
+                name="necesidad_principal"
+                label={<span>¿Qué es lo que más necesitas controlar? <span style={{ color: '#999', fontWeight: 400, fontSize: 12 }}>opcional</span></span>}
+              >
+                <Input.TextArea
+                  rows={3}
+                  placeholder="Ej: manejo lotes con caducidad, vendo en dólares y pesos, necesito factura global mensual, tengo vendedores en campo..."
+                />
               </Form.Item>
 
               <Form.Item style={{ marginBottom: 0 }}>

@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
     // Parse body
     const body = await request.json()
-    const { nombre, correo, empresa, telefono, giro } = body
+    const { nombre, correo, empresa, telefono, giro, control_actual, como_vende, tipo_cliente, num_usuarios, num_sucursales, necesidad_principal } = body
 
     // Validate required fields
     if (!nombre || typeof nombre !== 'string' || nombre.trim().length === 0) {
@@ -66,6 +66,12 @@ export async function POST(request: Request) {
         empresa: empresa?.trim()?.slice(0, 200) || null,
         telefono: telefono?.trim()?.slice(0, 20) || null,
         giro: giro?.trim()?.slice(0, 100) || null,
+        control_actual: control_actual?.trim()?.slice(0, 200) || null,
+        como_vende: como_vende?.trim()?.slice(0, 200) || null,
+        tipo_cliente: tipo_cliente?.trim()?.slice(0, 100) || null,
+        num_usuarios: num_usuarios?.trim()?.slice(0, 50) || null,
+        num_sucursales: num_sucursales?.trim()?.slice(0, 50) || null,
+        necesidad_principal: necesidad_principal?.trim()?.slice(0, 1000) || null,
         ip_address: ip !== 'unknown' ? ip : null,
       })
 

@@ -11,6 +11,7 @@ import {
   SettingOutlined,
   TeamOutlined,
   GlobalOutlined,
+  HomeOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useRouter } from 'next/navigation'
@@ -317,6 +318,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 .filter(o => !o.codigo || o.codigo !== 'SISTEMA')
                 .map(o => ({ value: o.id, label: o.nombre }))}
             />
+          )}
+
+          {isSuperAdmin && (
+            <Button type="text" icon={<HomeOutlined />} href="/" target="_blank" size="small">
+              {!isMobile && 'Landing'}
+            </Button>
           )}
 
           <Dropdown menu={{ items: userMenuItems, onClick: handleMenuClick }} placement="bottomRight">
