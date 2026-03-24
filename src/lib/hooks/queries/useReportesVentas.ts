@@ -189,7 +189,7 @@ export function useVentasPorVendedor(
         if (error) throw error
 
         for (const row of data || []) {
-          const key = row.vendedor_nombre || 'Sin vendedor'
+          const key = (row.vendedor_nombre || 'Sin vendedor').trim()
           const existing = agrupado.get(key)
           if (existing) {
             existing.num_ventas++
@@ -223,7 +223,7 @@ export function useVentasPorVendedor(
         if (error) throw error
 
         for (const row of data || []) {
-          const key = row.vendedor_nombre || 'Sin vendedor'
+          const key = (row.vendedor_nombre || 'Sin vendedor').trim()
           const existing = agrupado.get(key)
           if (existing) {
             existing.num_ventas++
