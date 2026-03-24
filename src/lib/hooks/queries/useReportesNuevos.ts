@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { fetchDescripcionesFacturas } from './useReportesHelpers'
 
 // ── Tipos ────────────────────────────────────────────
 
@@ -59,6 +60,8 @@ export interface FacturaSaldoRow {
   moneda: string
   dias_vencida: number
   cliente_nombre: string
+  sucursal_nombre: string | null
+  productos_desc: string | null
 }
 
 export interface CarteraVencidaRow {
@@ -70,6 +73,8 @@ export interface CarteraVencidaRow {
   dias_vencida: number
   cliente_nombre: string
   moneda: string
+  sucursal_nombre: string | null
+  productos_desc: string | null
 }
 
 export interface ResumenTurnoReporte {
@@ -261,7 +266,7 @@ export function useFacturasSaldos(fechaDesde: string | null, fechaHasta: string 
       let query = supabase
         .schema('erp')
         .from('v_facturas')
-        .select('id, folio, fecha, status, total, monto_pagado, saldo, moneda, dias_vencida, cliente_nombre')
+        .select('id, folio, fecha, status, total, monto_pagado, saldo, moneda, dias_vencida, cliente_nombre, sucursal_nombre')
         .eq('organizacion_id', orgId!)
         .order('fecha', { ascending: false })
 
@@ -271,7 +276,10 @@ export function useFacturasSaldos(fechaDesde: string | null, fechaHasta: string 
 
       const { data, error } = await query
       if (error) throw error
-      return (data || []) as FacturaSaldoRow[]
+
+      const rows = (data || []) as FacturaSaldoRow[]
+      const descMap = await fetchDescripcionesFacturas(rows.map((r) => r.id))
+      return rows.map((r) => ({ ...r, productos_desc: descMap.get(r.id) || null }))
     },
     enabled: !!fechaDesde && !!fechaHasta && !!orgId,
   })
@@ -285,14 +293,17 @@ export function useCarteraVencida(orgId?: string) {
       const { data, error } = await supabase
         .schema('erp')
         .from('v_facturas')
-        .select('id, folio, fecha, total, saldo, dias_vencida, cliente_nombre, moneda')
+        .select('id, folio, fecha, total, saldo, dias_vencida, cliente_nombre, moneda, sucursal_nombre')
         .eq('organizacion_id', orgId!)
         .gt('saldo', 0)
         .gt('dias_vencida', 0)
         .order('dias_vencida', { ascending: false })
 
       if (error) throw error
-      return (data || []) as CarteraVencidaRow[]
+
+      const rows = (data || []) as CarteraVencidaRow[]
+      const descMap = await fetchDescripcionesFacturas(rows.map((r) => r.id))
+      return rows.map((r) => ({ ...r, productos_desc: descMap.get(r.id) || null }))
     },
     enabled: !!orgId,
   })

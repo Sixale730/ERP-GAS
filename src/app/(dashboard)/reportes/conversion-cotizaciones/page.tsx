@@ -64,6 +64,7 @@ export default function ReporteConversionCotizacionesPage() {
       { title: 'Folio', dataIndex: 'folio', key: 'folio', width: 130, sorter: (a, b) => a.folio.localeCompare(b.folio) },
       { title: 'Fecha', dataIndex: 'fecha', key: 'fecha', width: 110, render: (v: string) => formatDate(v), sorter: (a, b) => a.fecha.localeCompare(b.fecha) },
       { title: 'Cliente', dataIndex: 'cliente_nombre', key: 'cliente_nombre', ellipsis: true },
+      { title: 'Sucursal', dataIndex: 'sucursal_nombre', key: 'sucursal_nombre', width: 130, ellipsis: true, render: (v: string | null) => v || '-' },
       { title: 'Vendedor', dataIndex: 'vendedor_nombre', key: 'vendedor_nombre', width: 150, render: (v: string | null) => v || '-' },
       { title: 'Total', dataIndex: 'total', key: 'total', width: 140, align: 'right', render: (v: number) => formatMoneySimple(v), sorter: (a, b) => Number(a.total) - Number(b.total) },
       {
@@ -99,6 +100,7 @@ export default function ReporteConversionCotizacionesPage() {
           { titulo: 'Folio', dataIndex: 'folio' },
           { titulo: 'Fecha', dataIndex: 'fecha_fmt' },
           { titulo: 'Cliente', dataIndex: 'cliente_nombre' },
+          { titulo: 'Sucursal', dataIndex: 'sucursal_nombre' },
           { titulo: 'Vendedor', dataIndex: 'vendedor_nombre' },
           { titulo: 'Total', dataIndex: 'total', formato: 'moneda' },
           { titulo: 'Status', dataIndex: 'status_label' },

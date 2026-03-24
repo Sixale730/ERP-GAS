@@ -18,7 +18,7 @@ async function fetchReporteOrdenesVenta(filtros: FiltrosReporteOV): Promise<Orde
   let query = supabase
     .schema('erp')
     .from('v_cotizaciones')
-    .select('id, folio, fecha, vigencia_dias, status, subtotal, descuento_monto, iva, total, moneda, tipo_cambio, cliente_nombre, cliente_rfc, almacen_nombre, factura_id, vendedor_nombre, created_at, updated_at')
+    .select('id, folio, fecha, vigencia_dias, status, subtotal, descuento_monto, iva, total, moneda, tipo_cambio, cliente_nombre, cliente_rfc, almacen_nombre, factura_id, vendedor_nombre, sucursal_nombre, created_at, updated_at')
     .like('folio', 'OV-%')
     .order('fecha', { ascending: false })
     .limit(5000)

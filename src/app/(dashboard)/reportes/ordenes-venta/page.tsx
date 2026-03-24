@@ -99,6 +99,14 @@ export default function ReporteOrdenesVentaPage() {
       render: (val: string) => val || '-',
     },
     {
+      title: 'Sucursal',
+      dataIndex: 'sucursal_nombre',
+      key: 'sucursal_nombre',
+      width: 130,
+      ellipsis: true,
+      render: (val: string | null) => val || '-',
+    },
+    {
       title: 'Almacen',
       dataIndex: 'almacen_nombre',
       key: 'almacen_nombre',
@@ -177,6 +185,7 @@ export default function ReporteOrdenesVentaPage() {
           { titulo: 'Fecha', dataIndex: 'fecha_fmt' },
           { titulo: 'Cliente', dataIndex: 'cliente_nombre' },
           { titulo: 'RFC', dataIndex: 'cliente_rfc' },
+          { titulo: 'Sucursal', dataIndex: 'sucursal_nombre' },
           { titulo: 'Almacen', dataIndex: 'almacen_nombre' },
           { titulo: 'Moneda', dataIndex: 'moneda' },
           { titulo: 'Subtotal', dataIndex: 'subtotal', formato: 'moneda' },

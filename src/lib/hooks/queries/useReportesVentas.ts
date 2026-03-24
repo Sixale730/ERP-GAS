@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { fetchDescripcionesFacturas } from './useReportesHelpers'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ export interface ConversionCotizacionRow {
   moneda: string
   status: string
   factura_id: string | null
+  sucursal_nombre: string | null
 }
 
 export interface VentaPorCategoriaRow {
@@ -500,7 +502,7 @@ export function useConversionCotizaciones(
       let q = supabase
         .schema('erp')
         .from('v_cotizaciones')
-        .select('id, folio, fecha, cliente_nombre, vendedor_nombre, total, moneda, status, factura_id')
+        .select('id, folio, fecha, cliente_nombre, vendedor_nombre, total, moneda, status, factura_id, sucursal_nombre')
         .eq('organizacion_id', orgId!)
         .not('status', 'eq', 'cancelada')
         .not('folio', 'like', 'OV-%')
@@ -527,6 +529,8 @@ export interface DevolucionRow {
   cliente_nombre: string
   monto: number
   status: string
+  sucursal_nombre: string | null
+  productos_desc: string | null
 }
 
 export function useDevolucionesCancelaciones(
@@ -541,13 +545,17 @@ export function useDevolucionesCancelaciones(
 
       if (fuente === 'facturas' || fuente === 'both') {
         let q = supabase.schema('erp').from('v_facturas')
-          .select('id, fecha, folio, cliente_nombre, total, status')
+          .select('id, fecha, folio, cliente_nombre, total, status, sucursal_nombre')
           .eq('organizacion_id', orgId!).eq('status', 'cancelada')
         if (fechaDesde) q = q.gte('fecha', fechaDesde)
         if (fechaHasta) q = q.lte('fecha', fechaHasta)
         const { data } = await q
+
+        const facturaIds = (data || []).map((r) => r.id)
+        const descMap = await fetchDescripcionesFacturas(facturaIds)
+
         for (const r of data || []) {
-          resultado.push({ id: r.id, fecha: r.fecha, tipo: 'factura', folio: r.folio, cliente_nombre: r.cliente_nombre || '-', monto: Number(r.total || 0), status: 'Cancelada' })
+          resultado.push({ id: r.id, fecha: r.fecha, tipo: 'factura', folio: r.folio, cliente_nombre: r.cliente_nombre || '-', monto: Number(r.total || 0), status: 'Cancelada', sucursal_nombre: (r as Record<string, unknown>).sucursal_nombre as string | null, productos_desc: descMap.get(r.id) || null })
         }
       }
 
@@ -559,7 +567,7 @@ export function useDevolucionesCancelaciones(
         if (fechaHasta) q = q.lte('created_at', `${fechaHasta}T23:59:59`)
         const { data } = await q
         for (const r of data || []) {
-          resultado.push({ id: r.id, fecha: r.created_at, tipo: 'pos', folio: r.folio, cliente_nombre: r.cliente_nombre || 'Publico General', monto: Number(r.total || 0), status: 'Cancelada' })
+          resultado.push({ id: r.id, fecha: r.created_at, tipo: 'pos', folio: r.folio, cliente_nombre: r.cliente_nombre || 'Publico General', monto: Number(r.total || 0), status: 'Cancelada', sucursal_nombre: null, productos_desc: null })
         }
       }
 

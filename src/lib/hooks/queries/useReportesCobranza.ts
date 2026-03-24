@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { fetchDescripcionesFacturas } from './useReportesHelpers'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,8 @@ export interface PagoRecibidoRow {
   notas: string | null
   factura_folio: string
   cliente_nombre: string
+  sucursal_nombre: string | null
+  productos_desc: string | null
 }
 
 // ─── R4: Estado de Cuenta por Cliente ─────────────────────────────────────────
@@ -49,7 +52,7 @@ export function useEstadoCuentaCliente(
       let fq = supabase
         .schema('erp')
         .from('v_facturas')
-        .select('id, folio, fecha, total, monto_pagado, saldo, status')
+        .select('id, folio, fecha, total, monto_pagado, saldo, status, sucursal_nombre')
         .eq('organizacion_id', orgId!)
         .eq('cliente_id', clienteId!)
         .not('status', 'eq', 'cancelada')
@@ -80,15 +83,23 @@ export function useEstadoCuentaCliente(
       // Construir mapa de factura_id -> folio
       const facturaFolioMap = new Map((facturas || []).map((f) => [f.id, f.folio]))
 
+      // Obtener descripciones de productos
+      const descMap = await fetchDescripcionesFacturas(facturaIds)
+
       // Combinar en movimientos cronológicos
       const movimientos: Omit<EstadoCuentaMovimiento, 'saldo'>[] = []
 
       for (const f of facturas || []) {
+        const prodDesc = descMap.get(f.id)
+        const sucInfo = (f as Record<string, unknown>).sucursal_nombre ? ` [${(f as Record<string, unknown>).sucursal_nombre}]` : ''
+        const desc = prodDesc
+          ? `${f.folio}: ${prodDesc}${sucInfo}`
+          : `Factura ${f.folio}${sucInfo}`
         movimientos.push({
           fecha: f.fecha,
           tipo: 'factura',
           folio: f.folio,
-          descripcion: `Factura ${f.folio}`,
+          descripcion: desc,
           cargo: Number(f.total || 0),
           abono: 0,
         })
@@ -156,15 +167,18 @@ export function usePagosRecibidos(
       if (error) throw error
       if (!pagos || pagos.length === 0) return []
 
-      // Obtener facturas para folio y cliente
+      // Obtener facturas para folio, cliente y sucursal
       const facturaIds = Array.from(new Set(pagos.map((p) => p.factura_id)))
       const { data: facturas } = await supabase
         .schema('erp')
         .from('v_facturas')
-        .select('id, folio, cliente_nombre')
+        .select('id, folio, cliente_nombre, sucursal_nombre')
         .in('id', facturaIds)
 
       const facturaMap = new Map((facturas || []).map((f) => [f.id, f]))
+
+      // Obtener descripciones de productos
+      const descMap = await fetchDescripcionesFacturas(facturaIds)
 
       return pagos.map((p): PagoRecibidoRow => {
         const factura = facturaMap.get(p.factura_id)
@@ -178,6 +192,8 @@ export function usePagosRecibidos(
           notas: p.notas,
           factura_folio: factura?.folio || '-',
           cliente_nombre: factura?.cliente_nombre || 'Desconocido',
+          sucursal_nombre: (factura as Record<string, unknown>)?.sucursal_nombre as string | null || null,
+          productos_desc: descMap.get(p.factura_id) || null,
         }
       })
     },

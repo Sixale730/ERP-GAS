@@ -17,6 +17,7 @@ export interface OrdenVentaRow {
   oc_cliente?: string | null
   cotizacion_origen_id?: string | null
   cotizacion_origen_folio?: string | null
+  sucursal_nombre?: string | null
   created_at?: string
   updated_at?: string
 }
