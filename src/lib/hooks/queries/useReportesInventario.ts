@@ -121,8 +121,8 @@ export function useRotacionInventario(
         .eq('organizacion_id', orgId!)
         .eq('tipo', 'salida')
 
-      if (fechaDesde) mq = mq.gte('fecha', fechaDesde)
-      if (fechaHasta) mq = mq.lte('fecha', fechaHasta)
+      if (fechaDesde) mq = mq.gte('created_at', `${fechaDesde}T00:00:00`)
+      if (fechaHasta) mq = mq.lte('created_at', `${fechaHasta}T23:59:59`)
 
       const { data: movimientos } = await mq
 
@@ -196,15 +196,15 @@ export function useProductosSinMovimiento(
       const { data: movimientos } = await supabase
         .schema('erp')
         .from('v_movimientos')
-        .select('producto_id, fecha')
+        .select('producto_id, created_at')
         .eq('organizacion_id', orgId!)
         .eq('tipo', 'salida')
-        .order('fecha', { ascending: false })
+        .order('created_at', { ascending: false })
 
       const ultimoMovMap = new Map<string, string>()
       for (const m of movimientos || []) {
         if (!ultimoMovMap.has(m.producto_id)) {
-          ultimoMovMap.set(m.producto_id, m.fecha)
+          ultimoMovMap.set(m.producto_id, m.created_at)
         }
       }
 
