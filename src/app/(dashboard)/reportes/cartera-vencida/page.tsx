@@ -80,6 +80,7 @@ export default function ReporteCarteraVencidaPage() {
       width: 130,
       ellipsis: true,
       render: (val: string | null) => val || '-',
+      sorter: (a, b) => (a.sucursal_nombre || '').localeCompare(b.sucursal_nombre || ''),
     },
     {
       title: 'Productos',
@@ -88,6 +89,7 @@ export default function ReporteCarteraVencidaPage() {
       width: 200,
       ellipsis: true,
       render: (val: string | null) => val || '-',
+      sorter: (a, b) => (a.productos_desc || '').localeCompare(b.productos_desc || ''),
     },
     {
       title: 'Total',
@@ -262,7 +264,7 @@ export default function ReporteCarteraVencidaPage() {
           columns={columns}
           rowKey="id"
           loading={isLoading}
-          scroll={{ x: 700 }}
+          scroll={{ x: 1030 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,

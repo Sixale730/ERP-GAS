@@ -59,7 +59,8 @@ function determinarFuente(modulosActivos: string[]): VentaSource {
   const tienePOS = modulosActivos.includes('pos')
   if (tieneFacturas && tienePOS) return 'both'
   if (tieneFacturas) return 'facturas'
-  return 'pos'
+  if (tienePOS) return 'pos'
+  return 'facturas' // fallback seguro
 }
 
 // ─── R1: Ventas por Cliente ───────────────────────────────────────────────────

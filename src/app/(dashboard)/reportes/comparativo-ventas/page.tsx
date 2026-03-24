@@ -41,7 +41,7 @@ export default function ReporteComparativoVentasPage() {
 
   const columns: ColumnsType<ComparativoVentasRow> = useMemo(
     () => [
-      { title: 'Periodo', dataIndex: 'periodo', key: 'periodo' },
+      { title: 'Periodo', dataIndex: 'periodo', key: 'periodo', sorter: (a, b) => a.periodo.localeCompare(b.periodo) },
       {
         title: 'Periodo 1',
         dataIndex: 'total_p1',
@@ -49,6 +49,7 @@ export default function ReporteComparativoVentasPage() {
         width: 160,
         align: 'right',
         render: (val: number) => formatMoneySimple(val),
+        sorter: (a, b) => a.total_p1 - b.total_p1,
       },
       {
         title: 'Periodo 2',
@@ -57,6 +58,7 @@ export default function ReporteComparativoVentasPage() {
         width: 160,
         align: 'right',
         render: (val: number) => formatMoneySimple(val),
+        sorter: (a, b) => a.total_p2 - b.total_p2,
       },
       {
         title: 'Variacion $',
@@ -64,6 +66,7 @@ export default function ReporteComparativoVentasPage() {
         key: 'variacion',
         width: 150,
         align: 'right',
+        sorter: (a, b) => a.variacion - b.variacion,
         render: (val: number) => (
           <Text style={{ color: val >= 0 ? '#52c41a' : '#f5222d' }}>
             {val >= 0 ? '+' : ''}{formatMoneySimple(val)}
@@ -81,6 +84,7 @@ export default function ReporteComparativoVentasPage() {
             {val >= 0 ? '+' : ''}{val.toFixed(1)}%
           </Tag>
         ),
+        sorter: (a, b) => a.variacion_pct - b.variacion_pct,
       },
     ],
     []

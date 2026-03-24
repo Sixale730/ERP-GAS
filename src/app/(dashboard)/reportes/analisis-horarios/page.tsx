@@ -37,10 +37,10 @@ export default function ReporteAnalisisHorariosPage() {
   const maxVenta = useMemo(() => Math.max(...rows.map((r) => r.total_ventas), 1), [rows])
 
   const columns: ColumnsType<HorarioVentaRow> = useMemo(() => [
-    { title: 'Hora', dataIndex: 'hora_label', key: 'hora_label', width: 150 },
+    { title: 'Hora', dataIndex: 'hora_label', key: 'hora_label', width: 150, sorter: (a, b) => a.hora - b.hora },
     { title: 'Transacciones', dataIndex: 'num_transacciones', key: 'num_transacciones', width: 130, align: 'center', sorter: (a, b) => a.num_transacciones - b.num_transacciones },
     { title: 'Total Ventas', dataIndex: 'total_ventas', key: 'total_ventas', width: 150, align: 'right', render: (v: number) => formatMoneySimple(v), sorter: (a, b) => a.total_ventas - b.total_ventas, defaultSortOrder: 'descend' },
-    { title: 'Ticket Promedio', dataIndex: 'ticket_promedio', key: 'ticket_promedio', width: 140, align: 'right', render: (v: number) => formatMoneySimple(v) },
+    { title: 'Ticket Promedio', dataIndex: 'ticket_promedio', key: 'ticket_promedio', width: 140, align: 'right', render: (v: number) => formatMoneySimple(v), sorter: (a, b) => a.ticket_promedio - b.ticket_promedio },
     {
       title: 'Intensidad', key: 'intensidad', width: 200,
       render: (_: unknown, r: HorarioVentaRow) => {

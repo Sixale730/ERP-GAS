@@ -30,11 +30,11 @@ export default function ReportePuntoReordenPage() {
 
   const columns: ColumnsType<PuntoReordenRow> = useMemo(() => [
     { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 120, sorter: (a, b) => a.sku.localeCompare(b.sku) },
-    { title: 'Producto', dataIndex: 'nombre', key: 'nombre', ellipsis: true },
-    { title: 'Almacen', dataIndex: 'almacen_nombre', key: 'almacen_nombre', width: 130 },
-    { title: 'Stock Actual', dataIndex: 'stock_actual', key: 'stock_actual', width: 110, align: 'center', render: (v: number) => formatNumber(v) },
-    { title: 'Minimo', dataIndex: 'stock_minimo', key: 'stock_minimo', width: 90, align: 'center' },
-    { title: 'Maximo', dataIndex: 'stock_maximo', key: 'stock_maximo', width: 90, align: 'center' },
+    { title: 'Producto', dataIndex: 'nombre', key: 'nombre', ellipsis: true, sorter: (a, b) => a.nombre.localeCompare(b.nombre) },
+    { title: 'Almacen', dataIndex: 'almacen_nombre', key: 'almacen_nombre', width: 130, sorter: (a, b) => a.almacen_nombre.localeCompare(b.almacen_nombre) },
+    { title: 'Stock Actual', dataIndex: 'stock_actual', key: 'stock_actual', width: 110, align: 'center', render: (v: number) => formatNumber(v), sorter: (a, b) => a.stock_actual - b.stock_actual },
+    { title: 'Minimo', dataIndex: 'stock_minimo', key: 'stock_minimo', width: 90, align: 'center', sorter: (a, b) => a.stock_minimo - b.stock_minimo },
+    { title: 'Maximo', dataIndex: 'stock_maximo', key: 'stock_maximo', width: 90, align: 'center', sorter: (a, b) => a.stock_maximo - b.stock_maximo },
     { title: 'Sugerido', dataIndex: 'cantidad_sugerida', key: 'cantidad_sugerida', width: 100, align: 'center', render: (v: number) => <Tag color="blue">{formatNumber(v)}</Tag>, sorter: (a, b) => a.cantidad_sugerida - b.cantidad_sugerida, defaultSortOrder: 'descend' },
     { title: 'Nivel', dataIndex: 'nivel', key: 'nivel', width: 100, align: 'center', render: (v: string) => <Tag color={v === 'sin_stock' ? 'red' : 'orange'}>{v === 'sin_stock' ? 'Sin Stock' : 'Bajo'}</Tag> },
   ], [])

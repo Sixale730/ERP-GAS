@@ -41,11 +41,11 @@ export default function ReporteHistorialPreciosCompraPage() {
 
   const columns: ColumnsType<HistorialPrecioCompraRow> = useMemo(() => [
     { title: 'Fecha', dataIndex: 'fecha', key: 'fecha', width: 110, render: (v: string) => formatDate(v), sorter: (a, b) => a.fecha.localeCompare(b.fecha) },
-    { title: 'OC Folio', dataIndex: 'folio', key: 'folio', width: 120 },
-    { title: 'Proveedor', dataIndex: 'proveedor_nombre', key: 'proveedor_nombre', width: 180, ellipsis: true },
-    { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 110 },
-    { title: 'Producto', dataIndex: 'producto_nombre', key: 'producto_nombre', ellipsis: true },
-    { title: 'Cantidad', dataIndex: 'cantidad', key: 'cantidad', width: 100, align: 'center', render: (v: number) => formatNumber(v) },
+    { title: 'OC Folio', dataIndex: 'folio', key: 'folio', width: 120, sorter: (a, b) => a.folio.localeCompare(b.folio) },
+    { title: 'Proveedor', dataIndex: 'proveedor_nombre', key: 'proveedor_nombre', width: 180, ellipsis: true, sorter: (a, b) => a.proveedor_nombre.localeCompare(b.proveedor_nombre) },
+    { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 110, sorter: (a, b) => a.sku.localeCompare(b.sku) },
+    { title: 'Producto', dataIndex: 'producto_nombre', key: 'producto_nombre', ellipsis: true, sorter: (a, b) => a.producto_nombre.localeCompare(b.producto_nombre) },
+    { title: 'Cantidad', dataIndex: 'cantidad', key: 'cantidad', width: 100, align: 'center', render: (v: number) => formatNumber(v), sorter: (a, b) => a.cantidad - b.cantidad },
     { title: 'Precio Unit.', dataIndex: 'precio_unitario', key: 'precio_unitario', width: 130, align: 'right', render: (v: number) => formatMoneySimple(v), sorter: (a, b) => a.precio_unitario - b.precio_unitario },
   ], [])
 

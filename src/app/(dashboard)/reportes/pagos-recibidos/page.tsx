@@ -103,6 +103,7 @@ export default function ReportePagosRecibidosPage() {
         width: 130,
         ellipsis: true,
         render: (val: string | null) => val || '-',
+        sorter: (a, b) => (a.sucursal_nombre || '').localeCompare(b.sucursal_nombre || ''),
       },
       {
         title: 'Factura',
@@ -117,6 +118,7 @@ export default function ReportePagosRecibidosPage() {
         width: 200,
         ellipsis: true,
         render: (val: string | null) => val || '-',
+        sorter: (a, b) => (a.productos_desc || '').localeCompare(b.productos_desc || ''),
       },
       {
         title: 'Monto',
@@ -249,7 +251,7 @@ export default function ReportePagosRecibidosPage() {
           dataSource={filteredData}
           columns={columns}
           rowKey="id"
-          scroll={{ x: 900 }}
+          scroll={{ x: 1230 }}
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `${total} pagos` }}
           locale={{ emptyText: 'No hay pagos en el periodo' }}
         />

@@ -61,6 +61,7 @@ export default function ReporteCFDIEmitidosPage() {
         render: (val: string) => (
           <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{val}</span>
         ),
+        sorter: (a, b) => (a.uuid_cfdi || '').localeCompare(b.uuid_cfdi || ''),
       },
       {
         title: 'Folio',
@@ -83,6 +84,7 @@ export default function ReporteCFDIEmitidosPage() {
         key: 'cliente_rfc',
         width: 140,
         render: (val: string | null) => val || '-',
+        sorter: (a, b) => (a.cliente_rfc || '').localeCompare(b.cliente_rfc || ''),
       },
       {
         title: 'Razon Social',
@@ -90,6 +92,7 @@ export default function ReporteCFDIEmitidosPage() {
         key: 'cliente_razon_social',
         ellipsis: true,
         render: (val: string | null) => val || '-',
+        sorter: (a, b) => (a.cliente_razon_social || '').localeCompare(b.cliente_razon_social || ''),
       },
       {
         title: 'Subtotal',

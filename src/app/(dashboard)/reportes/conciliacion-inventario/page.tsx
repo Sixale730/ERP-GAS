@@ -51,10 +51,10 @@ export default function ReporteConciliacionPage() {
 
   const columns: ColumnsType<ConciliacionRow> = useMemo(() => [
     { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 120, sorter: (a, b) => a.sku.localeCompare(b.sku) },
-    { title: 'Producto', dataIndex: 'nombre', key: 'nombre', ellipsis: true },
-    { title: 'Almacen', dataIndex: 'almacen_nombre', key: 'almacen_nombre', width: 140 },
+    { title: 'Producto', dataIndex: 'nombre', key: 'nombre', ellipsis: true, sorter: (a, b) => a.nombre.localeCompare(b.nombre) },
+    { title: 'Almacen', dataIndex: 'almacen_nombre', key: 'almacen_nombre', width: 140, sorter: (a, b) => a.almacen_nombre.localeCompare(b.almacen_nombre) },
     { title: 'Unidad', dataIndex: 'unidad_medida', key: 'unidad_medida', width: 90, align: 'center' },
-    { title: 'Cant. Sistema', dataIndex: 'cantidad_sistema', key: 'cantidad_sistema', width: 120, align: 'center', render: (v: number) => formatNumber(v) },
+    { title: 'Cant. Sistema', dataIndex: 'cantidad_sistema', key: 'cantidad_sistema', width: 120, align: 'center', render: (v: number) => formatNumber(v), sorter: (a, b) => a.cantidad_sistema - b.cantidad_sistema },
     { title: 'Cant. Fisica', key: 'cantidad_fisica', width: 120, align: 'center', render: () => <Text type="secondary">—</Text> },
     { title: 'Diferencia', key: 'diferencia', width: 110, align: 'center', render: () => <Text type="secondary">—</Text> },
   ], [])

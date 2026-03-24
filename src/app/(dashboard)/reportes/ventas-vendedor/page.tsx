@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, Table, Typography, Spin, Row, Col, Statistic, Space, Button, DatePicker } from 'antd'
+import { Card, Table, Typography, Spin, Row, Col, Statistic, Space, Button, DatePicker, Input } from 'antd'
 import { ArrowLeftOutlined, FileExcelOutlined, UserOutlined, DollarOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useVentasPorVendedor, type VentaPorVendedorRow } from '@/lib/hooks/queries/useReportesVentas'
@@ -13,6 +13,7 @@ import dayjs from 'dayjs'
 
 const { Title } = Typography
 const { RangePicker } = DatePicker
+const { Search } = Input
 
 export default function ReporteVentasVendedorPage() {
   const router = useRouter()
@@ -23,12 +24,19 @@ export default function ReporteVentasVendedorPage() {
     dayjs().startOf('month'),
     dayjs().endOf('month'),
   ])
+  const [busqueda, setBusqueda] = useState('')
   const [generandoExcel, setGenerandoExcel] = useState(false)
 
   const fechaDesde = fechaRange?.[0]?.format('YYYY-MM-DD') ?? null
   const fechaHasta = fechaRange?.[1]?.format('YYYY-MM-DD') ?? null
 
-  const { data: ventas = [], isLoading } = useVentasPorVendedor(fechaDesde, fechaHasta, organizacion?.id, modulosActivos)
+  const { data: ventasRaw = [], isLoading } = useVentasPorVendedor(fechaDesde, fechaHasta, organizacion?.id, modulosActivos)
+
+  const ventas = useMemo(() => {
+    if (!busqueda.trim()) return ventasRaw
+    const term = busqueda.toLowerCase()
+    return ventasRaw.filter((v) => v.vendedor_nombre.toLowerCase().includes(term))
+  }, [ventasRaw, busqueda])
 
   const stats = useMemo(() => {
     const totalVendido = ventas.reduce((sum, v) => sum + v.total, 0)
@@ -153,13 +161,14 @@ export default function ReporteVentasVendedorPage() {
       </Row>
 
       <Card>
-        <Space style={{ marginBottom: 16 }}>
+        <Space style={{ marginBottom: 16 }} wrap>
           <RangePicker
             value={fechaRange}
             onChange={(dates) => setFechaRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
             format="DD/MM/YYYY"
             placeholder={['Fecha desde', 'Fecha hasta']}
           />
+          <Search placeholder="Buscar vendedor..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} allowClear style={{ width: 250 }} />
         </Space>
 
         <Table

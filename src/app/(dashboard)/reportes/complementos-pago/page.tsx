@@ -42,12 +42,12 @@ export default function ReporteComplementosPagoPage() {
 
   const columns: ColumnsType<ComplementoPagoRow> = useMemo(() => [
     { title: 'Fecha Pago', dataIndex: 'fecha_pago', key: 'fecha_pago', width: 110, render: (v: string) => formatDate(v), sorter: (a, b) => a.fecha_pago.localeCompare(b.fecha_pago) },
-    { title: 'Folio Pago', dataIndex: 'folio_pago', key: 'folio_pago', width: 120 },
-    { title: 'Factura', dataIndex: 'factura_folio', key: 'factura_folio', width: 120 },
+    { title: 'Folio Pago', dataIndex: 'folio_pago', key: 'folio_pago', width: 120, sorter: (a, b) => a.folio_pago.localeCompare(b.folio_pago) },
+    { title: 'Factura', dataIndex: 'factura_folio', key: 'factura_folio', width: 120, sorter: (a, b) => a.factura_folio.localeCompare(b.factura_folio) },
     { title: 'UUID Factura', dataIndex: 'uuid_factura', key: 'uuid_factura', width: 260, render: (v: string | null) => v ? <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v}</span> : <Tag color="orange">Sin CFDI</Tag> },
-    { title: 'RFC', dataIndex: 'cliente_rfc', key: 'cliente_rfc', width: 140, render: (v: string | null) => v || '-' },
+    { title: 'RFC', dataIndex: 'cliente_rfc', key: 'cliente_rfc', width: 140, render: (v: string | null) => v || '-', sorter: (a, b) => (a.cliente_rfc || '').localeCompare(b.cliente_rfc || '') },
     { title: 'Monto', dataIndex: 'monto', key: 'monto', width: 140, align: 'right', render: (v: number) => formatMoneySimple(v), sorter: (a, b) => a.monto - b.monto, defaultSortOrder: 'descend' },
-    { title: 'Metodo', dataIndex: 'metodo_pago', key: 'metodo_pago', width: 120, render: (v: string | null) => v || '-' },
+    { title: 'Metodo', dataIndex: 'metodo_pago', key: 'metodo_pago', width: 120, render: (v: string | null) => v || '-', sorter: (a, b) => (a.metodo_pago || '').localeCompare(b.metodo_pago || '') },
   ], [])
 
   const handleExportarExcel = async () => {

@@ -32,11 +32,11 @@ export default function ReporteDIOTPage() {
   }, [rows])
 
   const columns: ColumnsType<DIOTRow> = useMemo(() => [
-    { title: 'RFC Proveedor', dataIndex: 'proveedor_rfc', key: 'proveedor_rfc', width: 150 },
-    { title: 'Razon Social', dataIndex: 'proveedor_nombre', key: 'proveedor_nombre', ellipsis: true },
-    { title: 'Tipo Op.', dataIndex: 'tipo_operacion', key: 'tipo_operacion', width: 90, align: 'center' },
-    { title: 'Base Gravable 16%', dataIndex: 'base_16', key: 'base_16', width: 160, align: 'right', render: (v: number) => formatMoneySimple(v) },
-    { title: 'IVA 16%', dataIndex: 'iva_16', key: 'iva_16', width: 130, align: 'right', render: (v: number) => formatMoneySimple(v) },
+    { title: 'RFC Proveedor', dataIndex: 'proveedor_rfc', key: 'proveedor_rfc', width: 150, sorter: (a, b) => a.proveedor_rfc.localeCompare(b.proveedor_rfc) },
+    { title: 'Razon Social', dataIndex: 'proveedor_nombre', key: 'proveedor_nombre', ellipsis: true, sorter: (a, b) => a.proveedor_nombre.localeCompare(b.proveedor_nombre) },
+    { title: 'Tipo Op.', dataIndex: 'tipo_operacion', key: 'tipo_operacion', width: 90, align: 'center', sorter: (a, b) => a.tipo_operacion.localeCompare(b.tipo_operacion) },
+    { title: 'Base Gravable 16%', dataIndex: 'base_16', key: 'base_16', width: 160, align: 'right', render: (v: number) => formatMoneySimple(v), sorter: (a, b) => a.base_16 - b.base_16 },
+    { title: 'IVA 16%', dataIndex: 'iva_16', key: 'iva_16', width: 130, align: 'right', render: (v: number) => formatMoneySimple(v), sorter: (a, b) => a.iva_16 - b.iva_16 },
     { title: 'Total', dataIndex: 'total', key: 'total', width: 150, align: 'right', render: (v: number) => formatMoneySimple(v), sorter: (a, b) => a.total - b.total, defaultSortOrder: 'descend' },
   ], [])
 

@@ -38,8 +38,8 @@ export default function ReporteDevolucionesPage() {
     { title: 'Tipo', dataIndex: 'tipo', key: 'tipo', width: 100, align: 'center', render: (v: string) => <Tag color={v === 'factura' ? 'blue' : 'orange'}>{v === 'factura' ? 'Factura' : 'POS'}</Tag> },
     { title: 'Folio', dataIndex: 'folio', key: 'folio', width: 130 },
     { title: 'Cliente', dataIndex: 'cliente_nombre', key: 'cliente_nombre', ellipsis: true },
-    { title: 'Sucursal', dataIndex: 'sucursal_nombre', key: 'sucursal_nombre', width: 130, ellipsis: true, render: (v: string | null) => v || '-' },
-    { title: 'Productos', dataIndex: 'productos_desc', key: 'productos_desc', width: 200, ellipsis: true, render: (v: string | null) => v || '-' },
+    { title: 'Sucursal', dataIndex: 'sucursal_nombre', key: 'sucursal_nombre', width: 130, ellipsis: true, render: (v: string | null) => v || '-', sorter: (a, b) => (a.sucursal_nombre || '').localeCompare(b.sucursal_nombre || '') },
+    { title: 'Productos', dataIndex: 'productos_desc', key: 'productos_desc', width: 200, ellipsis: true, render: (v: string | null) => v || '-', sorter: (a, b) => (a.productos_desc || '').localeCompare(b.productos_desc || '') },
     { title: 'Monto', dataIndex: 'monto', key: 'monto', width: 140, align: 'right', render: (v: number) => formatMoneySimple(v), sorter: (a, b) => a.monto - b.monto, defaultSortOrder: 'descend' },
     { title: 'Status', dataIndex: 'status', key: 'status', width: 110, align: 'center', render: (v: string) => <Tag color="red">{v}</Tag> },
   ], [])
@@ -83,7 +83,7 @@ export default function ReporteDevolucionesPage() {
         <Col xs={24} sm={6}><Card><Statistic title="POS" value={stats.pos} valueStyle={{ color: '#722ed1' }} /></Card></Col>
       </Row>
       <Card><Space style={{ marginBottom: 16 }}><RangePicker value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" /></Space>
-        <Table dataSource={rows} columns={columns} rowKey="id" scroll={{ x: 700 }} pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} registros` }} /></Card>
+        <Table dataSource={rows} columns={columns} rowKey="id" scroll={{ x: 1030 }} pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} registros` }} /></Card>
     </div>
   )
 }

@@ -81,6 +81,7 @@ export default function ReporteFacturasSaldosPage() {
       width: 130,
       ellipsis: true,
       render: (val: string | null) => val || '-',
+      sorter: (a, b) => (a.sucursal_nombre || '').localeCompare(b.sucursal_nombre || ''),
     },
     {
       title: 'Productos',
@@ -89,6 +90,7 @@ export default function ReporteFacturasSaldosPage() {
       width: 200,
       ellipsis: true,
       render: (val: string | null) => val || '-',
+      sorter: (a, b) => (a.productos_desc || '').localeCompare(b.productos_desc || ''),
     },
     {
       title: 'Total',
@@ -277,7 +279,7 @@ export default function ReporteFacturasSaldosPage() {
           columns={columns}
           rowKey="id"
           loading={isLoading}
-          scroll={{ x: 900 }}
+          scroll={{ x: 1230 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,

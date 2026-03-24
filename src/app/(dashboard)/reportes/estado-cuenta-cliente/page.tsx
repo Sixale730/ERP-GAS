@@ -71,6 +71,7 @@ export default function ReporteEstadoCuentaPage() {
         key: 'fecha',
         width: 110,
         render: (val: string) => formatDate(val),
+        sorter: (a, b) => a.fecha.localeCompare(b.fecha),
       },
       {
         title: 'Tipo',
@@ -81,17 +82,21 @@ export default function ReporteEstadoCuentaPage() {
         render: (val: string) => (
           <Tag color={val === 'factura' ? 'blue' : 'green'}>{val === 'factura' ? 'Factura' : 'Pago'}</Tag>
         ),
+        sorter: (a, b) => a.tipo.localeCompare(b.tipo),
       },
       {
         title: 'Folio',
         dataIndex: 'folio',
         key: 'folio',
         width: 130,
+        sorter: (a, b) => a.folio.localeCompare(b.folio),
       },
       {
         title: 'Descripcion',
         dataIndex: 'descripcion',
         key: 'descripcion',
+        ellipsis: true,
+        sorter: (a, b) => a.descripcion.localeCompare(b.descripcion),
       },
       {
         title: 'Cargo',
@@ -100,6 +105,7 @@ export default function ReporteEstadoCuentaPage() {
         width: 140,
         align: 'right',
         render: (val: number) => (val > 0 ? formatMoneySimple(val) : ''),
+        sorter: (a, b) => a.cargo - b.cargo,
       },
       {
         title: 'Abono',
@@ -108,6 +114,7 @@ export default function ReporteEstadoCuentaPage() {
         width: 140,
         align: 'right',
         render: (val: number) => (val > 0 ? <Text type="success">{formatMoneySimple(val)}</Text> : ''),
+        sorter: (a, b) => a.abono - b.abono,
       },
       {
         title: 'Saldo',
@@ -120,6 +127,7 @@ export default function ReporteEstadoCuentaPage() {
             {formatMoneySimple(val)}
           </Text>
         ),
+        sorter: (a, b) => a.saldo - b.saldo,
       },
     ],
     []
@@ -245,7 +253,7 @@ export default function ReporteEstadoCuentaPage() {
             <Table
               dataSource={movimientos}
               columns={columns}
-              rowKey={(_, index) => String(index)}
+              rowKey={(r, index) => `${r.tipo}-${r.folio}-${index}`}
               scroll={{ x: 900 }}
               pagination={{ pageSize: 50, showSizeChanger: true, showTotal: (total) => `${total} movimientos` }}
               locale={{ emptyText: 'No hay movimientos en el periodo' }}
