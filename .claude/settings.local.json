@@ -36,7 +36,19 @@
       "Bash(npx next:*)",
       "Bash(wc:*)",
       "Bash(git add:*)",
-      "Bash(taskkill //F //IM node.exe)"
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(2)",
+      "Bash(find /c/ERP-GAS -type f \\\\\\(-name *.sql -o -name *.ts -o -name *.tsx -o -name *.json -o -name *.env* \\\\\\))",
+      "Bash(sed -i \"/key: ''comparativo-ventas''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
+      "Bash(sed -i \"/key: ''conversion-cotizaciones''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
+      "Bash(sed -i \"/key: ''rotacion-inventario''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
+      "Bash(sed -i \"/key: ''productos-sin-movimiento''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
+      "Bash(sed -i \"/key: ''compras-proveedor''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
+      "Bash(sed -i \"/key: ''devoluciones-cancelaciones''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
+      "Bash(sed -i \"/key: ''analisis-horarios''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
+      "Bash(sed -i \"/key: ''productividad-cajero''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
+      "Bash(sed -i \"/key: ''punto-reorden''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
+      "Bash(sed -i \"/key: ''conciliacion-inventario''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)"
     ]
   },
   "enableAllProjectMcpServers": true,
