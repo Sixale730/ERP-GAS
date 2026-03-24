@@ -516,3 +516,55 @@ export function useConversionCotizaciones(
     enabled: !!fechaDesde && !!fechaHasta && !!orgId,
   })
 }
+
+// ─── R23: Devoluciones y Cancelaciones ────────────────────────────────────────
+
+export interface DevolucionRow {
+  id: string
+  fecha: string
+  tipo: 'factura' | 'pos'
+  folio: string
+  cliente_nombre: string
+  monto: number
+  status: string
+}
+
+export function useDevolucionesCancelaciones(
+  fechaDesde: string | null, fechaHasta: string | null, orgId: string | undefined, modulosActivos: string[]
+) {
+  const fuente = determinarFuente(modulosActivos)
+  return useQuery({
+    queryKey: ['reporte-devoluciones', fechaDesde, fechaHasta, orgId, fuente],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      const resultado: DevolucionRow[] = []
+
+      if (fuente === 'facturas' || fuente === 'both') {
+        let q = supabase.schema('erp').from('v_facturas')
+          .select('id, fecha, folio, cliente_nombre, total, status')
+          .eq('organizacion_id', orgId!).eq('status', 'cancelada')
+        if (fechaDesde) q = q.gte('fecha', fechaDesde)
+        if (fechaHasta) q = q.lte('fecha', fechaHasta)
+        const { data } = await q
+        for (const r of data || []) {
+          resultado.push({ id: r.id, fecha: r.fecha, tipo: 'factura', folio: r.folio, cliente_nombre: r.cliente_nombre || '-', monto: Number(r.total || 0), status: 'Cancelada' })
+        }
+      }
+
+      if (fuente === 'pos' || fuente === 'both') {
+        let q = supabase.schema('erp').from('ventas_pos')
+          .select('id, created_at, folio, cliente_nombre, total, status')
+          .eq('organizacion_id', orgId!).eq('status', 'cancelada')
+        if (fechaDesde) q = q.gte('created_at', `${fechaDesde}T00:00:00`)
+        if (fechaHasta) q = q.lte('created_at', `${fechaHasta}T23:59:59`)
+        const { data } = await q
+        for (const r of data || []) {
+          resultado.push({ id: r.id, fecha: r.created_at, tipo: 'pos', folio: r.folio, cliente_nombre: r.cliente_nombre || 'Publico General', monto: Number(r.total || 0), status: 'Cancelada' })
+        }
+      }
+
+      return resultado.sort((a, b) => b.fecha.localeCompare(a.fecha))
+    },
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
+  })
+}

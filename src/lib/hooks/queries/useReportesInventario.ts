@@ -240,3 +240,79 @@ export function useProductosSinMovimiento(
     enabled: !!orgId,
   })
 }
+
+// ─── R24: Punto de Reorden ────────────────────────────────────────────────────
+
+export interface PuntoReordenRow {
+  producto_id: string
+  sku: string
+  nombre: string
+  almacen_nombre: string
+  stock_actual: number
+  stock_minimo: number
+  stock_maximo: number
+  cantidad_sugerida: number
+  nivel: string
+}
+
+export function usePuntoReorden(orgId: string | undefined) {
+  return useQuery({
+    queryKey: ['reporte-punto-reorden', orgId],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase.schema('erp').from('v_inventario_detalle')
+        .select('producto_id, sku, producto_nombre, almacen_nombre, cantidad, stock_minimo, stock_maximo, nivel_stock')
+        .eq('organizacion_id', orgId!)
+        .in('nivel_stock', ['bajo', 'sin_stock'])
+
+      if (error) throw error
+
+      return (data || []).map((r): PuntoReordenRow => {
+        const actual = Number(r.cantidad || 0)
+        const maximo = Number(r.stock_maximo || 0)
+        return {
+          producto_id: r.producto_id, sku: r.sku, nombre: r.producto_nombre,
+          almacen_nombre: r.almacen_nombre, stock_actual: actual,
+          stock_minimo: Number(r.stock_minimo || 0), stock_maximo: maximo,
+          cantidad_sugerida: Math.max(0, maximo - actual),
+          nivel: r.nivel_stock,
+        }
+      }).sort((a, b) => a.stock_actual - b.stock_actual)
+    },
+    enabled: !!orgId,
+  })
+}
+
+// ─── R25: Conciliación de Inventario ──────────────────────────────────────────
+
+export interface ConciliacionRow {
+  producto_id: string
+  sku: string
+  nombre: string
+  almacen_nombre: string
+  cantidad_sistema: number
+  unidad_medida: string
+}
+
+export function useConciliacionInventario(almacenId: string | null, orgId: string | undefined) {
+  return useQuery({
+    queryKey: ['reporte-conciliacion', almacenId, orgId],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      let q = supabase.schema('erp').from('v_inventario_detalle')
+        .select('producto_id, sku, producto_nombre, almacen_nombre, cantidad, unidad_medida')
+        .eq('organizacion_id', orgId!)
+      if (almacenId) q = q.eq('almacen_id', almacenId)
+
+      const { data, error } = await q
+      if (error) throw error
+
+      return (data || []).map((r): ConciliacionRow => ({
+        producto_id: r.producto_id, sku: r.sku, nombre: r.producto_nombre,
+        almacen_nombre: r.almacen_nombre, cantidad_sistema: Number(r.cantidad || 0),
+        unidad_medida: r.unidad_medida,
+      })).sort((a, b) => a.sku.localeCompare(b.sku))
+    },
+    enabled: !!orgId,
+  })
+}

@@ -3,6 +3,24 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
+export interface FlujoEfectivoRow {
+  periodo: string
+  periodo_label: string
+  ingresos: number
+  egresos: number
+  neto: number
+  acumulado: number
+}
+
+export interface EstadoResultadosData {
+  ingresos: number
+  costo_ventas: number
+  utilidad_bruta: number
+  margen_bruto_pct: number
+  num_facturas: number
+  num_productos_vendidos: number
+}
+
 export interface ABCClienteRow {
   ranking: number
   cliente_id: string
@@ -167,7 +185,6 @@ export function useABCProductos(
         }
       }
 
-      // Obtener info de productos
       const prodIds = Array.from(agrupado.keys())
       if (prodIds.length === 0) return []
       const { data: prods } = await supabase.schema('erp').from('productos')
@@ -200,6 +217,85 @@ export function useABCProductos(
           clasificacion: clasificarABC(acumulado),
         }
       })
+    },
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
+  })
+}
+
+// ─── R17: Flujo de Efectivo ───────────────────────────────────────────────────
+
+const MESES_NOMBRE = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+
+export function useFlujoEfectivo(
+  fechaDesde: string | null, fechaHasta: string | null, orgId: string | undefined
+) {
+  return useQuery({
+    queryKey: ['reporte-flujo-efectivo', fechaDesde, fechaHasta, orgId],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      let pq = supabase.schema('erp').from('pagos').select('fecha, monto').eq('organizacion_id', orgId!)
+      if (fechaDesde) pq = pq.gte('fecha', fechaDesde)
+      if (fechaHasta) pq = pq.lte('fecha', fechaHasta)
+      const { data: pagos } = await pq
+
+      let oq = supabase.schema('erp').from('ordenes_compra').select('fecha, total').eq('organizacion_id', orgId!)
+        .in('status', ['recibida', 'parcialmente_recibida'])
+      if (fechaDesde) oq = oq.gte('fecha', fechaDesde)
+      if (fechaHasta) oq = oq.lte('fecha', fechaHasta)
+      const { data: ordenes } = await oq
+
+      const ingM = new Map<string, number>()
+      const egrM = new Map<string, number>()
+      for (const p of pagos || []) { const m = (p.fecha || '').substring(0, 7); ingM.set(m, (ingM.get(m) || 0) + Number(p.monto || 0)) }
+      for (const o of ordenes || []) { const m = (o.fecha || '').substring(0, 7); egrM.set(m, (egrM.get(m) || 0) + Number(o.total || 0)) }
+
+      const allM = new Set<string>()
+      ingM.forEach((_, m) => allM.add(m))
+      egrM.forEach((_, m) => allM.add(m))
+
+      let acum = 0
+      return Array.from(allM).sort().map((mes): FlujoEfectivoRow => {
+        const ing = ingM.get(mes) || 0; const egr = egrM.get(mes) || 0; const neto = ing - egr; acum += neto
+        const [a, m] = mes.split('-')
+        return { periodo: mes, periodo_label: `${MESES_NOMBRE[parseInt(m, 10) - 1] || m} ${a}`, ingresos: ing, egresos: egr, neto, acumulado: acum }
+      })
+    },
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
+  })
+}
+
+// ─── R18: Estado de Resultados ────────────────────────────────────────────────
+
+export function useEstadoResultados(
+  fechaDesde: string | null, fechaHasta: string | null, orgId: string | undefined
+) {
+  return useQuery({
+    queryKey: ['reporte-estado-resultados', fechaDesde, fechaHasta, orgId],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      let fq = supabase.schema('erp').from('facturas').select('id, subtotal').eq('organizacion_id', orgId!).not('status', 'eq', 'cancelada')
+      if (fechaDesde) fq = fq.gte('fecha', fechaDesde)
+      if (fechaHasta) fq = fq.lte('fecha', fechaHasta)
+      const { data: facturas } = await fq
+
+      const ingresos = (facturas || []).reduce((s, f) => s + Number(f.subtotal || 0), 0)
+      const facturaIds = (facturas || []).map((f) => f.id)
+
+      let costoVentas = 0; let numProductos = 0
+      if (facturaIds.length > 0) {
+        const { data: items } = await supabase.schema('erp').from('factura_items').select('producto_id, cantidad').in('factura_id', facturaIds)
+        const prodIds = Array.from(new Set((items || []).map((i) => i.producto_id).filter(Boolean)))
+        if (prodIds.length > 0) {
+          const { data: prods } = await supabase.schema('erp').from('productos').select('id, costo_promedio').in('id', prodIds)
+          const cm = new Map((prods || []).map((p) => [p.id, Number(p.costo_promedio || 0)]))
+          for (const it of items || []) { if (it.producto_id) { costoVentas += Number(it.cantidad || 0) * (cm.get(it.producto_id) || 0); numProductos += Number(it.cantidad || 0) } }
+        }
+      }
+      const ub = ingresos - costoVentas
+      return { ingresos, costo_ventas: costoVentas, utilidad_bruta: ub, margen_bruto_pct: Math.round((ingresos > 0 ? (ub / ingresos) * 100 : 0) * 10) / 10, num_facturas: facturaIds.length, num_productos_vendidos: numProductos } as EstadoResultadosData
     },
     enabled: !!fechaDesde && !!fechaHasta && !!orgId,
   })

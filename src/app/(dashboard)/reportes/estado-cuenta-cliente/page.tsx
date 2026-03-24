@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, Table, Tag, Typography, Spin, Row, Col, Statistic, Space, Button, DatePicker, Select } from 'antd'
-import { ArrowLeftOutlined, FileExcelOutlined, FilePdfOutlined, SolutionOutlined, DollarOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, FileExcelOutlined, SolutionOutlined, DollarOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useEstadoCuentaCliente, type EstadoCuentaMovimiento } from '@/lib/hooks/queries/useReportesCobranza'
 import { useAuth } from '@/lib/hooks/useAuth'

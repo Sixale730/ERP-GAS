@@ -12,6 +12,27 @@ export interface IVAMensualRow {
   total: number
 }
 
+export interface DIOTRow {
+  proveedor_rfc: string
+  proveedor_nombre: string
+  tipo_operacion: string
+  base_16: number
+  iva_16: number
+  total: number
+}
+
+export interface ComplementoPagoRow {
+  id: string
+  fecha_pago: string
+  folio_pago: string
+  factura_folio: string
+  uuid_factura: string | null
+  cliente_rfc: string | null
+  cliente_nombre: string
+  monto: number
+  metodo_pago: string | null
+}
+
 export interface CFDIEmitidoRow {
   id: string
   uuid_cfdi: string
@@ -178,6 +199,86 @@ export function useCFDIEmitidos(
       const { data, error } = await q
       if (error) throw error
       return (data || []) as CFDIEmitidoRow[]
+    },
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
+  })
+}
+
+// ─── R19: DIOT ────────────────────────────────────────────────────────────────
+
+export function useDIOT(mes: number | null, anio: number | null, orgId: string | undefined) {
+  return useQuery({
+    queryKey: ['reporte-diot', mes, anio, orgId],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      const fechaDesde = `${anio}-${String(mes).padStart(2, '0')}-01`
+      const lastDay = new Date(anio!, mes!, 0).getDate()
+      const fechaHasta = `${anio}-${String(mes).padStart(2, '0')}-${lastDay}`
+
+      const { data, error } = await supabase.schema('erp').from('v_ordenes_compra')
+        .select('proveedor_rfc, proveedor_nombre, subtotal, iva, total')
+        .eq('organizacion_id', orgId!)
+        .in('status', ['recibida', 'parcialmente_recibida'])
+        .gte('fecha', fechaDesde).lte('fecha', fechaHasta)
+
+      if (error) throw error
+
+      const agrupado = new Map<string, DIOTRow>()
+      for (const r of data || []) {
+        const rfc = r.proveedor_rfc || 'SIN-RFC'
+        const ex = agrupado.get(rfc)
+        if (ex) {
+          ex.base_16 += Number(r.subtotal || 0)
+          ex.iva_16 += Number(r.iva || 0)
+          ex.total += Number(r.total || 0)
+        } else {
+          agrupado.set(rfc, {
+            proveedor_rfc: rfc, proveedor_nombre: r.proveedor_nombre || '-',
+            tipo_operacion: '03', base_16: Number(r.subtotal || 0),
+            iva_16: Number(r.iva || 0), total: Number(r.total || 0),
+          })
+        }
+      }
+      return Array.from(agrupado.values()).sort((a, b) => b.total - a.total)
+    },
+    enabled: !!mes && !!anio && !!orgId,
+  })
+}
+
+// ─── R20: Complementos de Pago ────────────────────────────────────────────────
+
+export function useComplementosPago(fechaDesde: string | null, fechaHasta: string | null, orgId: string | undefined) {
+  return useQuery({
+    queryKey: ['reporte-complementos-pago', fechaDesde, fechaHasta, orgId],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+
+      // Pagos en el periodo
+      let pq = supabase.schema('erp').from('pagos')
+        .select('id, folio, fecha, monto, metodo_pago, factura_id')
+        .eq('organizacion_id', orgId!).order('fecha', { ascending: false })
+      if (fechaDesde) pq = pq.gte('fecha', fechaDesde)
+      if (fechaHasta) pq = pq.lte('fecha', fechaHasta)
+      const { data: pagos, error } = await pq
+      if (error) throw error
+      if (!pagos || pagos.length === 0) return []
+
+      const facturaIds = Array.from(new Set(pagos.map((p) => p.factura_id)))
+      const { data: facturas } = await supabase.schema('erp').from('facturas')
+        .select('id, folio, uuid_cfdi, cliente_rfc, cliente_razon_social')
+        .in('id', facturaIds)
+
+      const fMap = new Map((facturas || []).map((f) => [f.id, f]))
+
+      return pagos.map((p): ComplementoPagoRow => {
+        const f = fMap.get(p.factura_id)
+        return {
+          id: p.id, fecha_pago: p.fecha, folio_pago: p.folio,
+          factura_folio: f?.folio || '-', uuid_factura: f?.uuid_cfdi || null,
+          cliente_rfc: f?.cliente_rfc || null, cliente_nombre: f?.cliente_razon_social || '-',
+          monto: Number(p.monto), metodo_pago: p.metodo_pago,
+        }
+      })
     },
     enabled: !!fechaDesde && !!fechaHasta && !!orgId,
   })

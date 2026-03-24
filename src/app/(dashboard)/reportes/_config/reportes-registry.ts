@@ -201,7 +201,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/devoluciones-cancelaciones',
     categoria: 'ventas_comercial',
     requiereAlguno: ['facturas', 'pos'],
-    implementado: false,
+    implementado: true,
   },
 
   // ── Existentes: Cobranza ──────────────────────────────────────────────────
@@ -308,7 +308,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/analisis-horarios',
     categoria: 'punto_de_venta',
     requiereModulo: 'pos',
-    implementado: false,
+    implementado: true,
   },
   {
     key: 'productividad-cajero',
@@ -319,7 +319,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/productividad-cajero',
     categoria: 'punto_de_venta',
     requiereModulo: 'pos',
-    implementado: false,
+    implementado: true,
   },
 
   // ── Existentes: Inventario ────────────────────────────────────────────────
@@ -401,7 +401,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/punto-reorden',
     categoria: 'inventario',
     requiereTodos: ['inventario', 'compras'],
-    implementado: false,
+    implementado: true,
   },
   {
     key: 'conciliacion-inventario',
@@ -412,7 +412,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/conciliacion-inventario',
     categoria: 'inventario',
     requiereModulo: 'inventario',
-    implementado: false,
+    implementado: true,
   },
 
   // ── Existentes: Compras ───────────────────────────────────────────────────
@@ -486,7 +486,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/diot',
     categoria: 'fiscal_cfdi',
     requiereTodos: ['cfdi', 'compras'],
-    implementado: false,
+    implementado: true,
   },
   {
     key: 'complementos-pago',
@@ -497,7 +497,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/complementos-pago',
     categoria: 'fiscal_cfdi',
     requiereModulo: 'cfdi',
-    implementado: false,
+    implementado: true,
   },
 
   // ── Existentes: Finanzas y Estadísticas ───────────────────────────────────
@@ -546,7 +546,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/flujo-efectivo',
     categoria: 'finanzas_estadisticas',
     requiereModulo: 'facturas',
-    implementado: false,
+    implementado: true,
   },
   {
     key: 'estado-resultados',
@@ -557,6 +557,6 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/estado-resultados',
     categoria: 'finanzas_estadisticas',
     requiereModulo: 'facturas',
-    implementado: false,
+    implementado: true,
   },
 ]
