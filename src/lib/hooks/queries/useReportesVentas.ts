@@ -1,0 +1,353 @@
+import { useQuery } from '@tanstack/react-query'
+import { getSupabaseClient } from '@/lib/supabase/client'
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+
+export interface VentaPorClienteRow {
+  cliente_id: string
+  cliente_nombre: string
+  num_ventas: number
+  subtotal: number
+  iva: number
+  total: number
+}
+
+export interface VentaPorVendedorRow {
+  vendedor_nombre: string
+  num_ventas: number
+  subtotal: number
+  iva: number
+  total: number
+}
+
+export interface VentaPorCategoriaRow {
+  categoria_id: string | null
+  categoria_nombre: string
+  unidades_vendidas: number
+  num_productos_distintos: number
+  total: number
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+type VentaSource = 'facturas' | 'pos' | 'both'
+
+function determinarFuente(modulosActivos: string[]): VentaSource {
+  const tieneFacturas = modulosActivos.includes('facturas')
+  const tienePOS = modulosActivos.includes('pos')
+  if (tieneFacturas && tienePOS) return 'both'
+  if (tieneFacturas) return 'facturas'
+  return 'pos'
+}
+
+// ─── R1: Ventas por Cliente ───────────────────────────────────────────────────
+
+export function useVentasPorCliente(
+  fechaDesde: string | null,
+  fechaHasta: string | null,
+  orgId: string | undefined,
+  modulosActivos: string[]
+) {
+  const fuente = determinarFuente(modulosActivos)
+
+  return useQuery({
+    queryKey: ['reporte-ventas-cliente', fechaDesde, fechaHasta, orgId, fuente],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      const agrupado = new Map<string, VentaPorClienteRow>()
+
+      // Fuente: Facturas
+      if (fuente === 'facturas' || fuente === 'both') {
+        let q = supabase
+          .schema('erp')
+          .from('v_facturas')
+          .select('cliente_id, cliente_nombre, subtotal, iva, total')
+          .eq('organizacion_id', orgId!)
+          .not('status', 'eq', 'cancelada')
+
+        if (fechaDesde) q = q.gte('fecha', fechaDesde)
+        if (fechaHasta) q = q.lte('fecha', fechaHasta)
+
+        const { data, error } = await q
+        if (error) throw error
+
+        for (const row of data || []) {
+          const key = row.cliente_id || 'sin-cliente'
+          const existing = agrupado.get(key)
+          if (existing) {
+            existing.num_ventas++
+            existing.subtotal += Number(row.subtotal || 0)
+            existing.iva += Number(row.iva || 0)
+            existing.total += Number(row.total || 0)
+          } else {
+            agrupado.set(key, {
+              cliente_id: row.cliente_id,
+              cliente_nombre: row.cliente_nombre || 'Sin cliente',
+              num_ventas: 1,
+              subtotal: Number(row.subtotal || 0),
+              iva: Number(row.iva || 0),
+              total: Number(row.total || 0),
+            })
+          }
+        }
+      }
+
+      // Fuente: POS
+      if (fuente === 'pos' || fuente === 'both') {
+        let q = supabase
+          .schema('erp')
+          .from('ventas_pos')
+          .select('cliente_id, cliente_nombre, subtotal, iva, total')
+          .eq('status', 'completada')
+          .eq('organizacion_id', orgId!)
+
+        if (fechaDesde) q = q.gte('created_at', `${fechaDesde}T00:00:00`)
+        if (fechaHasta) q = q.lte('created_at', `${fechaHasta}T23:59:59`)
+
+        const { data, error } = await q
+        if (error) throw error
+
+        for (const row of data || []) {
+          const key = row.cliente_id || 'publico-general-pos'
+          const nombre = row.cliente_nombre || 'Publico en General'
+          const existing = agrupado.get(key)
+          if (existing) {
+            existing.num_ventas++
+            existing.subtotal += Number(row.subtotal || 0)
+            existing.iva += Number(row.iva || 0)
+            existing.total += Number(row.total || 0)
+          } else {
+            agrupado.set(key, {
+              cliente_id: key,
+              cliente_nombre: nombre,
+              num_ventas: 1,
+              subtotal: Number(row.subtotal || 0),
+              iva: Number(row.iva || 0),
+              total: Number(row.total || 0),
+            })
+          }
+        }
+      }
+
+      return Array.from(agrupado.values()).sort((a, b) => b.total - a.total)
+    },
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
+  })
+}
+
+// ─── R2: Ventas por Vendedor ──────────────────────────────────────────────────
+
+export function useVentasPorVendedor(
+  fechaDesde: string | null,
+  fechaHasta: string | null,
+  orgId: string | undefined,
+  modulosActivos: string[]
+) {
+  const fuente = determinarFuente(modulosActivos)
+
+  return useQuery({
+    queryKey: ['reporte-ventas-vendedor', fechaDesde, fechaHasta, orgId, fuente],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      const agrupado = new Map<string, VentaPorVendedorRow>()
+
+      if (fuente === 'facturas' || fuente === 'both') {
+        let q = supabase
+          .schema('erp')
+          .from('v_facturas')
+          .select('vendedor_nombre, subtotal, iva, total')
+          .eq('organizacion_id', orgId!)
+          .not('status', 'eq', 'cancelada')
+
+        if (fechaDesde) q = q.gte('fecha', fechaDesde)
+        if (fechaHasta) q = q.lte('fecha', fechaHasta)
+
+        const { data, error } = await q
+        if (error) throw error
+
+        for (const row of data || []) {
+          const key = row.vendedor_nombre || 'Sin vendedor'
+          const existing = agrupado.get(key)
+          if (existing) {
+            existing.num_ventas++
+            existing.subtotal += Number(row.subtotal || 0)
+            existing.iva += Number(row.iva || 0)
+            existing.total += Number(row.total || 0)
+          } else {
+            agrupado.set(key, {
+              vendedor_nombre: key,
+              num_ventas: 1,
+              subtotal: Number(row.subtotal || 0),
+              iva: Number(row.iva || 0),
+              total: Number(row.total || 0),
+            })
+          }
+        }
+      }
+
+      if (fuente === 'pos' || fuente === 'both') {
+        let q = supabase
+          .schema('erp')
+          .from('ventas_pos')
+          .select('vendedor_nombre, subtotal, iva, total')
+          .eq('status', 'completada')
+          .eq('organizacion_id', orgId!)
+
+        if (fechaDesde) q = q.gte('created_at', `${fechaDesde}T00:00:00`)
+        if (fechaHasta) q = q.lte('created_at', `${fechaHasta}T23:59:59`)
+
+        const { data, error } = await q
+        if (error) throw error
+
+        for (const row of data || []) {
+          const key = row.vendedor_nombre || 'Sin vendedor'
+          const existing = agrupado.get(key)
+          if (existing) {
+            existing.num_ventas++
+            existing.subtotal += Number(row.subtotal || 0)
+            existing.iva += Number(row.iva || 0)
+            existing.total += Number(row.total || 0)
+          } else {
+            agrupado.set(key, {
+              vendedor_nombre: key,
+              num_ventas: 1,
+              subtotal: Number(row.subtotal || 0),
+              iva: Number(row.iva || 0),
+              total: Number(row.total || 0),
+            })
+          }
+        }
+      }
+
+      return Array.from(agrupado.values()).sort((a, b) => b.total - a.total)
+    },
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
+  })
+}
+
+// ─── R3: Ventas por Categoría ─────────────────────────────────────────────────
+
+export function useVentasPorCategoria(
+  fechaDesde: string | null,
+  fechaHasta: string | null,
+  orgId: string | undefined,
+  modulosActivos: string[]
+) {
+  const fuente = determinarFuente(modulosActivos)
+
+  return useQuery({
+    queryKey: ['reporte-ventas-categoria', fechaDesde, fechaHasta, orgId, fuente],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+
+      // Obtener categorías
+      const { data: categorias } = await supabase
+        .schema('erp')
+        .from('categorias')
+        .select('id, nombre')
+        .eq('organizacion_id', orgId!)
+
+      const catMap = new Map((categorias || []).map((c) => [c.id, c.nombre]))
+
+      // Obtener productos con su categoría
+      const { data: productos } = await supabase
+        .schema('erp')
+        .from('productos')
+        .select('id, categoria_id')
+        .eq('organizacion_id', orgId!)
+
+      const prodCatMap = new Map((productos || []).map((p) => [p.id, p.categoria_id]))
+
+      const agrupado = new Map<string, VentaPorCategoriaRow>()
+      const productosDistintos = new Map<string, Set<string>>()
+
+      function agregarItem(productoId: string, cantidad: number, subtotal: number) {
+        const catId = prodCatMap.get(productoId) || 'sin-categoria'
+        const catNombre = catId === 'sin-categoria' ? 'Sin categoria' : (catMap.get(catId) || 'Sin categoria')
+        const key = catId
+
+        if (!productosDistintos.has(key)) productosDistintos.set(key, new Set())
+        productosDistintos.get(key)!.add(productoId)
+
+        const existing = agrupado.get(key)
+        if (existing) {
+          existing.unidades_vendidas += Number(cantidad)
+          existing.total += Number(subtotal)
+        } else {
+          agrupado.set(key, {
+            categoria_id: catId === 'sin-categoria' ? null : catId,
+            categoria_nombre: catNombre,
+            unidades_vendidas: Number(cantidad),
+            num_productos_distintos: 0,
+            total: Number(subtotal),
+          })
+        }
+      }
+
+      // Fuente: Factura items
+      if (fuente === 'facturas' || fuente === 'both') {
+        // Primero obtener facturas del periodo
+        let fq = supabase
+          .schema('erp')
+          .from('facturas')
+          .select('id')
+          .eq('organizacion_id', orgId!)
+          .not('status', 'eq', 'cancelada')
+
+        if (fechaDesde) fq = fq.gte('fecha', fechaDesde)
+        if (fechaHasta) fq = fq.lte('fecha', fechaHasta)
+
+        const { data: facturas } = await fq
+        if (facturas && facturas.length > 0) {
+          const facturaIds = facturas.map((f) => f.id)
+          const { data: items } = await supabase
+            .schema('erp')
+            .from('factura_items')
+            .select('producto_id, cantidad, subtotal')
+            .in('factura_id', facturaIds)
+
+          for (const item of items || []) {
+            if (item.producto_id) agregarItem(item.producto_id, item.cantidad, item.subtotal)
+          }
+        }
+      }
+
+      // Fuente: POS items
+      if (fuente === 'pos' || fuente === 'both') {
+        let vq = supabase
+          .schema('erp')
+          .from('ventas_pos')
+          .select('id')
+          .eq('status', 'completada')
+          .eq('organizacion_id', orgId!)
+
+        if (fechaDesde) vq = vq.gte('created_at', `${fechaDesde}T00:00:00`)
+        if (fechaHasta) vq = vq.lte('created_at', `${fechaHasta}T23:59:59`)
+
+        const { data: ventas } = await vq
+        if (ventas && ventas.length > 0) {
+          const ventaIds = ventas.map((v) => v.id)
+          const { data: items } = await supabase
+            .schema('erp')
+            .from('venta_pos_items')
+            .select('producto_id, cantidad, subtotal')
+            .in('venta_pos_id', ventaIds)
+
+          for (const item of items || []) {
+            if (item.producto_id) agregarItem(item.producto_id, item.cantidad, item.subtotal)
+          }
+        }
+      }
+
+      // Añadir productos distintos
+      const result = Array.from(agrupado.values())
+      for (const row of result) {
+        const key = row.categoria_id || 'sin-categoria'
+        row.num_productos_distintos = productosDistintos.get(key)?.size || 0
+      }
+
+      return result.sort((a, b) => b.total - a.total)
+    },
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
+  })
+}

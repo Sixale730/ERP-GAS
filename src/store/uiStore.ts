@@ -29,6 +29,10 @@ interface UIState {
   // Super admin: org context selector
   selectedOrgId: string | null
   setSelectedOrgId: (orgId: string | null) => void
+
+  // Reportes favoritos
+  reporteFavoritos: string[]
+  toggleReporteFavorito: (key: string) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -75,6 +79,18 @@ export const useUIStore = create<UIState>()(
       // Super admin: org context selector
       selectedOrgId: null,
       setSelectedOrgId: (orgId) => set({ selectedOrgId: orgId }),
+
+      // Reportes favoritos
+      reporteFavoritos: [],
+      toggleReporteFavorito: (key) => {
+        const current = get().reporteFavoritos
+        const exists = current.includes(key)
+        if (exists) {
+          set({ reporteFavoritos: current.filter((k) => k !== key) })
+        } else {
+          set({ reporteFavoritos: [...current, key].slice(0, 15) })
+        }
+      },
     }),
     {
       name: 'cuanty-ui-storage',
@@ -83,6 +99,7 @@ export const useUIStore = create<UIState>()(
         recentSearches: state.recentSearches,
         tablePageSize: state.tablePageSize,
         selectedOrgId: state.selectedOrgId,
+        reporteFavoritos: state.reporteFavoritos,
         // No persistir pageFilters para evitar datos obsoletos
       }),
     }

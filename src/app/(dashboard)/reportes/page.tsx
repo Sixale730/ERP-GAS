@@ -1,168 +1,186 @@
 'use client'
 
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, Typography, Row, Col, Spin } from 'antd'
-import {
-  BarChartOutlined,
-  DollarOutlined,
-  ShoppingCartOutlined,
-  CreditCardOutlined,
-  FileTextOutlined,
-  ClockCircleOutlined,
-  ShopOutlined,
-  TrophyOutlined,
-  InboxOutlined,
-  SwapOutlined,
-  ToolOutlined,
-  ContainerOutlined,
-  PercentageOutlined,
-  TeamOutlined,
-} from '@ant-design/icons'
+import { Card, Typography, Row, Col, Spin, Tabs, Input, Badge, Tooltip } from 'antd'
+import { StarFilled, StarOutlined, SearchOutlined } from '@ant-design/icons'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useUIStore } from '@/store/uiStore'
+import {
+  CATEGORIAS_CONFIG,
+  REPORTES_REGISTRY,
+  isReporteVisible,
+  isReporteAccesible,
+  type ReporteDefinition,
+  type CategoriaReporte,
+} from './_config/reportes-registry'
+import { resolveIcon } from './_config/icon-resolver'
 
 const { Title, Text } = Typography
 
-interface ReporteCard {
-  key: string
-  titulo: string
-  descripcion: string
-  icono: React.ReactNode
-  ruta: string
-  requiereModulo?: string // solo mostrar si org tiene este módulo
+// ─── Card de reporte ──────────────────────────────────────────────────────────
+
+function ReporteCard({
+  reporte,
+  esFavorito,
+  onToggleFavorito,
+  onClick,
+}: {
+  reporte: ReporteDefinition
+  esFavorito: boolean
+  onToggleFavorito: () => void
+  onClick: () => void
+}) {
+  const disabled = !reporte.implementado
+
+  return (
+    <Card
+      hoverable={!disabled}
+      onClick={disabled ? undefined : onClick}
+      style={{
+        height: '100%',
+        opacity: disabled ? 0.55 : 1,
+        cursor: disabled ? 'default' : 'pointer',
+      }}
+      styles={{ body: { padding: 20, position: 'relative' } }}
+    >
+      {/* Estrella de favorito */}
+      {reporte.implementado && (
+        <Tooltip title={esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'}>
+          <div
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleFavorito()
+            }}
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              cursor: 'pointer',
+              fontSize: 16,
+              color: esFavorito ? '#faad14' : '#d9d9d9',
+              transition: 'color 0.2s',
+            }}
+          >
+            {esFavorito ? <StarFilled /> : <StarOutlined />}
+          </div>
+        </Tooltip>
+      )}
+
+      {/* Badge "Próximamente" */}
+      {disabled && (
+        <Badge.Ribbon text="Proximamente" color="default" style={{ top: -4 }}>
+          <div />
+        </Badge.Ribbon>
+      )}
+
+      <div style={{ marginBottom: 12 }}>
+        {resolveIcon(reporte.icono, { fontSize: 28, color: reporte.iconColor })}
+      </div>
+      <Text strong style={{ fontSize: 15, display: 'block', marginBottom: 4 }}>
+        {reporte.titulo}
+      </Text>
+      <Text type="secondary" style={{ fontSize: 13 }}>
+        {reporte.descripcion}
+      </Text>
+    </Card>
+  )
 }
 
-interface SeccionReportes {
-  titulo: string
-  visible: (modulos: string[]) => boolean
-  reportes: ReporteCard[]
+// ─── Grid de reportes ─────────────────────────────────────────────────────────
+
+function ReportesGrid({
+  reportes,
+  favoritos,
+  onToggleFavorito,
+  onNavigate,
+}: {
+  reportes: ReporteDefinition[]
+  favoritos: string[]
+  onToggleFavorito: (key: string) => void
+  onNavigate: (ruta: string) => void
+}) {
+  if (reportes.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+        <Text type="secondary">No hay reportes en esta seccion</Text>
+      </div>
+    )
+  }
+
+  return (
+    <Row gutter={[16, 16]}>
+      {reportes.map((reporte) => (
+        <Col xs={24} sm={12} md={8} lg={6} key={reporte.key}>
+          <ReporteCard
+            reporte={reporte}
+            esFavorito={favoritos.includes(reporte.key)}
+            onToggleFavorito={() => onToggleFavorito(reporte.key)}
+            onClick={() => onNavigate(reporte.ruta)}
+          />
+        </Col>
+      ))}
+    </Row>
+  )
 }
 
-const SECCIONES: SeccionReportes[] = [
-  {
-    titulo: 'Ventas',
-    visible: (m) => m.includes('facturas') || m.includes('pos'),
-    reportes: [
-      {
-        key: 'ventas-pos',
-        titulo: 'Ventas del Periodo',
-        descripcion: 'Ventas diarias con totales y tendencia',
-        icono: <BarChartOutlined style={{ fontSize: 28, color: '#1890ff' }} />,
-        ruta: '/reportes/ventas-pos',
-        requiereModulo: 'pos',
-      },
-      {
-        key: 'ventas-forma-pago',
-        titulo: 'Ventas por Forma de Pago',
-        descripcion: 'Distribucion por metodo de pago',
-        icono: <CreditCardOutlined style={{ fontSize: 28, color: '#722ed1' }} />,
-        ruta: '/reportes/ventas-forma-pago',
-        requiereModulo: 'pos',
-      },
-      {
-        key: 'facturas-saldos',
-        titulo: 'Facturas y Saldos',
-        descripcion: 'Estado de facturacion y cobranza',
-        icono: <FileTextOutlined style={{ fontSize: 28, color: '#13c2c2' }} />,
-        ruta: '/reportes/facturas-saldos',
-        requiereModulo: 'facturas',
-      },
-      {
-        key: 'cartera-vencida',
-        titulo: 'Cartera Vencida',
-        descripcion: 'Facturas vencidas por antiguedad',
-        icono: <ClockCircleOutlined style={{ fontSize: 28, color: '#f5222d' }} />,
-        ruta: '/reportes/cartera-vencida',
-        requiereModulo: 'facturas',
-      },
-    ],
-  },
-  {
-    titulo: 'Punto de Venta',
-    visible: (m) => m.includes('pos'),
-    reportes: [
-      {
-        key: 'cortes-caja',
-        titulo: 'Cortes de Caja',
-        descripcion: 'Resumen de turnos y diferencias',
-        icono: <ShopOutlined style={{ fontSize: 28, color: '#fa8c16' }} />,
-        ruta: '/reportes/cortes-caja',
-      },
-      {
-        key: 'productos-vendidos',
-        titulo: 'Productos mas Vendidos',
-        descripcion: 'Ranking de productos por unidades e importe',
-        icono: <TrophyOutlined style={{ fontSize: 28, color: '#faad14' }} />,
-        ruta: '/reportes/productos-vendidos',
-      },
-    ],
-  },
-  {
-    titulo: 'Inventario',
-    visible: () => true,
-    reportes: [
-      {
-        key: 'inventario',
-        titulo: 'Inventario Actual',
-        descripcion: 'Stock por almacen y nivel',
-        icono: <InboxOutlined style={{ fontSize: 28, color: '#52c41a' }} />,
-        ruta: '/reportes/inventario',
-      },
-      {
-        key: 'movimientos',
-        titulo: 'Movimientos',
-        descripcion: 'Entradas y salidas de inventario',
-        icono: <SwapOutlined style={{ fontSize: 28, color: '#2f54eb' }} />,
-        ruta: '/reportes/movimientos',
-      },
-      {
-        key: 'servicios',
-        titulo: 'Servicios',
-        descripcion: 'Consumo de servicios por periodo',
-        icono: <ToolOutlined style={{ fontSize: 28, color: '#595959' }} />,
-        ruta: '/reportes/servicios',
-      },
-    ],
-  },
-  {
-    titulo: 'Compras',
-    visible: (m) => m.includes('compras'),
-    reportes: [
-      {
-        key: 'ordenes-compra',
-        titulo: 'Ordenes de Compra',
-        descripcion: 'Seguimiento de compras a proveedores',
-        icono: <ShoppingCartOutlined style={{ fontSize: 28, color: '#eb2f96' }} />,
-        ruta: '/reportes/ordenes-compra',
-      },
-    ],
-  },
-  {
-    titulo: 'Estadisticas',
-    visible: () => true,
-    reportes: [
-      {
-        key: 'margen-utilidad',
-        titulo: 'Margen de Utilidad',
-        descripcion: 'Rentabilidad por producto',
-        icono: <PercentageOutlined style={{ fontSize: 28, color: '#389e0d' }} />,
-        ruta: '/reportes/margen-utilidad',
-      },
-      {
-        key: 'ordenes-venta',
-        titulo: 'Ordenes de Venta',
-        descripcion: 'Seguimiento de ordenes y cotizaciones',
-        icono: <ContainerOutlined style={{ fontSize: 28, color: '#1890ff' }} />,
-        ruta: '/reportes/ordenes-venta',
-      },
-    ],
-  },
-]
+// ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function ReportesHubPage() {
   const router = useRouter()
   const { organizacion, loading } = useAuth()
+  const { reporteFavoritos, toggleReporteFavorito } = useUIStore()
+  const [busqueda, setBusqueda] = useState('')
 
   const modulosActivos: string[] = organizacion?.modulos_activos || []
+
+  // Filtrar reportes visibles para esta org
+  const reportesVisibles = useMemo(
+    () => REPORTES_REGISTRY.filter((r) => isReporteVisible(r, modulosActivos)),
+    [modulosActivos]
+  )
+
+  // Filtrar por búsqueda
+  const reportesFiltrados = useMemo(() => {
+    if (!busqueda.trim()) return reportesVisibles
+    const term = busqueda.toLowerCase()
+    return reportesVisibles.filter(
+      (r) =>
+        r.titulo.toLowerCase().includes(term) || r.descripcion.toLowerCase().includes(term)
+    )
+  }, [reportesVisibles, busqueda])
+
+  // Agrupar por categoría
+  const reportesPorCategoria = useMemo(() => {
+    const map: Record<CategoriaReporte, ReporteDefinition[]> = {
+      ventas_comercial: [],
+      cobranza: [],
+      punto_de_venta: [],
+      inventario: [],
+      compras: [],
+      fiscal_cfdi: [],
+      finanzas_estadisticas: [],
+    }
+    for (const r of reportesFiltrados) {
+      map[r.categoria].push(r)
+    }
+    return map
+  }, [reportesFiltrados])
+
+  // Reportes favoritos (solo implementados y visibles)
+  const reportesFavoritosData = useMemo(
+    () =>
+      reportesFiltrados.filter(
+        (r) => reporteFavoritos.includes(r.key) && isReporteAccesible(r, modulosActivos)
+      ),
+    [reportesFiltrados, reporteFavoritos, modulosActivos]
+  )
+
+  // Categorías visibles para esta org
+  const categoriasVisibles = useMemo(
+    () => CATEGORIAS_CONFIG.filter((c) => c.visible(modulosActivos)),
+    [modulosActivos]
+  )
 
   if (loading || !organizacion) {
     return (
@@ -172,47 +190,90 @@ export default function ReportesHubPage() {
     )
   }
 
+  // Construir items de tabs
+  const tabItems = []
+
+  // Tab de favoritos (solo si hay)
+  if (reportesFavoritosData.length > 0) {
+    tabItems.push({
+      key: 'favoritos',
+      label: (
+        <span>
+          <StarFilled style={{ color: '#faad14', marginRight: 6 }} />
+          Favoritos ({reportesFavoritosData.length})
+        </span>
+      ),
+      children: (
+        <ReportesGrid
+          reportes={reportesFavoritosData}
+          favoritos={reporteFavoritos}
+          onToggleFavorito={toggleReporteFavorito}
+          onNavigate={(ruta) => router.push(ruta)}
+        />
+      ),
+    })
+  }
+
+  // Tabs por categoría
+  for (const cat of categoriasVisibles) {
+    const reportesCat = reportesPorCategoria[cat.key]
+    if (reportesCat.length === 0) continue
+
+    tabItems.push({
+      key: cat.key,
+      label: (
+        <span>
+          {resolveIcon(cat.icono, { fontSize: 14, color: cat.color, marginRight: 6 })}
+          {cat.label}
+          <Badge
+            count={reportesCat.filter((r) => r.implementado).length}
+            style={{ backgroundColor: cat.color, marginLeft: 8 }}
+            size="small"
+          />
+        </span>
+      ),
+      children: (
+        <ReportesGrid
+          reportes={reportesCat}
+          favoritos={reporteFavoritos}
+          onToggleFavorito={toggleReporteFavorito}
+          onNavigate={(ruta) => router.push(ruta)}
+        />
+      ),
+    })
+  }
+
   return (
     <div>
-      <Title level={2} style={{ marginBottom: 24 }}>Reportes</Title>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 20,
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <Title level={2} style={{ margin: 0 }}>
+          Reportes
+        </Title>
+        <Input
+          placeholder="Buscar reporte..."
+          prefix={<SearchOutlined />}
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          allowClear
+          style={{ maxWidth: 300 }}
+        />
+      </div>
 
-      {SECCIONES.map((seccion) => {
-        if (!seccion.visible(modulosActivos)) return null
-
-        // Filtrar reportes que requieren módulo específico
-        const reportesVisibles = seccion.reportes.filter(
-          (r) => !r.requiereModulo || modulosActivos.includes(r.requiereModulo)
-        )
-        if (reportesVisibles.length === 0) return null
-
-        return (
-          <div key={seccion.titulo} style={{ marginBottom: 32 }}>
-            <Title level={4} style={{ marginBottom: 12, color: '#595959' }}>
-              {seccion.titulo}
-            </Title>
-            <Row gutter={[16, 16]}>
-              {reportesVisibles.map((reporte) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={reporte.key}>
-                  <Card
-                    hoverable
-                    onClick={() => router.push(reporte.ruta)}
-                    style={{ height: '100%' }}
-                    styles={{ body: { padding: 20 } }}
-                  >
-                    <div style={{ marginBottom: 12 }}>{reporte.icono}</div>
-                    <Text strong style={{ fontSize: 15, display: 'block', marginBottom: 4 }}>
-                      {reporte.titulo}
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: 13 }}>
-                      {reporte.descripcion}
-                    </Text>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </div>
-        )
-      })}
+      <Tabs
+        defaultActiveKey={tabItems[0]?.key}
+        items={tabItems}
+        size="middle"
+        style={{ marginTop: -8 }}
+      />
     </div>
   )
 }
