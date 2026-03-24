@@ -177,7 +177,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/comparativo-ventas',
     categoria: 'ventas_comercial',
     requiereAlguno: ['facturas', 'pos'],
-    implementado: false,
+    implementado: true,
   },
   {
     key: 'conversion-cotizaciones',
@@ -188,7 +188,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/conversion-cotizaciones',
     categoria: 'ventas_comercial',
     requiereModulo: 'cotizaciones',
-    implementado: false,
+    implementado: true,
   },
 
   // ── Fase 3: Ventas y Comercial ────────────────────────────────────────────
@@ -377,7 +377,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/rotacion-inventario',
     categoria: 'inventario',
     requiereModulo: 'inventario',
-    implementado: false,
+    implementado: true,
   },
   {
     key: 'productos-sin-movimiento',
@@ -388,7 +388,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/productos-sin-movimiento',
     categoria: 'inventario',
     requiereModulo: 'inventario',
-    implementado: false,
+    implementado: true,
   },
 
   // ── Fase 3: Inventario ────────────────────────────────────────────────────
@@ -438,7 +438,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/compras-proveedor',
     categoria: 'compras',
     requiereModulo: 'compras',
-    implementado: false,
+    implementado: true,
   },
   {
     key: 'historial-precios-compra',
@@ -449,7 +449,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/historial-precios-compra',
     categoria: 'compras',
     requiereModulo: 'compras',
-    implementado: false,
+    implementado: true,
   },
 
   // ── Fase 1: Fiscal / CFDI ────────────────────────────────────────────────
@@ -522,7 +522,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/abc-clientes',
     categoria: 'finanzas_estadisticas',
     requiereAlguno: ['facturas', 'pos'],
-    implementado: false,
+    implementado: true,
   },
   {
     key: 'abc-productos',
@@ -533,7 +533,7 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     ruta: '/reportes/abc-productos',
     categoria: 'finanzas_estadisticas',
     requiereAlguno: ['facturas', 'pos'],
-    implementado: false,
+    implementado: true,
   },
 
   // ── Fase 3: Finanzas y Estadísticas ──────────────────────────────────────

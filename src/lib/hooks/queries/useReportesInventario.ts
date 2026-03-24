@@ -3,6 +3,28 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
+export interface RotacionInventarioRow {
+  producto_id: string
+  sku: string
+  nombre: string
+  stock_actual: number
+  unidades_vendidas: number
+  rotacion: number       // veces en el periodo
+  dias_inventario: number
+}
+
+export interface ProductoSinMovimientoRow {
+  producto_id: string
+  sku: string
+  nombre: string
+  almacen_nombre: string
+  cantidad: number
+  costo_unitario: number
+  valor_retenido: number
+  ultimo_movimiento: string | null
+  dias_sin_movimiento: number
+}
+
 export interface ValuacionInventarioRow {
   producto_id: string
   sku: string
@@ -65,6 +87,155 @@ export function useValuacionInventario(
           unidad_medida: row.unidad_medida,
         }
       }).sort((a, b) => b.valor_total - a.valor_total)
+    },
+    enabled: !!orgId,
+  })
+}
+
+// ─── R11: Rotación de Inventario ──────────────────────────────────────────────
+
+export function useRotacionInventario(
+  fechaDesde: string | null,
+  fechaHasta: string | null,
+  orgId: string | undefined
+) {
+  return useQuery({
+    queryKey: ['reporte-rotacion-inventario', fechaDesde, fechaHasta, orgId],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+
+      // Stock actual agrupado por producto
+      const { data: inv } = await supabase
+        .schema('erp')
+        .from('v_productos_stock')
+        .select('id, sku, nombre, stock_total')
+        .eq('organizacion_id', orgId!)
+
+      const stockMap = new Map((inv || []).map((p) => [p.id, { sku: p.sku, nombre: p.nombre, stock: Number(p.stock_total || 0) }]))
+
+      // Salidas en el periodo (movimientos tipo salida)
+      let mq = supabase
+        .schema('erp')
+        .from('v_movimientos')
+        .select('producto_id, cantidad')
+        .eq('organizacion_id', orgId!)
+        .eq('tipo', 'salida')
+
+      if (fechaDesde) mq = mq.gte('fecha', fechaDesde)
+      if (fechaHasta) mq = mq.lte('fecha', fechaHasta)
+
+      const { data: movimientos } = await mq
+
+      // Agrupar salidas por producto
+      const salidasMap = new Map<string, number>()
+      for (const m of movimientos || []) {
+        salidasMap.set(m.producto_id, (salidasMap.get(m.producto_id) || 0) + Number(m.cantidad || 0))
+      }
+
+      // Calcular días del periodo
+      const dias = fechaDesde && fechaHasta
+        ? Math.max(1, Math.ceil((new Date(fechaHasta).getTime() - new Date(fechaDesde).getTime()) / (1000 * 60 * 60 * 24)))
+        : 30
+
+      const resultado: RotacionInventarioRow[] = []
+      stockMap.forEach((prod, id) => {
+        const vendidas = salidasMap.get(id) || 0
+        const stockPromedio = prod.stock > 0 ? prod.stock : 1
+        const rotacion = vendidas / stockPromedio
+        const diasInv = rotacion > 0 ? dias / rotacion : 999
+
+        resultado.push({
+          producto_id: id,
+          sku: prod.sku,
+          nombre: prod.nombre,
+          stock_actual: prod.stock,
+          unidades_vendidas: vendidas,
+          rotacion: Math.round(rotacion * 100) / 100,
+          dias_inventario: Math.round(diasInv),
+        })
+      })
+
+      return resultado.sort((a, b) => b.rotacion - a.rotacion)
+    },
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
+  })
+}
+
+// ─── R12: Productos Sin Movimiento ────────────────────────────────────────────
+
+export function useProductosSinMovimiento(
+  diasMinimos: number,
+  orgId: string | undefined
+) {
+  return useQuery({
+    queryKey: ['reporte-productos-sin-movimiento', diasMinimos, orgId],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+
+      // Inventario con stock > 0
+      const { data: inv } = await supabase
+        .schema('erp')
+        .from('v_inventario_detalle')
+        .select('producto_id, sku, producto_nombre, almacen_nombre, cantidad, unidad_medida')
+        .eq('organizacion_id', orgId!)
+        .gt('cantidad', 0)
+
+      if (!inv || inv.length === 0) return []
+
+      // Costos
+      const prodIds = Array.from(new Set(inv.map((i) => i.producto_id)))
+      const { data: productos } = await supabase
+        .schema('erp')
+        .from('productos')
+        .select('id, costo_promedio')
+        .in('id', prodIds)
+
+      const costoMap = new Map((productos || []).map((p) => [p.id, Number(p.costo_promedio || 0)]))
+
+      // Último movimiento de salida por producto
+      const { data: movimientos } = await supabase
+        .schema('erp')
+        .from('v_movimientos')
+        .select('producto_id, fecha')
+        .eq('organizacion_id', orgId!)
+        .eq('tipo', 'salida')
+        .order('fecha', { ascending: false })
+
+      const ultimoMovMap = new Map<string, string>()
+      for (const m of movimientos || []) {
+        if (!ultimoMovMap.has(m.producto_id)) {
+          ultimoMovMap.set(m.producto_id, m.fecha)
+        }
+      }
+
+      const hoy = new Date()
+      const resultado: ProductoSinMovimientoRow[] = []
+
+      for (const row of inv) {
+        const ultimoMov = ultimoMovMap.get(row.producto_id) || null
+        let diasSin = 999
+        if (ultimoMov) {
+          diasSin = Math.ceil((hoy.getTime() - new Date(ultimoMov).getTime()) / (1000 * 60 * 60 * 24))
+        }
+
+        if (diasSin >= diasMinimos) {
+          const costo = costoMap.get(row.producto_id) || 0
+          const cantidad = Number(row.cantidad || 0)
+          resultado.push({
+            producto_id: row.producto_id,
+            sku: row.sku,
+            nombre: row.producto_nombre,
+            almacen_nombre: row.almacen_nombre,
+            cantidad,
+            costo_unitario: costo,
+            valor_retenido: cantidad * costo,
+            ultimo_movimiento: ultimoMov,
+            dias_sin_movimiento: diasSin,
+          })
+        }
+      }
+
+      return resultado.sort((a, b) => b.dias_sin_movimiento - a.dias_sin_movimiento)
     },
     enabled: !!orgId,
   })

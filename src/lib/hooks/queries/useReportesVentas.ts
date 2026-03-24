@@ -20,6 +20,26 @@ export interface VentaPorVendedorRow {
   total: number
 }
 
+export interface ComparativoVentasRow {
+  periodo: string
+  total_p1: number
+  total_p2: number
+  variacion: number
+  variacion_pct: number
+}
+
+export interface ConversionCotizacionRow {
+  id: string
+  folio: string
+  fecha: string
+  cliente_nombre: string
+  vendedor_nombre: string | null
+  total: number
+  moneda: string
+  status: string
+  factura_id: string | null
+}
+
 export interface VentaPorCategoriaRow {
   categoria_id: string | null
   categoria_nombre: string
@@ -347,6 +367,151 @@ export function useVentasPorCategoria(
       }
 
       return result.sort((a, b) => b.total - a.total)
+    },
+    enabled: !!fechaDesde && !!fechaHasta && !!orgId,
+  })
+}
+
+// ─── R9: Comparativo de Ventas ────────────────────────────────────────────────
+
+async function fetchTotalPeriodo(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  desde: string,
+  hasta: string,
+  orgId: string,
+  fuente: VentaSource
+): Promise<Map<string, number>> {
+  const porMes = new Map<string, number>()
+
+  if (fuente === 'facturas' || fuente === 'both') {
+    const { data } = await supabase
+      .schema('erp')
+      .from('v_facturas')
+      .select('fecha, total')
+      .eq('organizacion_id', orgId)
+      .not('status', 'eq', 'cancelada')
+      .gte('fecha', desde)
+      .lte('fecha', hasta)
+
+    for (const r of data || []) {
+      const mes = (r.fecha || '').substring(0, 7)
+      porMes.set(mes, (porMes.get(mes) || 0) + Number(r.total || 0))
+    }
+  }
+
+  if (fuente === 'pos' || fuente === 'both') {
+    const { data } = await supabase
+      .schema('erp')
+      .from('ventas_pos')
+      .select('created_at, total')
+      .eq('status', 'completada')
+      .eq('organizacion_id', orgId)
+      .gte('created_at', `${desde}T00:00:00`)
+      .lte('created_at', `${hasta}T23:59:59`)
+
+    for (const r of data || []) {
+      const mes = (r.created_at || '').substring(0, 7)
+      porMes.set(mes, (porMes.get(mes) || 0) + Number(r.total || 0))
+    }
+  }
+
+  return porMes
+}
+
+export function useComparativoVentas(
+  desde1: string | null,
+  hasta1: string | null,
+  desde2: string | null,
+  hasta2: string | null,
+  orgId: string | undefined,
+  modulosActivos: string[]
+) {
+  const fuente = determinarFuente(modulosActivos)
+
+  return useQuery({
+    queryKey: ['reporte-comparativo-ventas', desde1, hasta1, desde2, hasta2, orgId, fuente],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+
+      const [p1, p2] = await Promise.all([
+        fetchTotalPeriodo(supabase, desde1!, hasta1!, orgId!, fuente),
+        fetchTotalPeriodo(supabase, desde2!, hasta2!, orgId!, fuente),
+      ])
+
+      // Obtener todos los meses de ambos periodos
+      const allMeses = new Set<string>()
+      p1.forEach((_, m) => allMeses.add(m))
+      p2.forEach((_, m) => allMeses.add(m))
+
+      // Para comparar, crear filas por mes relativo (mes 1, mes 2, etc.)
+      const meses1 = Array.from(p1.keys()).sort()
+      const meses2 = Array.from(p2.keys()).sort()
+      const maxLen = Math.max(meses1.length, meses2.length)
+
+      const resultado: ComparativoVentasRow[] = []
+      let acum1 = 0
+      let acum2 = 0
+
+      for (let i = 0; i < maxLen; i++) {
+        const mes1 = meses1[i]
+        const mes2 = meses2[i]
+        const t1 = mes1 ? (p1.get(mes1) || 0) : 0
+        const t2 = mes2 ? (p2.get(mes2) || 0) : 0
+        acum1 += t1
+        acum2 += t2
+
+        const label = mes1 && mes2 ? `${mes1} vs ${mes2}` : (mes1 || mes2 || `Mes ${i + 1}`)
+
+        resultado.push({
+          periodo: label,
+          total_p1: t1,
+          total_p2: t2,
+          variacion: t2 - t1,
+          variacion_pct: t1 > 0 ? ((t2 - t1) / t1) * 100 : t2 > 0 ? 100 : 0,
+        })
+      }
+
+      // Agregar fila de totales
+      resultado.push({
+        periodo: 'TOTAL',
+        total_p1: acum1,
+        total_p2: acum2,
+        variacion: acum2 - acum1,
+        variacion_pct: acum1 > 0 ? ((acum2 - acum1) / acum1) * 100 : acum2 > 0 ? 100 : 0,
+      })
+
+      return resultado
+    },
+    enabled: !!desde1 && !!hasta1 && !!desde2 && !!hasta2 && !!orgId,
+  })
+}
+
+// ─── R10: Conversión de Cotizaciones ──────────────────────────────────────────
+
+export function useConversionCotizaciones(
+  fechaDesde: string | null,
+  fechaHasta: string | null,
+  orgId: string | undefined
+) {
+  return useQuery({
+    queryKey: ['reporte-conversion-cotizaciones', fechaDesde, fechaHasta, orgId],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      let q = supabase
+        .schema('erp')
+        .from('v_cotizaciones')
+        .select('id, folio, fecha, cliente_nombre, vendedor_nombre, total, moneda, status, factura_id')
+        .eq('organizacion_id', orgId!)
+        .not('status', 'eq', 'cancelada')
+        .not('folio', 'like', 'OV-%')
+        .order('fecha', { ascending: false })
+
+      if (fechaDesde) q = q.gte('fecha', fechaDesde)
+      if (fechaHasta) q = q.lte('fecha', fechaHasta)
+
+      const { data, error } = await q
+      if (error) throw error
+      return (data || []) as ConversionCotizacionRow[]
     },
     enabled: !!fechaDesde && !!fechaHasta && !!orgId,
   })
