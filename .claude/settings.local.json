@@ -48,7 +48,12 @@
       "Bash(sed -i \"/key: ''analisis-horarios''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
       "Bash(sed -i \"/key: ''productividad-cajero''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
       "Bash(sed -i \"/key: ''punto-reorden''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
-      "Bash(sed -i \"/key: ''conciliacion-inventario''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)"
+      "Bash(sed -i \"/key: ''conciliacion-inventario''/,/implementado:/{s/implementado: false/implementado: true/}\" src/app/\\\\\\(dashboard\\\\\\)/reportes/_config/reportes-registry.ts)",
+      "Bash(ls -la /c/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/reportes/)",
+      "Bash(ls \"C:/ERP-GAS/src/app/\\(dashboard\\)/\")",
+      "Bash(mcp__supabase__list_migrations)",
+      "Bash(ls C:/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/insights/)",
+      "Bash(ls -la \".next/static/chunks/app/\\(dashboard\\)/productos/\")"
     ]
   },
   "enableAllProjectMcpServers": true,
