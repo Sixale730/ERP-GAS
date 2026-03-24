@@ -11,6 +11,7 @@ import { reportesManifest } from './reportes'
 import { catalogosManifest } from './catalogos'
 import { configuracionManifest } from './configuracion'
 import type { ModuleManifestInput, PermisoCRUD, UserRole } from './types'
+import { ALL, VIEW_ONLY } from './types'
 
 // ─── Central manifest registry ──────────────────────────────────────────────
 
@@ -24,6 +25,23 @@ const ALL_MANIFESTS = {
   pos: posManifest,
   cfdi: cfdiManifest,
   compras: comprasManifest,
+  insights: {
+    id: 'insights',
+    label: 'Insights',
+    descripcion: 'Analisis inteligente y recomendaciones',
+    icono: 'BulbOutlined',
+    core: true,
+    dependencias: [],
+    orden: 95,
+    navItems: [{ key: '/insights', label: 'Insights', icono: 'BulbOutlined' }],
+    permisosPorRol: {
+      super_admin: ALL,
+      admin_cliente: ALL,
+      vendedor: VIEW_ONLY,
+      compras: VIEW_ONLY,
+      contador: VIEW_ONLY,
+    },
+  } satisfies ModuleManifestInput,
   reportes: reportesManifest,
   catalogos: catalogosManifest,
   configuracion: configuracionManifest,

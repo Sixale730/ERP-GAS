@@ -22,6 +22,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { DashboardSkeleton } from '@/components/common/Skeletons'
 import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
 import DashboardPOS from '@/components/dashboard/DashboardPOS'
+import InsightsPanel from '@/components/insights/InsightsPanel'
 
 const { Title } = Typography
 
@@ -365,6 +366,13 @@ export default function DashboardPage() {
               </Col>
             </Row>
           </Card>
+        </Col>
+      </Row>
+
+      {/* Insights */}
+      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+        <Col xs={24}>
+          <InsightsPanel />
         </Col>
       </Row>
     </div>

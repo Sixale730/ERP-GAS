@@ -19,6 +19,7 @@ import {
   ContainerOutlined,
   UserSwitchOutlined,
   BarChartOutlined,
+  BulbOutlined,
 } from '@ant-design/icons'
 import { MODULE_REGISTRY } from './registry'
 import type { Modulo } from './registry'
@@ -58,6 +59,7 @@ const ICON_MAP: Record<string, React.ComponentType> = {
   ContainerOutlined,
   UserSwitchOutlined,
   BarChartOutlined,
+  BulbOutlined,
 }
 
 function getIcon(name: string): React.ReactNode {
