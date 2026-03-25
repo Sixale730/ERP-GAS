@@ -171,3 +171,44 @@ export function useDismissInsight() {
     },
   })
 }
+
+// ─── useSaveInsightConfig ────────────────────────────────────────────────────
+
+export interface InsightConfigUpdate {
+  regla: string
+  umbral: number
+  activo: boolean
+}
+
+export function useSaveInsightConfig() {
+  const queryClient = useQueryClient()
+  const { organizacion } = useAuth()
+  const orgId = organizacion?.id
+
+  return useMutation({
+    mutationFn: async (configs: InsightConfigUpdate[]) => {
+      if (!orgId) throw new Error('No org context')
+
+      const supabase = getSupabaseClient()
+      const rows = configs.map((c) => ({
+        organizacion_id: orgId,
+        regla: c.regla,
+        umbral: c.umbral,
+        activo: c.activo,
+      }))
+
+      const { error } = await supabase
+        .schema('erp')
+        .from('insight_config')
+        .upsert(rows, { onConflict: 'organizacion_id,regla' })
+
+      if (error) throw error
+    },
+    onSuccess: () => {
+      if (orgId) {
+        queryClient.invalidateQueries({ queryKey: insightsKeys.config(orgId) })
+        queryClient.invalidateQueries({ queryKey: insightsKeys.results(orgId) })
+      }
+    },
+  })
+}

@@ -2,10 +2,11 @@
 
 import React, { useEffect, useMemo } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Menu, type MenuProps } from 'antd'
+import { Menu, Badge, type MenuProps } from 'antd'
 import { UserRole, PermisosUsuario } from '@/lib/hooks/useAuth'
 import { getPermisosEfectivos, Modulo } from '@/lib/hooks/usePermisos'
 import { buildMenuItems, type MenuItemWithRoles } from '@/lib/config/modules'
+import { useInsights } from '@/lib/hooks/queries/useInsights'
 
 type MenuItem = Required<MenuProps>['items'][number]
 
@@ -75,11 +76,27 @@ function SidebarInner({ onNavigate, userRole, userPermisos, modulosActivos }: Si
   )
 
   // Filtrar menu segun modulos activos y permisos
-  const menuItems = useMemo(
+  const baseMenuItems = useMemo(
     () => filterMenuByPermisos(allMenuItems, userRole || null, permisosEfectivos, modulosActivos),
     [userRole, permisosEfectivos, modulosActivos]
   )
 
+  // Badge dinámico para Insights
+  const { data: insightsData } = useInsights()
+  const insightsCount = insightsData?.length || 0
+
+  const menuItems = useMemo(() => {
+    if (!insightsCount) return baseMenuItems
+    return baseMenuItems.map((item) => {
+      if (item && 'key' in item && item.key === '/insights') {
+        return {
+          ...item,
+          label: <Badge count={insightsCount} size="small" offset={[6, 0]}>{(item as any).label}</Badge>,
+        }
+      }
+      return item
+    })
+  }, [baseMenuItems, insightsCount])
 
   // Prefetch rutas visibles del menú para navegación instantánea
   useEffect(() => {
