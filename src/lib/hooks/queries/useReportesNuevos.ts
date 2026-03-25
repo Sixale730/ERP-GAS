@@ -62,6 +62,7 @@ export interface FacturaSaldoRow {
   cliente_nombre: string
   sucursal_nombre: string | null
   productos_desc: string | null
+  cotizacion_folio: string | null
 }
 
 export interface CarteraVencidaRow {
@@ -266,7 +267,7 @@ export function useFacturasSaldos(fechaDesde: string | null, fechaHasta: string 
       let query = supabase
         .schema('erp')
         .from('v_facturas')
-        .select('id, folio, fecha, status, total, monto_pagado, saldo, moneda, dias_vencida, cliente_nombre, sucursal_nombre')
+        .select('id, folio, fecha, status, total, monto_pagado, saldo, moneda, dias_vencida, cliente_nombre, sucursal_nombre, cotizacion_folio')
         .eq('organizacion_id', orgId!)
         .order('fecha', { ascending: false })
 

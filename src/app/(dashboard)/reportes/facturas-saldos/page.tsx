@@ -60,6 +60,14 @@ export default function ReporteFacturasSaldosPage() {
       sorter: (a, b) => (a.folio || '').localeCompare(b.folio || ''),
     },
     {
+      title: 'Orden Venta',
+      dataIndex: 'cotizacion_folio',
+      key: 'cotizacion_folio',
+      width: 130,
+      render: (val: string | null) => val || '-',
+      sorter: (a, b) => (a.cotizacion_folio || '').localeCompare(b.cotizacion_folio || ''),
+    },
+    {
       title: 'Fecha',
       dataIndex: 'fecha',
       key: 'fecha',
@@ -155,6 +163,7 @@ export default function ReporteFacturasSaldosPage() {
       await exportarExcel({
         columnas: [
           { titulo: 'Folio', dataIndex: 'folio' },
+          { titulo: 'Orden Venta', dataIndex: 'cotizacion_folio' },
           { titulo: 'Fecha', dataIndex: 'fecha_fmt' },
           { titulo: 'Cliente', dataIndex: 'cliente_nombre' },
           { titulo: 'Sucursal', dataIndex: 'sucursal_nombre' },
@@ -279,7 +288,7 @@ export default function ReporteFacturasSaldosPage() {
           columns={columns}
           rowKey="id"
           loading={isLoading}
-          scroll={{ x: 1230 }}
+          scroll={{ x: 1360 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,

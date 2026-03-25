@@ -1140,6 +1140,7 @@ export type Database = {
           vendedor_id: string | null
           vendedor_nombre: string | null
           cotizacion_id: string | null
+          cotizacion_folio: string | null
           dias_vencida: number
           created_at: string
           updated_at: string
