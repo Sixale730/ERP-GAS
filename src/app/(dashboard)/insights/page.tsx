@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import {
-  Card, Row, Col, Statistic, Tag, Button, Space, Typography, Empty, Select, Input,
+  Card, Collapse, Tag, Button, Space, Typography, Empty, Select, Input,
   Badge, Tooltip, Skeleton, Drawer, InputNumber, Switch, Alert, Divider, message,
 } from 'antd'
 import {
@@ -15,6 +15,9 @@ import {
   CheckCircleOutlined,
   SearchOutlined,
   SettingOutlined,
+  RiseOutlined,
+  FallOutlined,
+  MinusOutlined,
 } from '@ant-design/icons'
 import { useInsights, useDismissInsight, useInsightConfig, useSaveInsightConfig } from '@/lib/hooks/queries/useInsights'
 import type { InsightConfigUpdate } from '@/lib/hooks/queries/useInsights'
@@ -94,43 +97,67 @@ function formatMetrica(valor: number, unidad: string): string {
   return `${valor} ${unidad}`
 }
 
+function getTendenciaIcon(tendencia?: 'subiendo' | 'bajando' | 'estable') {
+  if (!tendencia) return null
+  if (tendencia === 'subiendo') return <RiseOutlined style={{ fontSize: 18, color: '#8c8c8c' }} />
+  if (tendencia === 'bajando') return <FallOutlined style={{ fontSize: 18, color: '#8c8c8c' }} />
+  return <MinusOutlined style={{ fontSize: 16, color: '#bfbfbf' }} />
+}
+
+const SEVERITY_ORDER: InsightSeveridad[] = ['critico', 'alerta', 'info', 'oportunidad']
+
 // ─── Insight Card ────────────────────────────────────────────────────────────
 
 function InsightCard({ insight, onDismiss }: { insight: InsightItem; onDismiss: (key: string) => void }) {
+  const color = SEVERIDAD_COLOR[insight.severidad]
   return (
     <Card
       size="small"
-      style={{ marginBottom: 12, borderLeft: `4px solid ${SEVERIDAD_COLOR[insight.severidad]}` }}
+      style={{ marginBottom: 8, borderLeft: `4px solid ${color}`, animation: 'fadeIn 0.3s ease-out' }}
     >
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+        {/* Izquierda: Título + Mensaje + Acción */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-            <Tag color={SEVERIDAD_TAG_COLOR[insight.severidad]} icon={SEVERIDAD_ICON[insight.severidad]} style={{ margin: 0 }}>
-              {SEVERIDAD_LABEL[insight.severidad]}
-            </Tag>
-            <Tag style={{ margin: 0 }}>{insight.tipo}</Tag>
-            <Text strong style={{ fontSize: 15 }}>{insight.titulo}</Text>
-          </div>
-          <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
+          <Text strong style={{ fontSize: 15, display: 'block', marginBottom: 4, lineHeight: 1.4 }}>
+            {insight.titulo}
+          </Text>
+          <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 8, lineHeight: 1.5 }}>
             {insight.mensaje}
           </Text>
-          <Space size={12}>
-            <Text style={{ fontSize: 14, fontWeight: 600 }}>
-              {formatMetrica(insight.metrica.valor, insight.metrica.unidad)}
-              {insight.metrica.tendencia && (
-                <Text type="secondary" style={{ fontSize: 12, marginLeft: 6 }}>({insight.metrica.tendencia})</Text>
-              )}
-            </Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Tag style={{ margin: 0, fontSize: 11 }}>{TIPO_LABEL[insight.tipo] || insight.tipo}</Tag>
             {insight.accion && (
-              <Button type="primary" size="small" href={insight.accion.ruta} ghost>
+              <Button type="link" size="small" href={insight.accion.ruta} style={{ padding: 0, fontSize: 13, height: 'auto' }}>
                 {insight.accion.label} <RightOutlined style={{ fontSize: 10 }} />
               </Button>
             )}
-          </Space>
+          </div>
         </div>
-        <Tooltip title="Descartar insight">
-          <Button type="text" size="small" icon={<CloseOutlined />} onClick={() => onDismiss(insight.key)} style={{ color: '#999', flexShrink: 0 }} />
-        </Tooltip>
+        {/* Derecha: Métrica + Tendencia + Descartar */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 4 }}>
+          <Tooltip title="Descartar">
+            <Button
+              type="text"
+              size="small"
+              icon={<CloseOutlined />}
+              onClick={() => onDismiss(insight.key)}
+              style={{ color: '#bfbfbf', fontSize: 12, width: 24, height: 24 }}
+            />
+          </Tooltip>
+          <div style={{ textAlign: 'right' }}>
+            <Text strong style={{ fontSize: 22, lineHeight: 1, color }}>
+              {formatMetrica(insight.metrica.valor, insight.metrica.unidad)}
+            </Text>
+            {insight.metrica.tendencia && (
+              <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                {getTendenciaIcon(insight.metrica.tendencia)}
+                <Text type="secondary" style={{ fontSize: 11, textTransform: 'capitalize' }}>
+                  {insight.metrica.tendencia}
+                </Text>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </Card>
   )
@@ -287,58 +314,99 @@ export default function InsightsPage() {
     return result
   }, [insights, filtroTipo, filtroSeveridad, busqueda])
 
-  const stats = useMemo(() => {
-    const criticos = insights.filter((i) => i.severidad === 'critico').length
-    const alertas = insights.filter((i) => i.severidad === 'alerta').length
-    return { total: insights.length, criticos, alertas, descartados }
-  }, [insights, descartados])
+  const grouped = useMemo(() => {
+    const groups: { severidad: InsightSeveridad; items: InsightItem[] }[] = []
+    for (const sev of SEVERITY_ORDER) {
+      const items = filtrados.filter((i) => i.severidad === sev)
+      if (items.length > 0) groups.push({ severidad: sev, items })
+    }
+    return groups
+  }, [filtrados])
+
+  const defaultActiveKey = useMemo(() => {
+    if (grouped.some((g) => g.severidad === 'critico')) return ['critico']
+    if (grouped.length > 0) return [grouped[0].severidad]
+    return []
+  }, [grouped])
 
   if (isLoading) {
     return (
       <div>
         <Title level={2}>Insights</Title>
-        <Row gutter={[16, 16]}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Col xs={24} sm={12} lg={6} key={i}>
-              <Card><Skeleton active paragraph={{ rows: 1 }} /></Card>
-            </Col>
-          ))}
-        </Row>
-        <Card style={{ marginTop: 16 }}><Skeleton active paragraph={{ rows: 6 }} /></Card>
+        <Skeleton.Input active style={{ width: '100%', height: 56, marginBottom: 16 }} />
+        <Card style={{ marginBottom: 16 }}>
+          <Skeleton.Input active style={{ width: 600, height: 32 }} />
+        </Card>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Card key={i} style={{ marginBottom: 12 }}>
+            <Skeleton active paragraph={{ rows: 2 }} />
+          </Card>
+        ))}
       </div>
     )
   }
+
+  const numCriticos = insights.filter((i) => i.severidad === 'critico').length
+  const numAlertas = insights.filter((i) => i.severidad === 'alerta').length
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Space>
           <Title level={2} style={{ margin: 0 }}>Insights</Title>
-          <Badge count={stats.total} style={{ backgroundColor: stats.criticos > 0 ? '#cf1322' : '#faad14' }} />
+          <Badge
+            count={insights.length}
+            style={{
+              backgroundColor: numCriticos > 0 ? '#cf1322' : numAlertas > 0 ? '#faad14' : '#52c41a',
+            }}
+          />
         </Space>
         <Button icon={<SettingOutlined />} onClick={() => setConfigOpen(true)}>
           Configurar
         </Button>
       </div>
 
-      {/* Stats */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title="Total Activos" value={stats.total} prefix={<BulbOutlined />} valueStyle={{ color: '#1890ff' }} /></Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title="Criticos" value={stats.criticos} prefix={<CloseCircleOutlined />} valueStyle={{ color: stats.criticos > 0 ? '#cf1322' : '#3f8600' }} /></Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title="Alertas" value={stats.alertas} prefix={<WarningOutlined />} valueStyle={{ color: stats.alertas > 0 ? '#faad14' : '#3f8600' }} /></Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title="Descartados" value={stats.descartados} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#999' }} /></Card>
-        </Col>
-      </Row>
+      {/* Banner contextual */}
+      {insights.length === 0 ? (
+        <Alert
+          type="success"
+          showIcon
+          icon={<CheckCircleOutlined />}
+          message="Todo esta en orden"
+          description="No se detectaron situaciones que requieran atencion."
+          style={{ marginBottom: 16 }}
+        />
+      ) : numCriticos > 0 ? (
+        <Alert
+          type="error"
+          showIcon
+          icon={<CloseCircleOutlined />}
+          message={`${numCriticos} situacion${numCriticos > 1 ? 'es' : ''} critica${numCriticos > 1 ? 's' : ''} requiere${numCriticos > 1 ? 'n' : ''} atencion inmediata`}
+          description={numAlertas > 0 ? `Ademas hay ${numAlertas} alerta${numAlertas > 1 ? 's' : ''} activa${numAlertas > 1 ? 's' : ''}.` : undefined}
+          style={{ marginBottom: 16 }}
+        />
+      ) : numAlertas > 0 ? (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<WarningOutlined />}
+          message={`${numAlertas} alerta${numAlertas > 1 ? 's' : ''} activa${numAlertas > 1 ? 's' : ''}`}
+          description={`${insights.length} insights activos en total.`}
+          style={{ marginBottom: 16 }}
+        />
+      ) : (
+        <Alert
+          type="info"
+          showIcon
+          icon={<BulbOutlined />}
+          message="Todo bajo control"
+          description={`${insights.length} recomendacion${insights.length > 1 ? 'es' : ''} disponible${insights.length > 1 ? 's' : ''}.`}
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {/* Filtros */}
-      <Card style={{ marginTop: 16 }}>
+      <Card style={{ marginBottom: 16 }}>
         <Space wrap size={12}>
           <Select value={filtroTipo} onChange={setFiltroTipo} options={TIPO_OPTIONS} style={{ width: 180 }} />
           <Select value={filtroSeveridad} onChange={setFiltroSeveridad} options={SEVERIDAD_OPTIONS} style={{ width: 200 }} />
@@ -346,25 +414,54 @@ export default function InsightsPage() {
         </Space>
       </Card>
 
-      {/* Lista de insights */}
-      <div style={{ marginTop: 16 }}>
-        {filtrados.length === 0 ? (
-          <Card>
-            <Empty
-              image={<CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />}
-              description={
-                insights.length === 0
-                  ? 'Todo esta en orden. No se detectaron situaciones que requieran atencion.'
-                  : 'No hay insights que coincidan con los filtros seleccionados.'
-              }
-            />
-          </Card>
-        ) : (
-          filtrados.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} onDismiss={handleDismiss} />
-          ))
-        )}
-      </div>
+      {/* Lista de insights agrupados por severidad */}
+      {filtrados.length === 0 ? (
+        <Card>
+          <Empty
+            image={<CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />}
+            description={
+              insights.length === 0
+                ? 'Todo esta en orden. No se detectaron situaciones que requieran atencion.'
+                : 'No hay insights que coincidan con los filtros seleccionados.'
+            }
+          />
+        </Card>
+      ) : (
+        <Collapse
+          defaultActiveKey={defaultActiveKey}
+          style={{ background: 'transparent', border: 'none' }}
+          items={grouped.map((group) => ({
+            key: group.severidad,
+            label: (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: SEVERIDAD_COLOR[group.severidad], fontSize: 16 }}>
+                  {SEVERIDAD_ICON[group.severidad]}
+                </span>
+                <Text strong style={{ fontSize: 15 }}>
+                  {SEVERIDAD_LABEL[group.severidad]}
+                </Text>
+                <Badge
+                  count={group.items.length}
+                  style={{ backgroundColor: SEVERIDAD_COLOR[group.severidad] }}
+                />
+              </div>
+            ),
+            children: (
+              <div style={{ paddingTop: 4 }}>
+                {group.items.map((insight) => (
+                  <InsightCard key={insight.id} insight={insight} onDismiss={handleDismiss} />
+                ))}
+              </div>
+            ),
+            style: {
+              marginBottom: 12,
+              borderRadius: 8,
+              border: `1px solid ${SEVERIDAD_COLOR[group.severidad]}20`,
+              overflow: 'hidden',
+            },
+          }))}
+        />
+      )}
 
       {/* Drawer de configuración */}
       <ConfigDrawer open={configOpen} onClose={() => setConfigOpen(false)} />
