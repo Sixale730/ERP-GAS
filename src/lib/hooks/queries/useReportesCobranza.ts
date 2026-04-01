@@ -12,6 +12,9 @@ export interface EstadoCuentaMovimiento {
   cargo: number
   abono: number
   saldo: number
+  sucursal: string | null
+  fechaEmision: string | null
+  diasVencimiento: number | null
 }
 
 export interface EstadoCuentaResumen {
@@ -52,7 +55,7 @@ export function useEstadoCuentaCliente(
       let fq = supabase
         .schema('erp')
         .from('v_facturas')
-        .select('id, folio, fecha, total, monto_pagado, saldo, status, sucursal_nombre')
+        .select('id, folio, fecha, total, monto_pagado, saldo, status, sucursal_nombre, dias_vencida')
         .eq('organizacion_id', orgId!)
         .eq('cliente_id', clienteId!)
         .not('status', 'eq', 'cancelada')
@@ -91,7 +94,9 @@ export function useEstadoCuentaCliente(
 
       for (const f of facturas || []) {
         const prodDesc = descMap.get(f.id)
-        const sucInfo = (f as Record<string, unknown>).sucursal_nombre ? ` [${(f as Record<string, unknown>).sucursal_nombre}]` : ''
+        const fAny = f as Record<string, unknown>
+        const sucNombre = fAny.sucursal_nombre as string | null
+        const sucInfo = sucNombre ? ` [${sucNombre}]` : ''
         const desc = prodDesc
           ? `${f.folio}: ${prodDesc}${sucInfo}`
           : `Factura ${f.folio}${sucInfo}`
@@ -102,6 +107,9 @@ export function useEstadoCuentaCliente(
           descripcion: desc,
           cargo: Number(f.total || 0),
           abono: 0,
+          sucursal: sucNombre || null,
+          fechaEmision: f.fecha,
+          diasVencimiento: fAny.dias_vencida != null ? Number(fAny.dias_vencida) : null,
         })
       }
 
@@ -113,6 +121,9 @@ export function useEstadoCuentaCliente(
           descripcion: `Pago a ${facturaFolioMap.get(p.factura_id) || 'factura'}${p.referencia ? ` (Ref: ${p.referencia})` : ''}`,
           cargo: 0,
           abono: Number(p.monto || 0),
+          sucursal: null,
+          fechaEmision: null,
+          diasVencimiento: null,
         })
       }
 

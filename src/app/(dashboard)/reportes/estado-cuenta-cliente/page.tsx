@@ -92,6 +92,34 @@ export default function ReporteEstadoCuentaPage() {
         sorter: (a, b) => a.folio.localeCompare(b.folio),
       },
       {
+        title: 'Sucursal',
+        dataIndex: 'sucursal',
+        key: 'sucursal',
+        width: 130,
+        render: (val: string | null) => val || '-',
+        sorter: (a, b) => (a.sucursal || '').localeCompare(b.sucursal || ''),
+      },
+      {
+        title: 'Fecha Emisión',
+        dataIndex: 'fechaEmision',
+        key: 'fechaEmision',
+        width: 120,
+        render: (val: string | null) => (val ? formatDate(val) : '-'),
+        sorter: (a, b) => (a.fechaEmision || '').localeCompare(b.fechaEmision || ''),
+      },
+      {
+        title: 'Días Venc.',
+        dataIndex: 'diasVencimiento',
+        key: 'diasVencimiento',
+        width: 100,
+        align: 'right',
+        render: (val: number | null, record) => {
+          if (record.tipo !== 'factura' || val == null) return '-'
+          return <Text style={{ color: val > 0 ? '#f5222d' : '#52c41a' }}>{val}</Text>
+        },
+        sorter: (a, b) => (a.diasVencimiento ?? 0) - (b.diasVencimiento ?? 0),
+      },
+      {
         title: 'Descripcion',
         dataIndex: 'descripcion',
         key: 'descripcion',
@@ -140,6 +168,9 @@ export default function ReporteEstadoCuentaPage() {
         fecha_fmt: formatDate(m.fecha),
         tipo: m.tipo === 'factura' ? 'Factura' : 'Pago',
         folio: m.folio,
+        sucursal: m.sucursal || '',
+        fecha_emision: m.fechaEmision ? formatDate(m.fechaEmision) : '',
+        dias_vencimiento: m.diasVencimiento != null ? m.diasVencimiento : '',
         descripcion: m.descripcion,
         cargo: m.cargo || '',
         abono: m.abono || '',
@@ -151,6 +182,9 @@ export default function ReporteEstadoCuentaPage() {
           { titulo: 'Fecha', dataIndex: 'fecha_fmt' },
           { titulo: 'Tipo', dataIndex: 'tipo' },
           { titulo: 'Folio', dataIndex: 'folio' },
+          { titulo: 'Sucursal', dataIndex: 'sucursal' },
+          { titulo: 'Fecha Emisión', dataIndex: 'fecha_emision' },
+          { titulo: 'Días Venc.', dataIndex: 'dias_vencimiento' },
           { titulo: 'Descripcion', dataIndex: 'descripcion' },
           { titulo: 'Cargo', dataIndex: 'cargo', formato: 'moneda' },
           { titulo: 'Abono', dataIndex: 'abono', formato: 'moneda' },
@@ -254,7 +288,7 @@ export default function ReporteEstadoCuentaPage() {
               dataSource={movimientos}
               columns={columns}
               rowKey={(r, index) => `${r.tipo}-${r.folio}-${index}`}
-              scroll={{ x: 900 }}
+              scroll={{ x: 1250 }}
               pagination={{ pageSize: 50, showSizeChanger: true, showTotal: (total) => `${total} movimientos` }}
               locale={{ emptyText: 'No hay movimientos en el periodo' }}
             />
