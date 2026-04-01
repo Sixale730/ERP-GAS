@@ -53,7 +53,10 @@
       "Bash(ls \"C:/ERP-GAS/src/app/\\(dashboard\\)/\")",
       "Bash(mcp__supabase__list_migrations)",
       "Bash(ls C:/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/insights/)",
-      "Bash(ls -la \".next/static/chunks/app/\\(dashboard\\)/productos/\")"
+      "Bash(ls -la \".next/static/chunks/app/\\(dashboard\\)/productos/\")",
+      "Bash(grep -B 5 -A 15 \"defaultActiveKey\" /c/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/cotizaciones/[id]/page.tsx)",
+      "Bash(grep -B 3 -A 3 \"Alert\\\\|<Alert\" /c/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/clientes/[id]/page.tsx)",
+      "Bash(grep -B 2 -A 8 \"<Alert\" /c/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/clientes/[id]/editar/page.tsx)"
     ]
   },
   "enableAllProjectMcpServers": true,
