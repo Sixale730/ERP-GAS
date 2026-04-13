@@ -36,37 +36,48 @@ export const clientePerdiendoVolumenRule: InsightRule = {
       }
     }
 
+    // Usar cache compartido si disponible para evitar queries duplicadas
     if (tieneFacturas) {
-      const { data: factActual } = await supabase
-        .schema('erp').from('v_facturas')
-        .select('cliente_id, cliente_nombre, total')
-        .eq('organizacion_id', orgId).not('status', 'eq', 'cancelada')
-        .gte('fecha', mesActualInicio)
-      acumular(mesActualMap, (factActual || []) as VentaRow[])
-
-      const { data: factAnterior } = await supabase
-        .schema('erp').from('v_facturas')
-        .select('cliente_id, cliente_nombre, total')
-        .eq('organizacion_id', orgId).not('status', 'eq', 'cancelada')
-        .gte('fecha', mesAnteriorInicio).lt('fecha', mesActualInicio)
-      acumular(mesAnteriorMap, (factAnterior || []) as VentaRow[])
+      if (ctx.cache?.facturas90d) {
+        acumular(mesActualMap, ctx.cache.facturas90d.filter((f: { fecha: string }) => f.fecha >= mesActualInicio) as VentaRow[])
+        acumular(mesAnteriorMap, ctx.cache.facturas90d.filter((f: { fecha: string }) => f.fecha >= mesAnteriorInicio && f.fecha < mesActualInicio) as VentaRow[])
+      } else {
+        const [{ data: factActual }, { data: factAnterior }] = await Promise.all([
+          supabase.schema('erp').from('v_facturas')
+            .select('cliente_id, cliente_nombre, total')
+            .eq('organizacion_id', orgId).not('status', 'eq', 'cancelada')
+            .gte('fecha', mesActualInicio),
+          supabase.schema('erp').from('v_facturas')
+            .select('cliente_id, cliente_nombre, total')
+            .eq('organizacion_id', orgId).not('status', 'eq', 'cancelada')
+            .gte('fecha', mesAnteriorInicio).lt('fecha', mesActualInicio),
+        ])
+        acumular(mesActualMap, (factActual || []) as VentaRow[])
+        acumular(mesAnteriorMap, (factAnterior || []) as VentaRow[])
+      }
     }
 
     if (tienePOS) {
-      const { data: posActual } = await supabase
-        .schema('erp').from('ventas_pos')
-        .select('cliente_id, cliente_nombre, total')
-        .eq('organizacion_id', orgId).eq('status', 'completada')
-        .gte('created_at', `${mesActualInicio}T00:00:00`)
-      acumular(mesActualMap, (posActual || []) as VentaRow[])
-
-      const { data: posAnterior } = await supabase
-        .schema('erp').from('ventas_pos')
-        .select('cliente_id, cliente_nombre, total')
-        .eq('organizacion_id', orgId).eq('status', 'completada')
-        .gte('created_at', `${mesAnteriorInicio}T00:00:00`)
-        .lt('created_at', `${mesActualInicio}T00:00:00`)
-      acumular(mesAnteriorMap, (posAnterior || []) as VentaRow[])
+      if (ctx.cache?.ventasPOS90d) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const posData = ctx.cache.ventasPOS90d as any[]
+        acumular(mesActualMap, posData.filter(v => v.created_at >= `${mesActualInicio}T00:00:00`).map(v => ({ cliente_id: v.cliente_id || null, cliente_nombre: v.cliente_nombre || null, total: v.total })))
+        acumular(mesAnteriorMap, posData.filter(v => v.created_at >= `${mesAnteriorInicio}T00:00:00` && v.created_at < `${mesActualInicio}T00:00:00`).map(v => ({ cliente_id: v.cliente_id || null, cliente_nombre: v.cliente_nombre || null, total: v.total })))
+      } else {
+        const [{ data: posActual }, { data: posAnterior }] = await Promise.all([
+          supabase.schema('erp').from('ventas_pos')
+            .select('cliente_id, cliente_nombre, total')
+            .eq('organizacion_id', orgId).eq('status', 'completada')
+            .gte('created_at', `${mesActualInicio}T00:00:00`),
+          supabase.schema('erp').from('ventas_pos')
+            .select('cliente_id, cliente_nombre, total')
+            .eq('organizacion_id', orgId).eq('status', 'completada')
+            .gte('created_at', `${mesAnteriorInicio}T00:00:00`)
+            .lt('created_at', `${mesActualInicio}T00:00:00`),
+        ])
+        acumular(mesActualMap, (posActual || []) as VentaRow[])
+        acumular(mesAnteriorMap, (posAnterior || []) as VentaRow[])
+      }
     }
 
     const insights: InsightItem[] = []

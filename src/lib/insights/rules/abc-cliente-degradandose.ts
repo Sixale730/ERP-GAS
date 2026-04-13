@@ -56,31 +56,37 @@ export const abcClienteDegradandoseRule: InsightRule = {
       }
     }
 
+    // Usar cache compartido si disponible
     if (tieneFacturas) {
-      const { data: fAct } = await supabase.schema('erp').from('v_facturas')
-        .select('cliente_id, cliente_nombre, total')
-        .eq('organizacion_id', orgId).not('status', 'eq', 'cancelada').gte('fecha', mesActualInicio)
-      acumular(actualMap, (fAct || []) as VentaRow[])
-
-      const { data: fPrev } = await supabase.schema('erp').from('v_facturas')
-        .select('cliente_id, cliente_nombre, total')
-        .eq('organizacion_id', orgId).not('status', 'eq', 'cancelada')
-        .gte('fecha', mesAnteriorInicio).lt('fecha', mesActualInicio)
-      acumular(anteriorMap, (fPrev || []) as VentaRow[])
+      if (ctx.cache?.facturas90d) {
+        acumular(actualMap, ctx.cache.facturas90d.filter(f => f.fecha >= mesActualInicio) as VentaRow[])
+        acumular(anteriorMap, ctx.cache.facturas90d.filter(f => f.fecha >= mesAnteriorInicio && f.fecha < mesActualInicio) as VentaRow[])
+      } else {
+        const [{ data: fAct }, { data: fPrev }] = await Promise.all([
+          supabase.schema('erp').from('v_facturas').select('cliente_id, cliente_nombre, total')
+            .eq('organizacion_id', orgId).not('status', 'eq', 'cancelada').gte('fecha', mesActualInicio),
+          supabase.schema('erp').from('v_facturas').select('cliente_id, cliente_nombre, total')
+            .eq('organizacion_id', orgId).not('status', 'eq', 'cancelada').gte('fecha', mesAnteriorInicio).lt('fecha', mesActualInicio),
+        ])
+        acumular(actualMap, (fAct || []) as VentaRow[])
+        acumular(anteriorMap, (fPrev || []) as VentaRow[])
+      }
     }
 
     if (tienePOS) {
-      const { data: pAct } = await supabase.schema('erp').from('ventas_pos')
-        .select('cliente_id, cliente_nombre, total')
-        .eq('organizacion_id', orgId).eq('status', 'completada')
-        .gte('created_at', `${mesActualInicio}T00:00:00`)
-      acumular(actualMap, (pAct || []) as VentaRow[])
-
-      const { data: pPrev } = await supabase.schema('erp').from('ventas_pos')
-        .select('cliente_id, cliente_nombre, total')
-        .eq('organizacion_id', orgId).eq('status', 'completada')
-        .gte('created_at', `${mesAnteriorInicio}T00:00:00`).lt('created_at', `${mesActualInicio}T00:00:00`)
-      acumular(anteriorMap, (pPrev || []) as VentaRow[])
+      if (ctx.cache?.ventasPOS90d) {
+        acumular(actualMap, ctx.cache.ventasPOS90d.filter(v => v.created_at >= `${mesActualInicio}T00:00:00`).map(v => ({ cliente_id: v.cliente_id || null, cliente_nombre: v.cliente_nombre || null, total: v.total })))
+        acumular(anteriorMap, ctx.cache.ventasPOS90d.filter(v => v.created_at >= `${mesAnteriorInicio}T00:00:00` && v.created_at < `${mesActualInicio}T00:00:00`).map(v => ({ cliente_id: v.cliente_id || null, cliente_nombre: v.cliente_nombre || null, total: v.total })))
+      } else {
+        const [{ data: pAct }, { data: pPrev }] = await Promise.all([
+          supabase.schema('erp').from('ventas_pos').select('cliente_id, cliente_nombre, total')
+            .eq('organizacion_id', orgId).eq('status', 'completada').gte('created_at', `${mesActualInicio}T00:00:00`),
+          supabase.schema('erp').from('ventas_pos').select('cliente_id, cliente_nombre, total')
+            .eq('organizacion_id', orgId).eq('status', 'completada').gte('created_at', `${mesAnteriorInicio}T00:00:00`).lt('created_at', `${mesActualInicio}T00:00:00`),
+        ])
+        acumular(actualMap, (pAct || []) as VentaRow[])
+        acumular(anteriorMap, (pPrev || []) as VentaRow[])
+      }
     }
 
     const abcAnterior = calcularABCClientes(anteriorMap)

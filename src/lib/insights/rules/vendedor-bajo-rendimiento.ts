@@ -36,22 +36,25 @@ export const vendedorBajoRendimientoRule: InsightRule = {
       }
     }
 
+    // Usar cache compartido si disponible
     if (tieneFacturas) {
-      const { data } = await supabase
-        .schema('erp').from('v_facturas')
-        .select('vendedor_nombre, total')
-        .eq('organizacion_id', orgId).not('status', 'eq', 'cancelada')
-        .gte('fecha', mesInicio)
-      acumular((data || []) as VentaRow[])
+      if (ctx.cache?.facturas90d) {
+        acumular(ctx.cache.facturas90d.filter(f => f.fecha >= mesInicio).map(f => ({ vendedor_nombre: f.vendedor_nombre || null, total: f.total })))
+      } else {
+        const { data } = await supabase.schema('erp').from('v_facturas')
+          .select('vendedor_nombre, total').eq('organizacion_id', orgId).not('status', 'eq', 'cancelada').gte('fecha', mesInicio)
+        acumular((data || []) as VentaRow[])
+      }
     }
 
     if (tienePOS) {
-      const { data } = await supabase
-        .schema('erp').from('ventas_pos')
-        .select('vendedor_nombre, total')
-        .eq('organizacion_id', orgId).eq('status', 'completada')
-        .gte('created_at', `${mesInicio}T00:00:00`)
-      acumular((data || []) as VentaRow[])
+      if (ctx.cache?.ventasPOS90d) {
+        acumular(ctx.cache.ventasPOS90d.filter(v => v.created_at >= `${mesInicio}T00:00:00`).map(v => ({ vendedor_nombre: null, total: v.total })))
+      } else {
+        const { data } = await supabase.schema('erp').from('ventas_pos')
+          .select('vendedor_nombre, total').eq('organizacion_id', orgId).eq('status', 'completada').gte('created_at', `${mesInicio}T00:00:00`)
+        acumular((data || []) as VentaRow[])
+      }
     }
 
     // Necesitamos al menos 2 vendedores para comparar

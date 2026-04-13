@@ -13,18 +13,27 @@ export const carteraVencidaRule: InsightRule = {
   umbralDefault: 50000,
   requiereModulo: 'facturas',
   evaluar: async (ctx: InsightContext): Promise<InsightItem[]> => {
-    const { supabase, orgId, umbrales } = ctx
+    const { supabase, orgId, umbrales, cache } = ctx
     const umbralCritico = umbrales.get('cartera-vencida') ?? 50000
 
-    const { data, error } = await supabase
-      .schema('erp')
-      .from('v_facturas')
-      .select('id, folio, cliente_nombre, cliente_id, saldo, dias_vencida')
-      .eq('organizacion_id', orgId)
-      .in('status', ['pendiente', 'parcial'])
+    // Usar cache compartido si disponible, sino query directa
+    let rows: FactRow[]
+    if (cache?.facturas90d) {
+      rows = cache.facturas90d
+        .filter(f => f.status === 'pendiente' || f.status === 'parcial')
+        .map(f => ({ id: f.id, folio: '', cliente_nombre: f.cliente_nombre, cliente_id: f.cliente_id, saldo: Number(f.saldo), dias_vencida: Number(f.dias_vencida) }))
+    } else {
+      const { data, error } = await supabase
+        .schema('erp')
+        .from('v_facturas')
+        .select('id, folio, cliente_nombre, cliente_id, saldo, dias_vencida')
+        .eq('organizacion_id', orgId)
+        .in('status', ['pendiente', 'parcial'])
+      if (error) return []
+      rows = (data || []) as FactRow[]
+    }
 
-    const rows = (data || []) as FactRow[]
-    if (error || rows.length === 0) return []
+    if (rows.length === 0) return []
 
     const vencidas = rows.filter((f) => {
       const saldo = Number(f.saldo || 0)
