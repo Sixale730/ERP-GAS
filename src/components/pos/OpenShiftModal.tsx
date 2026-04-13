@@ -18,7 +18,8 @@ interface OpenShiftModalProps {
 export default function OpenShiftModal({ open, onSuccess, onCancel }: OpenShiftModalProps) {
   const [monto, setMonto] = useState<number>(0)
   const { user, erpUser, organizacion } = useAuth()
-  const { cajaId, cajaNombre } = usePOSStore()
+  const cajaId = usePOSStore(s => s.cajaId)
+  const cajaNombre = usePOSStore(s => s.cajaNombre)
   const abrirTurno = useAbrirTurno()
 
   const handleOpen = async () => {

@@ -109,9 +109,9 @@ export default function FacturaDemo() {
     }, 50)
   }, [])
 
-  const handleDescargarPDF = useCallback(() => {
+  const handleDescargarPDF = useCallback(async () => {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl)
-    const url = generarURLPDFFacturaDemo()
+    const url = await generarURLPDFFacturaDemo()
     setPdfUrl(url)
     window.open(url, '_blank')
   }, [pdfUrl])

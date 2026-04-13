@@ -16,7 +16,7 @@ interface CloseShiftModalProps {
 export default function CloseShiftModal({ open, onSuccess, onCancel }: CloseShiftModalProps) {
   const [montoReal, setMontoReal] = useState<number>(0)
   const [notas, setNotas] = useState('')
-  const { turnoId } = usePOSStore()
+  const turnoId = usePOSStore(s => s.turnoId)
   const { data: resumen, isLoading } = useResumenTurno(open ? turnoId || undefined : undefined)
   const cerrarTurno = useCerrarTurno()
 

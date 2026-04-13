@@ -40,7 +40,8 @@ const roleLabels: Record<string, { label: string; color: string }> = {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const { sidebarCollapsed: collapsed, setSidebarCollapsed: setCollapsed } = useUIStore()
+  const collapsed = useUIStore(s => s.sidebarCollapsed)
+  const setCollapsed = useUIStore(s => s.setSidebarCollapsed)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const screens = useBreakpoint()

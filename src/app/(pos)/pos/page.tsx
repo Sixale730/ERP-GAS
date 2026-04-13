@@ -13,7 +13,10 @@ import { useState } from 'react'
 
 export default function POSPage() {
   const { user, loading: authLoading } = useAuth()
-  const { cajaId, turnoId, setCajaContext, setTurnoId } = usePOSStore()
+  const cajaId = usePOSStore(s => s.cajaId)
+  const turnoId = usePOSStore(s => s.turnoId)
+  const setCajaContext = usePOSStore(s => s.setCajaContext)
+  const setTurnoId = usePOSStore(s => s.setTurnoId)
   const [showOpenShift, setShowOpenShift] = useState(false)
 
   const { data: turnoActivo, isLoading: turnoLoading } = useTurnoActivo(cajaId || undefined)

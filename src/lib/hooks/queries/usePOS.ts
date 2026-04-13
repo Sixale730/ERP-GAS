@@ -60,7 +60,7 @@ export function useTurnoActivo(cajaId?: string) {
     queryKey: posKeys.turnoActivo(cajaId),
     queryFn: () => fetchTurnoActivo(cajaId!),
     enabled: !!cajaId,
-    refetchInterval: 30000, // Re-check every 30s
+    // Sin polling — se invalida on-demand al abrir/cerrar turno
   })
 }
 

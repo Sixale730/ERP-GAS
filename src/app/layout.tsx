@@ -23,6 +23,13 @@ export const viewport: Viewport = {
   themeColor: '#1890ff',
 }
 
+const ANTD_THEME = {
+  token: {
+    colorPrimary: '#1890ff',
+    borderRadius: 6,
+  },
+} as const
+
 export default function RootLayout({
   children,
 }: {
@@ -33,15 +40,7 @@ export default function RootLayout({
       <body>
         <ReactQueryProvider>
           <AntdRegistry>
-            <ConfigProvider
-              locale={esES}
-              theme={{
-                token: {
-                  colorPrimary: '#1890ff',
-                  borderRadius: 6,
-                },
-              }}
-            >
+            <ConfigProvider locale={esES} theme={ANTD_THEME}>
               {children}
             </ConfigProvider>
           </AntdRegistry>

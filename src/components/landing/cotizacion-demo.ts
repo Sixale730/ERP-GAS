@@ -1,6 +1,3 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
-
 const COLOR_PRIMARIO: [number, number, number] = [41, 128, 185]
 const COLOR_GRIS: [number, number, number] = [100, 100, 100]
 
@@ -15,7 +12,11 @@ function formatMoney(n: number): string {
   return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export function generarURLPDFDemo(): string {
+export async function generarURLPDFDemo(): Promise<string> {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ])
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
   const hoy = new Date()
@@ -232,7 +233,11 @@ export function generarURLPDFDemo(): string {
 
 // ─── PDF Factura Demo ──────────────────────────────────────────────────────
 
-export function generarURLPDFFacturaDemo(): string {
+export async function generarURLPDFFacturaDemo(): Promise<string> {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ])
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
   const hoy = new Date()

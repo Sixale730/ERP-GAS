@@ -272,15 +272,12 @@ export async function POST(request: NextRequest) {
     // Generar XML SIN atributos de firma (Finkok los agregara)
     const xmlSinFirmar = generarPreCFDI(datosFactura, { omitirFirma: true }, empresa)
 
-    // DEBUG: Log del XML antes de enviar a Finkok
-    console.log('=== CFDI DEBUG ===')
-    console.log('Ambiente:', config.environment)
-    console.log('XML Length:', xmlSinFirmar.length)
-    console.log('Contiene Sello:', xmlSinFirmar.includes('Sello='))
-    console.log('Contiene Certificado:', xmlSinFirmar.includes('Certificado='))
-    console.log('Contiene NoCertificado:', xmlSinFirmar.includes('NoCertificado='))
-    console.log('Primeros 1000 chars:', xmlSinFirmar.substring(0, 1000))
-    console.log('==================')
+    // Log del XML solo en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+      console.log('=== CFDI DEBUG ===')
+      console.log('Ambiente:', config.environment, '| XML Length:', xmlSinFirmar.length)
+      console.log('==================')
+    }
 
     // Timbrar con sign_stamp (Finkok genera cadena original, firma y timbra)
     const resultadoTimbrado = await signStamp(xmlSinFirmar)

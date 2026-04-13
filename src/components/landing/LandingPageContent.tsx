@@ -75,8 +75,8 @@ export default function LandingPage() {
     return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }
   }, [pdfUrl])
 
-  const handleOpenPdfDemo = useCallback(() => {
-    const url = generarURLPDFDemo()
+  const handleOpenPdfDemo = useCallback(async () => {
+    const url = await generarURLPDFDemo()
     setPdfUrl(url)
     setPdfModal(true)
   }, [])

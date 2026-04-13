@@ -24,7 +24,13 @@ export default function PaymentModal({ open, onSuccess, onCancel }: PaymentModal
   const [transferencia, setTransferencia] = useState(0)
   const [referencia, setReferencia] = useState('')
 
-  const { items, descuentoGlobal, turnoId, almacenId, clienteDefaultId, clearCart, setLastSaleData } = usePOSStore()
+  const items = usePOSStore(s => s.items)
+  const descuentoGlobal = usePOSStore(s => s.descuentoGlobal)
+  const turnoId = usePOSStore(s => s.turnoId)
+  const almacenId = usePOSStore(s => s.almacenId)
+  const clienteDefaultId = usePOSStore(s => s.clienteDefaultId)
+  const clearCart = usePOSStore(s => s.clearCart)
+  const setLastSaleData = usePOSStore(s => s.setLastSaleData)
   const { user, erpUser, organizacion } = useAuth()
   const registrarVenta = useRegistrarVenta()
 

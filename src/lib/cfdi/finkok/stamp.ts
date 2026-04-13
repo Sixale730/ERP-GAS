@@ -139,15 +139,12 @@ export async function quickStamp(
     const [rawResult] = await client.quick_stampAsync(params)
     const result: StampResult = rawResult.quick_stampResult || rawResult
 
-    // DEBUG: Log completo de la respuesta de Finkok
-    console.log('=== FINKOK RESPONSE ===')
-    console.log('Result keys:', Object.keys(result || {}))
-    console.log('UUID:', result?.UUID)
-    console.log('CodEstatus:', result?.CodEstatus)
-    console.log('Incidencias:', JSON.stringify(result?.Incidencias, null, 2))
-    console.log('XML length:', result?.xml?.length || 0)
-    console.log('XML preview:', result?.xml?.substring(0, 300) || 'NO XML')
-    console.log('=======================')
+    // Log de Finkok solo en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+      console.log('=== FINKOK RESPONSE ===')
+      console.log('UUID:', result?.UUID, '| CodEstatus:', result?.CodEstatus)
+      console.log('=======================')
+    }
 
     if (result.Incidencias?.Incidencia) {
       const error = parseFinkokError(result)

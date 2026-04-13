@@ -34,19 +34,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obtener datos de la factura
-    const { data: factura, error: errorFactura } = await supabase
-      .schema('erp')
-      .from('facturas')
-      .select(`
-        id, folio, serie, fecha, fecha_vencimiento,
-        subtotal, descuento_monto, iva, ieps, total, notas,
-        cliente_rfc, cliente_razon_social, cliente_regimen_fiscal, cliente_uso_cfdi,
-        status_sat, uuid_cfdi, cliente_id
-      `)
-      .eq('id', factura_id)
-      .single()
+    // Obtener factura, items y emisor en paralelo
+    const [facturaResult, itemsResult, emisor] = await Promise.all([
+      supabase
+        .schema('erp')
+        .from('facturas')
+        .select(`
+          id, folio, serie, fecha, fecha_vencimiento,
+          subtotal, descuento_monto, iva, ieps, total, notas,
+          cliente_rfc, cliente_razon_social, cliente_regimen_fiscal, cliente_uso_cfdi,
+          status_sat, uuid_cfdi, cliente_id
+        `)
+        .eq('id', factura_id)
+        .single(),
+      supabase
+        .schema('erp')
+        .from('factura_items')
+        .select(`
+          id, producto_id, descripcion, cantidad,
+          precio_unitario, descuento_porcentaje, subtotal,
+          productos (sku, nombre)
+        `)
+        .eq('factura_id', factura_id),
+      getEmpresaFromUser(supabase),
+    ])
 
+    const { data: factura, error: errorFactura } = facturaResult
     if (errorFactura || !factura) {
       return NextResponse.json(
         { success: false, error: 'Factura no encontrada' },
@@ -54,7 +67,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obtener datos del cliente
+    const { data: items, error: errorItems } = itemsResult
+    if (errorItems || !items || items.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'La factura no tiene items' },
+        { status: 400 }
+      )
+    }
+
+    // Obtener datos del cliente (depende de factura.cliente_id)
     let clienteData: { codigo_postal_fiscal: string | null; forma_pago: string | null; metodo_pago: string | null; moneda: string | null } | null = null
     if (factura.cliente_id) {
       const { data } = await supabase
@@ -65,27 +86,6 @@ export async function POST(request: NextRequest) {
         .single()
       clienteData = data
     }
-
-    // Obtener items
-    const { data: items, error: errorItems } = await supabase
-      .schema('erp')
-      .from('factura_items')
-      .select(`
-        id, producto_id, descripcion, cantidad,
-        precio_unitario, descuento_porcentaje, subtotal,
-        productos (sku, nombre)
-      `)
-      .eq('factura_id', factura_id)
-
-    if (errorItems || !items || items.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'La factura no tiene items' },
-        { status: 400 }
-      )
-    }
-
-    // Obtener datos del emisor desde la BD
-    const emisor = await getEmpresaFromUser(supabase)
 
     // Preparar datos
     const moneda = (clienteData?.moneda as 'MXN' | 'USD') || 'MXN'

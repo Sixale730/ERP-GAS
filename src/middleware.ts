@@ -79,8 +79,9 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refrescar sesion si existe
-  const { data: { user } } = await supabase.auth.getUser()
+  // Leer sesión de cookies (local, sin network call) — mucho más rápido que getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
 
   // Rutas publicas (no requieren auth)
   const publicRoutes = ['/login', '/auth/callback', '/invitacion', '/registro-pendiente', '/setup', '/solicitar-acceso', '/solicitud-pendiente', '/api/leads']
@@ -103,7 +104,6 @@ export async function middleware(request: NextRequest) {
   // Si hay usuario y esta en login, redirigir segun rol
   if (user && request.nextUrl.pathname === '/login') {
     // Determinar rol desde JWT para decidir destino post-login
-    const { data: { session } } = await supabase.auth.getSession()
     const loginRole = session?.access_token ? getRoleFromJWT(session.access_token) : null
     if (loginRole === 'super_admin') {
       return NextResponse.redirect(new URL('/modulos', request.url))
@@ -114,8 +114,6 @@ export async function middleware(request: NextRequest) {
   // Para rutas protegidas, verificar que el usuario tiene rol en el ERP
   // Usamos el JWT para evitar queries a BD en cada navegación
   if (user && !isPublicRoute) {
-    // getSession() lee de cookies (local, sin network call) - seguro tras getUser()
-    const { data: { session } } = await supabase.auth.getSession()
     let role = session?.access_token ? getRoleFromJWT(session.access_token) : null
 
     // Si no hay rol en el JWT, el usuario podría ser nuevo (primer login)
@@ -164,6 +162,6 @@ export const config = {
      * - icons/ (PWA icons)
      * - api/ routes (handled separately)
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|icons/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|icons/|api/).*)',
   ],
 }

@@ -30,11 +30,17 @@ export default function POSTerminal() {
   const [discountOpen, setDiscountOpen] = useState(false)
   const [discountValue, setDiscountValue] = useState(0)
 
-  const {
-    items, addItem, clearCart, cajaId,
-    listaPrecioId, cajaNombre, descuentoGlobal, setDescuentoGlobal,
-    clearCajaContext, lastSaleData, pesoBascula,
-  } = usePOSStore()
+  const items = usePOSStore(s => s.items)
+  const addItem = usePOSStore(s => s.addItem)
+  const clearCart = usePOSStore(s => s.clearCart)
+  const cajaId = usePOSStore(s => s.cajaId)
+  const listaPrecioId = usePOSStore(s => s.listaPrecioId)
+  const cajaNombre = usePOSStore(s => s.cajaNombre)
+  const descuentoGlobal = usePOSStore(s => s.descuentoGlobal)
+  const setDescuentoGlobal = usePOSStore(s => s.setDescuentoGlobal)
+  const clearCajaContext = usePOSStore(s => s.clearCajaContext)
+  const lastSaleData = usePOSStore(s => s.lastSaleData)
+  const pesoBascula = usePOSStore(s => s.pesoBascula)
   const { erpUser } = useAuth()
   const { data: turno } = useTurnoActivo(cajaId || undefined)
 

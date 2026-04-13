@@ -5,7 +5,10 @@ import { DeleteOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import { usePOSStore } from '@/store/posStore'
 
 export default function POSCart() {
-  const { items, updateQuantity, removeItem, descuentoGlobal } = usePOSStore()
+  const items = usePOSStore(s => s.items)
+  const updateQuantity = usePOSStore(s => s.updateQuantity)
+  const removeItem = usePOSStore(s => s.removeItem)
+  const descuentoGlobal = usePOSStore(s => s.descuentoGlobal)
 
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0)
   const descuentoMonto = subtotal * descuentoGlobal / 100

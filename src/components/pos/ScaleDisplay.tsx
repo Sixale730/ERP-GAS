@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react'
 
 export default function ScaleDisplay() {
   const { weight, isConnected, isSupported, connect, disconnect, tare } = useScale()
-  const { setPesoBascula } = usePOSStore()
+  const setPesoBascula = usePOSStore(s => s.setPesoBascula)
   const [manualWeight, setManualWeight] = useState<number | null>(null)
 
   // Sync scale weight to store

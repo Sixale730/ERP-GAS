@@ -21,8 +21,8 @@ export function ReactQueryProvider({ children }: ReactQueryProviderProps) {
             gcTime: 30 * 60 * 1000,
             // No refetch al enfocar la ventana (mejor UX)
             refetchOnWindowFocus: false,
-            // No refetch al reconectar
-            refetchOnReconnect: false,
+            // Refetch al reconectar para evitar datos stale tras pérdida de conexión
+            refetchOnReconnect: 'always',
             // Reintentar 1 vez en caso de error
             retry: 1,
             // Delay de reintento: 1 segundo

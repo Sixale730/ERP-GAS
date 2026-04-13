@@ -36,14 +36,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
     }
 
-    // Verificar permisos
-    const { data: erpUser } = await supabase
-      .schema('erp')
-      .from('usuarios')
-      .select('rol, permisos')
-      .eq('auth_user_id', user.id)
-      .single()
+    // Verificar permisos y obtener factura en paralelo
+    const [erpUserResult, facturaResult] = await Promise.all([
+      supabase
+        .schema('erp')
+        .from('usuarios')
+        .select('rol, permisos')
+        .eq('auth_user_id', user.id)
+        .single(),
+      supabase
+        .schema('erp')
+        .from('facturas')
+        .select('id, folio, total, saldo, status, cliente_id, organizacion_id')
+        .eq('id', factura_id)
+        .single(),
+    ])
 
+    const { data: erpUser } = erpUserResult
     if (!erpUser) {
       return NextResponse.json({ success: false, error: 'Usuario no encontrado' }, { status: 404 })
     }
@@ -57,14 +66,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar que la factura existe y obtener saldo
-    const { data: factura, error: errorFactura } = await supabase
-      .schema('erp')
-      .from('facturas')
-      .select('id, folio, total, saldo, status, cliente_id, organizacion_id')
-      .eq('id', factura_id)
-      .single()
-
+    const { data: factura, error: errorFactura } = facturaResult
     if (errorFactura || !factura) {
       return NextResponse.json({ success: false, error: 'Factura no encontrada' }, { status: 404 })
     }
@@ -152,7 +154,7 @@ export async function GET(request: NextRequest) {
     const { data: pagos, error } = await supabase
       .schema('erp')
       .from('pagos')
-      .select('*')
+      .select('id, folio, monto, fecha, metodo_pago, referencia, notas, created_at')
       .eq('factura_id', factura_id)
       .order('fecha', { ascending: true })
 

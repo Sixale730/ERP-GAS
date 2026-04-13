@@ -129,7 +129,8 @@ function ReportesGrid({
 export default function ReportesHubPage() {
   const router = useRouter()
   const { organizacion, loading } = useAuth()
-  const { reporteFavoritos, toggleReporteFavorito } = useUIStore()
+  const reporteFavoritos = useUIStore(s => s.reporteFavoritos)
+  const toggleReporteFavorito = useUIStore(s => s.toggleReporteFavorito)
   const [busqueda, setBusqueda] = useState('')
 
   const modulosActivos: string[] = organizacion?.modulos_activos || []
