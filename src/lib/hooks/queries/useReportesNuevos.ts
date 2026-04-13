@@ -110,6 +110,7 @@ export function useVentasPOSReporte(fechaDesde: string | null, fechaHasta: strin
         .eq('status', 'completada')
         .eq('organizacion_id', orgId!)
         .order('created_at', { ascending: false })
+        .limit(5000)
 
       if (fechaDesde) query = query.gte('created_at', `${fechaDesde}T00:00:00`)
       if (fechaHasta) query = query.lte('created_at', `${fechaHasta}T23:59:59`)
@@ -136,6 +137,7 @@ export function useVentasFormaPago(fechaDesde: string | null, fechaHasta: string
 
       if (fechaDesde) query = query.gte('created_at', `${fechaDesde}T00:00:00`)
       if (fechaHasta) query = query.lte('created_at', `${fechaHasta}T23:59:59`)
+      query = query.limit(5000)
 
       const { data, error } = await query
       if (error) throw error
@@ -174,7 +176,8 @@ export function useProductosMasVendidos(fechaDesde: string | null, fechaHasta: s
     queryFn: async () => {
       const supabase = getSupabaseClient()
 
-      // Obtener ventas del periodo
+      // Obtener items con datos de producto en un solo query usando join
+      // Filtramos por ventas completadas del periodo
       let ventasQuery = supabase
         .schema('erp')
         .from('ventas_pos')
@@ -185,36 +188,27 @@ export function useProductosMasVendidos(fechaDesde: string | null, fechaHasta: s
       if (fechaDesde) ventasQuery = ventasQuery.gte('created_at', `${fechaDesde}T00:00:00`)
       if (fechaHasta) ventasQuery = ventasQuery.lte('created_at', `${fechaHasta}T23:59:59`)
 
-      const { data: ventas, error: ventasErr } = await ventasQuery
+      const { data: ventas, error: ventasErr } = await ventasQuery.limit(5000)
       if (ventasErr) throw ventasErr
       if (!ventas || ventas.length === 0) return []
 
       const ventaIds = ventas.map((v) => v.id)
 
-      // Obtener items de esas ventas
+      // Obtener items con join a productos en una sola query (elimina N+1)
       const { data: items, error: itemsErr } = await supabase
         .schema('erp')
         .from('venta_pos_items')
-        .select('producto_id, cantidad, subtotal, venta_pos_id')
+        .select('producto_id, cantidad, subtotal, productos (id, sku, nombre, unidad_medida)')
         .in('venta_pos_id', ventaIds)
 
       if (itemsErr) throw itemsErr
       if (!items || items.length === 0) return []
 
       // Agrupar por producto client-side
-      const productoIds = Array.from(new Set(items.map((i) => i.producto_id)))
-      const { data: productos, error: prodErr } = await supabase
-        .schema('erp')
-        .from('productos')
-        .select('id, sku, nombre, unidad_medida')
-        .in('id', productoIds)
-
-      if (prodErr) throw prodErr
-      const prodMap = new Map((productos || []).map((p) => [p.id, p]))
-
       const agrupado = new Map<string, ProductoVendidoRow>()
       for (const item of items) {
-        const prod = prodMap.get(item.producto_id)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const prod = (item as any).productos
         if (!prod) continue
         const existing = agrupado.get(item.producto_id)
         if (existing) {
@@ -248,7 +242,7 @@ export function useMargenUtilidad(orgId?: string) {
       const { data, error } = await supabase
         .schema('erp')
         .from('v_margen_utilidad')
-        .select('*')
+        .select('id, sku, nombre, costo_promedio, precio_venta, moneda_precio, margen_bruto, margen_porcentaje')
         .eq('organizacion_id', orgId!)
         .order('margen_porcentaje', { ascending: false, nullsFirst: false })
 

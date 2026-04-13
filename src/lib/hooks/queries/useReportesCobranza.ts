@@ -178,18 +178,18 @@ export function usePagosRecibidos(
       if (error) throw error
       if (!pagos || pagos.length === 0) return []
 
-      // Obtener facturas para folio, cliente y sucursal
+      // Obtener facturas y descripciones en paralelo
       const facturaIds = Array.from(new Set(pagos.map((p) => p.factura_id)))
-      const { data: facturas } = await supabase
-        .schema('erp')
-        .from('v_facturas')
-        .select('id, folio, cliente_nombre, sucursal_nombre')
-        .in('id', facturaIds)
+      const [{ data: facturas }, descMap] = await Promise.all([
+        supabase
+          .schema('erp')
+          .from('v_facturas')
+          .select('id, folio, cliente_nombre, sucursal_nombre')
+          .in('id', facturaIds),
+        fetchDescripcionesFacturas(facturaIds),
+      ])
 
       const facturaMap = new Map((facturas || []).map((f) => [f.id, f]))
-
-      // Obtener descripciones de productos
-      const descMap = await fetchDescripcionesFacturas(facturaIds)
 
       return pagos.map((p): PagoRecibidoRow => {
         const factura = facturaMap.get(p.factura_id)

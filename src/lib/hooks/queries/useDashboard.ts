@@ -108,13 +108,14 @@ async function fetchDashboardData(): Promise<DashboardData> {
       .order('fecha', { ascending: false })
       .limit(5),
 
-    // Ventas del mes actual
+    // Ventas del mes actual (solo campo total para sumar)
     supabase
       .schema('erp')
       .from('facturas')
       .select('total')
       .neq('status', 'cancelada')
-      .gte('fecha', primerDiaMesActual),
+      .gte('fecha', primerDiaMesActual)
+      .limit(5000),
 
     // Ventas del mes anterior
     supabase
@@ -123,22 +124,25 @@ async function fetchDashboardData(): Promise<DashboardData> {
       .select('total')
       .neq('status', 'cancelada')
       .gte('fecha', primerDiaMesAnterior)
-      .lt('fecha', primerDiaMesActual),
+      .lt('fecha', primerDiaMesActual)
+      .limit(5000),
 
-    // Órdenes por surtir (cotizaciones con status orden_venta)
+    // Órdenes por surtir (las 20 más antiguas + count total)
     supabase
       .schema('erp')
       .from('v_cotizaciones')
       .select('id, folio, fecha, total, cliente_nombre, sucursal_nombre', { count: 'exact' })
       .eq('status', 'orden_venta')
-      .order('fecha', { ascending: true }),
+      .order('fecha', { ascending: true })
+      .limit(20),
 
-    // Pipeline comercial (cotizaciones abiertas)
+    // Pipeline comercial (cotizaciones abiertas, solo campos necesarios)
     supabase
       .schema('erp')
       .from('cotizaciones')
       .select('total, probabilidad')
-      .in('status', ['propuesta']),
+      .in('status', ['propuesta'])
+      .limit(1000),
   ])
 
   // Procesar resultados
@@ -238,14 +242,15 @@ async function fetchDashboardPOS(orgId: string): Promise<DashboardPOSData> {
       .order('created_at', { ascending: false })
       .limit(5),
 
-    // Count + suma de todas las ventas del día
+    // Count + suma de todas las ventas del día (solo total para reduce)
     supabase
       .schema('erp')
       .from('v_ventas_pos')
-      .select('id, total', { count: 'exact' })
+      .select('total', { count: 'exact' })
       .eq('organizacion_id', orgId)
       .eq('status', 'completada')
-      .gte('created_at', hoyInicio),
+      .gte('created_at', hoyInicio)
+      .limit(2000),
 
     // Total productos activos de la org
     supabase
