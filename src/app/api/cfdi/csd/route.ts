@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import {
   cargarCSDaFinkok,
   cargarCSDPruebas,
@@ -13,6 +14,30 @@ import {
   bufferToBase64,
 } from '@/lib/cfdi/finkok/csd-utils'
 import { getFinkokConfig, CSD_PRUEBAS } from '@/lib/config/finkok'
+
+/** Verifica autenticación y permisos de configuración */
+async function verificarAuthCSD() {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 }) }
+  }
+  const { data: erpUser } = await supabase
+    .schema('erp')
+    .from('usuarios')
+    .select('rol, permisos')
+    .eq('auth_user_id', user.id)
+    .single()
+  if (!erpUser) {
+    return { error: NextResponse.json({ success: false, error: 'Usuario no encontrado' }, { status: 404 }) }
+  }
+  const { getPermisosEfectivos } = await import('@/lib/permisos')
+  const permisos = getPermisosEfectivos(erpUser.rol, erpUser.permisos)
+  if (!permisos.configuracion?.editar) {
+    return { error: NextResponse.json({ success: false, error: 'No tienes permisos para gestionar CSD' }, { status: 403 }) }
+  }
+  return { user, erpUser }
+}
 
 /**
  * POST /api/cfdi/csd
@@ -31,6 +56,10 @@ import { getFinkokConfig, CSD_PRUEBAS } from '@/lib/config/finkok'
  */
 export async function POST(request: NextRequest) {
   try {
+    // Verificar autenticación y permisos
+    const auth = await verificarAuthCSD()
+    if ('error' in auth) return auth.error
+
     const contentType = request.headers.get('content-type') || ''
 
     // Si es JSON, verificar si quiere cargar los de prueba
@@ -150,6 +179,10 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
+    // Verificar autenticación y permisos
+    const auth = await verificarAuthCSD()
+    if ('error' in auth) return auth.error
+
     const { searchParams } = new URL(request.url)
     const rfc = searchParams.get('rfc')
 

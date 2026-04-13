@@ -4,12 +4,16 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  const nextParam = searchParams.get('next') ?? '/dashboard'
+  // Validar que next sea una ruta local segura (prevenir open redirect)
+  const safeNext = (nextParam.startsWith('/') && !nextParam.startsWith('//')) ? nextParam : '/dashboard'
 
   if (code) {
     const supabase = await createServerSupabaseClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    console.error('[auth/callback] exchangeCodeForSession error:', error)
+    if (error) {
+      console.error('[auth/callback] exchangeCodeForSession error:', error)
+    }
 
     if (!error) {
       const {
@@ -33,7 +37,7 @@ export async function GET(request: Request) {
             )
           }
           // Usuario activo, ir al dashboard
-          return NextResponse.redirect(`${origin}${next}`)
+          return NextResponse.redirect(`${origin}${safeNext}`)
         }
 
         // 2. Usuario no existe, verificar si está en usuarios_autorizados
@@ -62,7 +66,7 @@ export async function GET(request: Request) {
 
           if (!createError) {
             // Usuario creado, ir al dashboard
-            return NextResponse.redirect(`${origin}${next}`)
+            return NextResponse.redirect(`${origin}${safeNext}`)
           }
         }
 

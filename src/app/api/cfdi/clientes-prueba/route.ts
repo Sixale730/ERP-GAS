@@ -7,6 +7,7 @@
  */
 
 import { NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import {
   CLIENTES_PRUEBA_SAT,
   getClientesPruebaAgrupados,
@@ -14,6 +15,13 @@ import {
 import { getFinkokConfig } from '@/lib/config/finkok'
 
 export async function GET() {
+  // Verificar autenticación
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+  }
+
   const config = getFinkokConfig()
 
   // Solo disponible en ambiente demo

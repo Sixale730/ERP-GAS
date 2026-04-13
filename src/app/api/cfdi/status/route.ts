@@ -27,6 +27,13 @@ interface FacturaDB {
 
 export async function GET(request: NextRequest) {
   try {
+    // Verificar autenticación
+    const supabaseAuth = await createServerSupabaseClient()
+    const { data: { user } } = await supabaseAuth.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const factura_id = searchParams.get('factura_id')
     const verificar = searchParams.get('verificar') // Para verificar config sin factura
@@ -141,6 +148,13 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Verificar autenticación
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { factura_id } = body
 
@@ -150,8 +164,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    const supabase = await createServerSupabaseClient()
 
     const { data: factura, error } = await supabase
       .schema('erp')
