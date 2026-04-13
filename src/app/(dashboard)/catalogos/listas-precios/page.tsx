@@ -6,6 +6,7 @@ import { Table, Button, Input, Space, Card, Typography, message, Popconfirm, Tag
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, StarFilled } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const { Title } = Typography
 
@@ -19,13 +20,14 @@ interface ListaPrecio {
 
 export default function ListasPreciosPage() {
   const router = useRouter()
+  const { orgId } = useAuth()
   const [loading, setLoading] = useState(true)
   const [listas, setListas] = useState<ListaPrecio[]>([])
   const [searchText, setSearchText] = useState('')
 
   useEffect(() => {
-    loadListas()
-  }, [])
+    if (orgId) loadListas()
+  }, [orgId])
 
   const loadListas = async () => {
     const supabase = getSupabaseClient()
@@ -37,6 +39,7 @@ export default function ListasPreciosPage() {
         .from('listas_precios')
         .select('*')
         .eq('is_active', true)
+        .eq('organizacion_id', orgId!)
         .order('nombre')
 
       if (error) throw error

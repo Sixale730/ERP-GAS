@@ -145,18 +145,21 @@ function NuevaOrdenCompraContent() {
           .from('proveedores')
           .select('*')
           .eq('is_active', true)
+          .eq('organizacion_id', orgId!)
           .order('razon_social'),
         supabase
           .schema('erp')
           .from('almacenes')
           .select('*')
           .eq('is_active', true)
+          .eq('organizacion_id', orgId!)
           .order('nombre'),
         supabase
           .schema('erp')
           .from('productos')
           .select('*')
           .eq('is_active', true)
+          .eq('organizacion_id', orgId!)
           .order('nombre'),
       ])
 

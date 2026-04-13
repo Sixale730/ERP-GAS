@@ -7,6 +7,7 @@ import {
 } from 'antd'
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { formatMoney, formatMoneyMXN, formatDate } from '@/lib/utils/format'
 import { MONEDAS, type CodigoMoneda } from '@/lib/config/moneda'
 import { getRegimenFiscalLabel, getUsoCfdiLabel, getFormaPagoLabel, getMetodoPagoLabel } from '@/lib/config/sat'
@@ -68,6 +69,7 @@ export default function ClienteDetallePage() {
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const { orgId } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [cliente, setCliente] = useState<ClienteDetalle | null>(null)
@@ -95,6 +97,7 @@ export default function ClienteDetallePage() {
           .from('clientes')
           .select('*')
           .eq('id', id)
+          .eq('organizacion_id', orgId!)
           .single(),
         supabase
           .schema('erp')

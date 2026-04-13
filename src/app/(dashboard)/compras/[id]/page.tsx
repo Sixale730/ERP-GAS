@@ -31,6 +31,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { formatMoneyUSD, formatMoneyMXN, formatDate } from '@/lib/utils/format'
 import { generarPDFOrdenCompra, type OpcionesMoneda } from '@/lib/utils/pdf'
 import HistorialTimeline from '@/components/common/HistorialTimeline'
@@ -59,6 +60,7 @@ export default function DetalleOrdenCompraPage() {
   const router = useRouter()
   const params = useParams()
   const ordenId = params.id as string
+  const { orgId } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [orden, setOrden] = useState<OrdenCompra | null>(null)
@@ -86,6 +88,7 @@ export default function DetalleOrdenCompraPage() {
         .from('ordenes_compra')
         .select('*')
         .eq('id', ordenId)
+        .eq('organizacion_id', orgId!)
         .single()
 
       if (ordenError) throw ordenError

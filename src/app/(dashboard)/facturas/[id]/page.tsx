@@ -13,6 +13,7 @@ import {
   DollarOutlined, EyeOutlined
 } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { formatMoneyUSD, formatMoneyMXN, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura, type OpcionesMoneda } from '@/lib/utils/pdf'
 import { type CodigoMoneda } from '@/lib/config/moneda'
@@ -137,6 +138,7 @@ export default function FacturaDetallePage() {
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const { orgId } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [factura, setFactura] = useState<FacturaDetalle | null>(null)
@@ -196,6 +198,7 @@ export default function FacturaDetallePage() {
             cotizaciones:cotizacion_id (folio)
           `)
           .eq('id', id)
+          .eq('organizacion_id', orgId!)
           .single(),
         supabase
           .schema('erp')

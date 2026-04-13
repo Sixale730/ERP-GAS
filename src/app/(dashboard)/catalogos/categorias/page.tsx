@@ -6,6 +6,7 @@ import { Table, Button, Input, Space, Card, Typography, message, Popconfirm, Tag
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const { Title } = Typography
 
@@ -20,13 +21,14 @@ interface Categoria {
 
 export default function CategoriasPage() {
   const router = useRouter()
+  const { orgId } = useAuth()
   const [loading, setLoading] = useState(true)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [searchText, setSearchText] = useState('')
 
   useEffect(() => {
-    loadCategorias()
-  }, [])
+    if (orgId) loadCategorias()
+  }, [orgId])
 
   const loadCategorias = async () => {
     const supabase = getSupabaseClient()
@@ -41,6 +43,7 @@ export default function CategoriasPage() {
           categoria_padre:categoria_padre_id (nombre)
         `)
         .eq('is_active', true)
+        .eq('organizacion_id', orgId!)
         .order('nombre')
 
       if (error) throw error

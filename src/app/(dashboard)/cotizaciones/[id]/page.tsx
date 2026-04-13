@@ -12,6 +12,7 @@ import { getFormaPagoLabel, getMetodoPagoLabel, getRegimenFiscalLabel, getUsoCfd
 import dayjs from 'dayjs'
 import { generarPDFCotizacion, type OpcionesMoneda } from '@/lib/utils/pdf'
 import HistorialTimeline from '@/components/common/HistorialTimeline'
+import { useAuth } from '@/lib/hooks/useAuth'
 import type { CodigoMoneda } from '@/lib/config/moneda'
 
 const { Title, Text } = Typography
@@ -104,6 +105,7 @@ export default function CotizacionDetallePage() {
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const { orgId } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [converting, setConverting] = useState(false)
@@ -146,6 +148,7 @@ export default function CotizacionDetallePage() {
             almacenes:almacen_id (nombre)
           `)
           .eq('id', id)
+          .eq('organizacion_id', orgId!)
           .single(),
         supabase
           .schema('erp')

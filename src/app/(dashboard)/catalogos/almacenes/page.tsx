@@ -19,8 +19,8 @@ export default function AlmacenesPage() {
   const [form] = Form.useForm()
 
   useEffect(() => {
-    loadAlmacenes()
-  }, [])
+    if (orgId) loadAlmacenes()
+  }, [orgId])
 
   const loadAlmacenes = async () => {
     const supabase = getSupabaseClient()
@@ -32,6 +32,7 @@ export default function AlmacenesPage() {
         .from('almacenes')
         .select('*')
         .eq('is_active', true)
+        .eq('organizacion_id', orgId!)
         .order('codigo')
 
       if (error) throw error

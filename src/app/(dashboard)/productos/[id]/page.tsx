@@ -8,6 +8,7 @@ import {
 import { ArrowLeftOutlined, EditOutlined, SettingOutlined, HistoryOutlined, PlusOutlined, DeleteOutlined, ShoppingCartOutlined, FileTextOutlined } from '@ant-design/icons'
 import Link from 'next/link'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
 import HistorialProductoTable from '@/components/productos/HistorialProductoTable'
 import PrecioProductoModal from '@/components/precios/PrecioProductoModal'
@@ -51,6 +52,7 @@ export default function ProductoDetallePage() {
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const { orgId } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [producto, setProducto] = useState<ProductoDetalle | null>(null)
@@ -100,7 +102,7 @@ export default function ProductoDetallePage() {
     try {
       // Ejecutar TODAS las queries en paralelo
       const [viewRes, prodRes, invRes, ocRes, ovRes] = await Promise.all([
-        supabase.schema('erp').from('v_productos_stock').select('*').eq('id', id).single(),
+        supabase.schema('erp').from('v_productos_stock').select('*').eq('id', id).eq('organizacion_id', orgId!).single(),
         supabase.schema('erp').from('productos').select('numero_parte, moneda').eq('id', id).single(),
         supabase.schema('erp').from('inventario').select(`
           cantidad,

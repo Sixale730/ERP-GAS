@@ -6,6 +6,7 @@ import { Table, Button, Input, Space, Card, Typography, message, Popconfirm } fr
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const { Title } = Typography
 
@@ -22,13 +23,14 @@ interface Proveedor {
 
 export default function ProveedoresPage() {
   const router = useRouter()
+  const { orgId } = useAuth()
   const [loading, setLoading] = useState(true)
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [searchText, setSearchText] = useState('')
 
   useEffect(() => {
-    loadProveedores()
-  }, [])
+    if (orgId) loadProveedores()
+  }, [orgId])
 
   const loadProveedores = async () => {
     const supabase = getSupabaseClient()
@@ -40,6 +42,7 @@ export default function ProveedoresPage() {
         .from('proveedores')
         .select('*')
         .eq('is_active', true)
+        .eq('organizacion_id', orgId!)
         .order('razon_social')
 
       if (error) throw error
