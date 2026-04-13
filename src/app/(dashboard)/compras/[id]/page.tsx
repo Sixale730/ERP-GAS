@@ -72,10 +72,10 @@ export default function DetalleOrdenCompraPage() {
 
   
   useEffect(() => {
-    if (ordenId) {
+    if (ordenId && orgId) {
       loadOrden()
     }
-  }, [ordenId])
+  }, [ordenId, orgId])
 
   const loadOrden = async () => {
     const supabase = getSupabaseClient()

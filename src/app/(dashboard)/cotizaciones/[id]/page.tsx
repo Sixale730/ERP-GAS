@@ -121,10 +121,10 @@ export default function CotizacionDetallePage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (id) {
+    if (id && orgId) {
       loadCotizacion()
     }
-  }, [id])
+  }, [id, orgId])
 
   // Formatear dinero segun moneda de la cotizacion
   const formatMoney = (amount: number) => {

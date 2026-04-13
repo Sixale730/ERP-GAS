@@ -296,11 +296,11 @@ export default function FacturaDetallePage() {
   }, [id])
 
   useEffect(() => {
-    if (id) {
+    if (id && orgId) {
       loadFactura()
       loadPagos()
     }
-  }, [id, loadFactura, loadPagos])
+  }, [id, orgId, loadFactura, loadPagos])
 
   // === PDF ===
 

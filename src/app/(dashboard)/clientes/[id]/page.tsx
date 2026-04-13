@@ -80,10 +80,10 @@ export default function ClienteDetallePage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (id) {
+    if (id && orgId) {
       loadCliente()
     }
-  }, [id])
+  }, [id, orgId])
 
   const loadCliente = async () => {
     const supabase = getSupabaseClient()

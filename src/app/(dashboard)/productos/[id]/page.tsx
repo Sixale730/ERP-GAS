@@ -90,10 +90,10 @@ export default function ProductoDetallePage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (id) {
+    if (id && orgId) {
       loadProducto()
     }
-  }, [id])
+  }, [id, orgId])
 
   const loadProducto = async () => {
     const supabase = getSupabaseClient()
