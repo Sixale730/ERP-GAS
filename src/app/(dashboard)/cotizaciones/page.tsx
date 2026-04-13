@@ -12,6 +12,7 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatDate, formatDateTime, formatMoneyMXN } from '@/lib/utils/format'
 import { generarPDFCotizacion, prepararDatosCotizacionPDF } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 
 const { Title } = Typography
 
@@ -296,7 +297,7 @@ export default function CotizacionesPage() {
                 .like('folio', 'COT-%')
                 .order('created_at', { ascending: false })
               if (statusFilter) query = query.eq('status', statusFilter)
-              if (debouncedSearch) query = query.or(`folio.ilike.%${debouncedSearch}%,cliente_nombre.ilike.%${debouncedSearch}%`)
+              if (debouncedSearch) { const s = sanitizeSearchInput(debouncedSearch); query = query.or(`folio.ilike.%${s}%,cliente_nombre.ilike.%${s}%`) }
               const { data, error: err } = await query
               if (err) throw err
               return (data || []).map((r: any) => ({

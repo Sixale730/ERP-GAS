@@ -204,7 +204,8 @@ export default function GlobalSearch() {
     abortControllerRef.current = controller
 
     const supabase = getSupabaseClient()
-    const busqueda = `%${texto}%`
+    const { sanitizeSearchInput } = await import('@/lib/utils/sanitize')
+    const busqueda = `%${sanitizeSearchInput(texto)}%`
 
     try {
       const [productosRes, clientesRes, cotizacionesRes, facturasRes, ordenesRes, proveedoresRes] = await Promise.all([

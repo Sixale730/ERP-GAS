@@ -29,6 +29,7 @@ import { PlusOutlined, SearchOutlined, EyeOutlined, ThunderboltOutlined, Shoppin
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatDate, formatDateTime } from '@/lib/utils/format'
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 import dayjs from 'dayjs'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
@@ -607,7 +608,7 @@ export default function ComprasPage() {
                 .order('created_at', { ascending: false })
               if (statusFilter) query = query.eq('status', statusFilter)
               if (proveedorFilter) query = query.eq('proveedor_id', proveedorFilter)
-              if (searchText) query = query.or(`folio.ilike.%${searchText}%,proveedor_nombre.ilike.%${searchText}%`)
+              if (searchText) { const s = sanitizeSearchInput(searchText); query = query.or(`folio.ilike.%${s}%,proveedor_nombre.ilike.%${s}%`) }
               const { data, error: err } = await query
               if (err) throw err
               return (data || []).map((r: any) => ({

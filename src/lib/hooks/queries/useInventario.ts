@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 import type { Almacen, MovimientoView } from '@/types/database'
 import type { PaginationParams, PaginatedResult } from './types'
 
@@ -68,7 +69,8 @@ async function fetchInventario(almacenFilter?: string | null, pagination?: Pagin
   }
 
   if (search) {
-    query = query.or(`sku.ilike.%${search}%,producto_nombre.ilike.%${search}%`)
+    const s = sanitizeSearchInput(search)
+    query = query.or(`sku.ilike.%${s}%,producto_nombre.ilike.%${s}%`)
   }
 
   if (pagination) {
@@ -95,7 +97,8 @@ async function fetchMovimientos(almacenFilter?: string | null): Promise<Movimien
     .limit(10)
 
   if (almacenFilter) {
-    query = query.or(`almacen_origen_id.eq.${almacenFilter},almacen_destino_id.eq.${almacenFilter}`)
+    const safeAlm = sanitizeSearchInput(almacenFilter)
+    query = query.or(`almacen_origen_id.eq.${safeAlm},almacen_destino_id.eq.${safeAlm}`)
   }
 
   const { data, error } = await query

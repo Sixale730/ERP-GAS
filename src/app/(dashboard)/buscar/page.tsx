@@ -111,7 +111,8 @@ function BuscarContent() {
     const buscar = async () => {
       setLoading(true)
       const supabase = getSupabaseClient()
-      const busqueda = `%${query}%`
+      const { sanitizeSearchInput } = await import('@/lib/utils/sanitize')
+      const busqueda = `%${sanitizeSearchInput(query)}%`
 
       try {
         const [productosRes, clientesRes, cotizacionesRes, facturasRes, ordenesRes, proveedoresRes] = await Promise.all([

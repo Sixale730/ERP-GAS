@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 import type { Caja, TurnoCaja, VentaPOSView, ResumenTurno, ProductoPOS, RegistrarVentaParams } from '@/types/pos'
 import type { PaginationParams, PaginatedResult } from './types'
 
@@ -251,7 +252,8 @@ async function fetchProductosPOS(search?: string, listaPrecioId?: string): Promi
   }
 
   if (search) {
-    query = query.or(`sku.ilike.%${search}%,nombre.ilike.%${search}%,codigo_barras.ilike.%${search}%`)
+    const s = sanitizeSearchInput(search)
+    query = query.or(`sku.ilike.%${s}%,nombre.ilike.%${s}%,codigo_barras.ilike.%${s}%`)
   }
 
   const { data, error } = await query
@@ -296,7 +298,7 @@ export async function buscarPorCodigoBarras(codigo: string, listaPrecioId?: stri
       precios_productos!left(precio, precio_con_iva)
     `)
     .eq('is_active', true)
-    .or(`codigo_barras.eq.${codigo},sku.eq.${codigo}`)
+    .or(`codigo_barras.eq.${sanitizeSearchInput(codigo)},sku.eq.${sanitizeSearchInput(codigo)}`)
     .limit(1)
 
   if (listaPrecioId) {

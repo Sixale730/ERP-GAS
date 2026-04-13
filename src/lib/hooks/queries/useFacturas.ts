@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 import type { PaginationParams, PaginatedResult } from './types'
 
 export interface FacturaRow {
@@ -43,7 +44,8 @@ async function fetchFacturas(statusFilter?: string | null, pagination?: Paginati
   }
 
   if (search) {
-    query = query.or(`folio.ilike.%${search}%,cliente_nombre.ilike.%${search}%`)
+    const s = sanitizeSearchInput(search)
+    query = query.or(`folio.ilike.%${s}%,cliente_nombre.ilike.%${s}%`)
   }
 
   if (pagination) {

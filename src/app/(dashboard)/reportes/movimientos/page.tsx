@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
 import { generarPDFReporte } from '@/lib/utils/pdf'
 import { formatDateTime } from '@/lib/utils/format'
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 import dayjs from 'dayjs'
 import type { MovimientoView, Almacen } from '@/types/database'
 
@@ -67,7 +68,8 @@ export default function MovimientosPage() {
       }
 
       if (almacenFilter) {
-        query = query.or(`almacen_origen_id.eq.${almacenFilter},almacen_destino_id.eq.${almacenFilter}`)
+        const safeAlm = sanitizeSearchInput(almacenFilter)
+        query = query.or(`almacen_origen_id.eq.${safeAlm},almacen_destino_id.eq.${safeAlm}`)
       }
 
       if (tipoFilter) {

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 import type { ProductoStock } from '@/types/database'
 import type { PaginationParams, PaginatedResult } from './types'
 
@@ -22,7 +23,8 @@ async function fetchProductos(pagination?: PaginationParams, search?: string): P
     .order('nombre')
 
   if (search) {
-    query = query.or(`sku.ilike.%${search}%,nombre.ilike.%${search}%`)
+    const s = sanitizeSearchInput(search)
+    query = query.or(`sku.ilike.%${s}%,nombre.ilike.%${s}%`)
   }
 
   if (pagination) {

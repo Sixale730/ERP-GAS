@@ -11,6 +11,7 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyCurrency, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura, prepararDatosFacturaPDF } from '@/lib/utils/pdf'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
@@ -266,7 +267,7 @@ export default function FacturasPage() {
                 .select('folio, cliente_nombre, sucursal_nombre, fecha, fecha_vencimiento, total, saldo, moneda, status')
                 .order('created_at', { ascending: false })
               if (statusFilter) query = query.eq('status', statusFilter)
-              if (debouncedSearch) query = query.or(`folio.ilike.%${debouncedSearch}%,cliente_nombre.ilike.%${debouncedSearch}%`)
+              if (debouncedSearch) { const s = sanitizeSearchInput(debouncedSearch); query = query.or(`folio.ilike.%${s}%,cliente_nombre.ilike.%${s}%`) }
               const { data, error: err } = await query
               if (err) throw err
               return (data || []).map((r: any) => {

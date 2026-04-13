@@ -11,6 +11,7 @@ import { TableSkeleton } from '@/components/common/Skeletons'
 import BotonExportar from '@/components/common/BotonExportar'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import dayjs from 'dayjs'
+import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 
 const { Title } = Typography
 
@@ -228,7 +229,7 @@ export default function OrdenesVentaPage() {
               if (filtro === 'pendientes') query = query.eq('status', 'orden_venta')
               else if (filtro === 'facturadas') query = query.eq('status', 'facturada')
               else query = query.in('status', ['orden_venta', 'facturada'])
-              if (debouncedSearch) query = query.or(`folio.ilike.%${debouncedSearch}%,cliente_nombre.ilike.%${debouncedSearch}%`)
+              if (debouncedSearch) { const s = sanitizeSearchInput(debouncedSearch); query = query.or(`folio.ilike.%${s}%,cliente_nombre.ilike.%${s}%`) }
               const { data, error: err } = await query
               if (err) throw err
               return (data || []).map((r: any) => ({
