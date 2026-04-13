@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       supabase
         .schema('erp')
         .from('usuarios')
-        .select('rol, permisos')
+        .select('rol, permisos, organizacion_id')
         .eq('auth_user_id', user.id)
         .single(),
       supabase
@@ -69,6 +69,11 @@ export async function POST(request: NextRequest) {
     const { data: factura, error: errorFactura } = facturaResult
     if (errorFactura || !factura) {
       return NextResponse.json({ success: false, error: 'Factura no encontrada' }, { status: 404 })
+    }
+
+    // Verificar que la factura pertenece a la organización del usuario
+    if (factura.organizacion_id !== erpUser.organizacion_id && erpUser.rol !== 'super_admin') {
+      return NextResponse.json({ success: false, error: 'Sin permisos para esta factura' }, { status: 403 })
     }
 
     if (factura.status === 'cancelada') {
@@ -149,6 +154,21 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+    }
+
+    // Verificar que la factura pertenece a la org del usuario
+    const { data: erpUser } = await supabase.schema('erp')
+      .from('usuarios').select('organizacion_id, rol')
+      .eq('auth_user_id', user.id).single()
+    if (!erpUser) {
+      return NextResponse.json({ success: false, error: 'Usuario no encontrado' }, { status: 404 })
+    }
+
+    const { data: factura } = await supabase.schema('erp')
+      .from('facturas').select('organizacion_id')
+      .eq('id', factura_id).single()
+    if (factura && factura.organizacion_id !== erpUser.organizacion_id && erpUser.rol !== 'super_admin') {
+      return NextResponse.json({ success: false, error: 'Sin permisos' }, { status: 403 })
     }
 
     const { data: pagos, error } = await supabase

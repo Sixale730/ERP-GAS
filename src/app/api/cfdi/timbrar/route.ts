@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     const { data: erpUser } = await supabase
       .schema('erp')
       .from('usuarios')
-      .select('rol, permisos')
+      .select('rol, permisos, organizacion_id')
       .eq('auth_user_id', user.id)
       .single()
 
@@ -148,7 +148,8 @@ export async function POST(request: NextRequest) {
         cliente_uso_cfdi,
         status_sat,
         uuid_cfdi,
-        cliente_id
+        cliente_id,
+        organizacion_id
       `
       )
       .eq('id', factura_id)
@@ -158,6 +159,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Factura no encontrada' },
         { status: 404 }
+      )
+    }
+
+    // Verificar que la factura pertenece a la organización del usuario
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((factura as any).organizacion_id !== erpUser.organizacion_id && erpUser.rol !== 'super_admin') {
+      return NextResponse.json(
+        { success: false, error: 'Sin permisos para esta factura' },
+        { status: 403 }
       )
     }
 

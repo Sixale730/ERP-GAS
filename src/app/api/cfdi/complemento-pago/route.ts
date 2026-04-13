@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const { data: erpUser } = await supabase
       .schema('erp')
       .from('usuarios')
-      .select('rol, permisos')
+      .select('rol, permisos, organizacion_id')
       .eq('auth_user_id', user.id)
       .single()
 
@@ -68,6 +68,11 @@ export async function POST(request: NextRequest) {
 
     if (errorPago || !pago) {
       return NextResponse.json({ success: false, error: 'Pago no encontrado' }, { status: 404 })
+    }
+
+    // Verificar que el pago pertenece a la organización del usuario
+    if (pago.organizacion_id !== erpUser.organizacion_id && erpUser.rol !== 'super_admin') {
+      return NextResponse.json({ success: false, error: 'Sin permisos para este pago' }, { status: 403 })
     }
 
     // Verificar que no tenga ya complemento

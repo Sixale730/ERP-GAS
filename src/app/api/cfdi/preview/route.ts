@@ -34,6 +34,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Verificar permisos
+    const { data: erpUser } = await supabase
+      .schema('erp')
+      .from('usuarios')
+      .select('rol, permisos, organizacion_id')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (!erpUser) {
+      return NextResponse.json(
+        { success: false, error: 'Usuario no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    const { getPermisosEfectivos } = await import('@/lib/permisos')
+    const permisos = getPermisosEfectivos(erpUser.rol, erpUser.permisos)
+    if (!permisos.facturas?.ver) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permisos para ver facturas' },
+        { status: 403 }
+      )
+    }
+
     // Obtener factura, items y emisor en paralelo
     const [facturaResult, itemsResult, emisor] = await Promise.all([
       supabase
@@ -41,7 +65,7 @@ export async function POST(request: NextRequest) {
         .from('facturas')
         .select(`
           id, folio, serie, fecha, fecha_vencimiento,
-          subtotal, descuento_monto, iva, ieps, total, notas,
+          subtotal, descuento_monto, iva, ieps, total, notas, organizacion_id,
           cliente_rfc, cliente_razon_social, cliente_regimen_fiscal, cliente_uso_cfdi,
           status_sat, uuid_cfdi, cliente_id
         `)
@@ -64,6 +88,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Factura no encontrada' },
         { status: 404 }
+      )
+    }
+
+    // Verificar que la factura pertenece a la organización del usuario
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((factura as any).organizacion_id !== erpUser.organizacion_id && erpUser.rol !== 'super_admin') {
+      return NextResponse.json(
+        { success: false, error: 'Sin permisos para esta factura' },
+        { status: 403 }
       )
     }
 
