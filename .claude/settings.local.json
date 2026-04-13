@@ -56,7 +56,9 @@
       "Bash(ls -la \".next/static/chunks/app/\\(dashboard\\)/productos/\")",
       "Bash(grep -B 5 -A 15 \"defaultActiveKey\" /c/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/cotizaciones/[id]/page.tsx)",
       "Bash(grep -B 3 -A 3 \"Alert\\\\|<Alert\" /c/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/clientes/[id]/page.tsx)",
-      "Bash(grep -B 2 -A 8 \"<Alert\" /c/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/clientes/[id]/editar/page.tsx)"
+      "Bash(grep -B 2 -A 8 \"<Alert\" /c/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/clientes/[id]/editar/page.tsx)",
+      "Bash(xargs -I {} basename {} .ts)",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -5 {}')"
     ]
   },
   "enableAllProjectMcpServers": true,
