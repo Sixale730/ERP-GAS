@@ -1196,6 +1196,76 @@ export type Database = {
           organizacion_id: string
         }
       }
+      ajustes_inventario: {
+        Row: {
+          id: string
+          organizacion_id: string
+          motivo: string
+          descripcion: string | null
+          es_sistema: boolean
+          aprobado_por: string | null
+          creado_por: string | null
+          creado_por_nombre: string | null
+          total_productos: number
+          total_piezas_agregadas: number
+          total_piezas_removidas: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organizacion_id: string
+          motivo: string
+          descripcion?: string | null
+          es_sistema?: boolean
+          aprobado_por?: string | null
+          creado_por?: string | null
+          creado_por_nombre?: string | null
+          total_productos?: number
+          total_piezas_agregadas?: number
+          total_piezas_removidas?: number
+          created_at?: string
+        }
+        Update: {
+          motivo?: string
+          descripcion?: string | null
+          total_productos?: number
+          total_piezas_agregadas?: number
+          total_piezas_removidas?: number
+        }
+      }
+      ajuste_inventario_items: {
+        Row: {
+          id: string
+          ajuste_id: string
+          organizacion_id: string
+          inventario_id: string
+          producto_id: string
+          almacen_id: string
+          cantidad_antes: number
+          cantidad_despues: number
+          diferencia: number
+          movimiento_id: string | null
+          justificacion: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ajuste_id: string
+          organizacion_id: string
+          inventario_id: string
+          producto_id: string
+          almacen_id: string
+          cantidad_antes: number
+          cantidad_despues: number
+          diferencia: number
+          movimiento_id?: string | null
+          justificacion?: string | null
+          created_at?: string
+        }
+        Update: {
+          justificacion?: string | null
+        }
+      }
     }
     Functions: {
       generar_folio: {

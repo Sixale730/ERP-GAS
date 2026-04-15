@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo } from 'react'
+import Link from 'next/link'
 import { Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { formatDateTime, formatNumber } from '@/lib/utils/format'
@@ -24,6 +25,7 @@ const TIPO_CONFIG = {
 
 const REFERENCIA_CONFIG: Record<string, { color: string; label: string }> = {
   ajuste: { color: 'orange', label: 'Ajuste' },
+  ajuste_masivo: { color: 'volcano', label: 'Ajuste Masivo' },
   cotizacion: { color: 'blue', label: 'Cotizacion' },
   factura: { color: 'purple', label: 'Factura' },
   orden_compra: { color: 'cyan', label: 'Orden Compra' },
@@ -100,12 +102,19 @@ function MovimientosTable({
     }] : []),
     ...(!compact ? [{
       title: 'Referencia',
-      dataIndex: 'referencia_tipo',
       key: 'referencia_tipo',
-      width: 120,
-      render: (tipo: string | null) => {
+      width: 140,
+      render: (_: unknown, record: MovimientoView) => {
+        const tipo = record.referencia_tipo
         if (!tipo) return <Text type="secondary">-</Text>
         const config = REFERENCIA_CONFIG[tipo] || { color: 'default', label: tipo }
+        if (tipo === 'ajuste_masivo' && record.referencia_id) {
+          return (
+            <Link href={`/reportes/movimientos/ajuste/${record.referencia_id}`}>
+              <Tag color={config.color} style={{ cursor: 'pointer' }}>{config.label}</Tag>
+            </Link>
+          )
+        }
         return <Tag color={config.color}>{config.label}</Tag>
       },
     }] : []),
