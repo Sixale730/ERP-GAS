@@ -146,6 +146,8 @@ export default function CotizacionesPage() {
       title: 'Cliente',
       dataIndex: 'cliente_nombre',
       key: 'cliente_nombre',
+      width: 220,
+      ellipsis: true,
     },
     {
       title: 'Total',
@@ -366,7 +368,7 @@ export default function CotizacionesPage() {
             dataSource={cotizaciones}
             columns={columns}
             rowKey="id"
-            scroll={{ x: 800 }}
+            scroll={{ x: 1180 }}
             pagination={{
               current: pagination.page,
               pageSize: pagination.pageSize,

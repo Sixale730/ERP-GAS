@@ -51,12 +51,16 @@ export default function ProductosPage() {
       title: 'Nombre',
       dataIndex: 'nombre',
       key: 'nombre',
+      width: 260,
+      ellipsis: true,
       sorter: (a, b) => a.nombre.localeCompare(b.nombre),
     },
     {
       title: 'Categoria',
       dataIndex: 'categoria_nombre',
       key: 'categoria_nombre',
+      width: 150,
+      ellipsis: true,
       render: (cat) => cat || <span style={{ color: '#999' }}>Sin categoria</span>,
     },
     {
@@ -155,7 +159,7 @@ export default function ProductosPage() {
             dataSource={productos}
             columns={columns}
             rowKey="id"
-            scroll={{ x: 800 }}
+            scroll={{ x: 1250 }}
             pagination={{
               current: pagination.page,
               pageSize: pagination.pageSize,

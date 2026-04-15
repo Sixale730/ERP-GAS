@@ -40,7 +40,7 @@ export default function ReporteABCClientesPage() {
 
   const columns: ColumnsType<ABCClienteRow> = useMemo(() => [
     { title: '#', dataIndex: 'ranking', key: 'ranking', width: 60, align: 'center' },
-    { title: 'Cliente', dataIndex: 'cliente_nombre', key: 'cliente_nombre', ellipsis: true },
+    { title: 'Cliente', dataIndex: 'cliente_nombre', key: 'cliente_nombre', width: 220, ellipsis: true },
     { title: 'Total Comprado', dataIndex: 'total_comprado', key: 'total_comprado', width: 160, align: 'right', render: (v: number) => formatMoneySimple(v), sorter: (a, b) => a.total_comprado - b.total_comprado },
     { title: '% del Total', dataIndex: 'porcentaje', key: 'porcentaje', width: 110, align: 'right', render: (v: number) => `${v}%` },
     { title: '% Acumulado', dataIndex: 'acumulado', key: 'acumulado', width: 120, align: 'right', render: (v: number) => `${v}%` },
@@ -93,7 +93,7 @@ export default function ReporteABCClientesPage() {
           <RangePicker value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
           <Select placeholder="Todas las clases" value={clasFilter} onChange={setClasFilter} style={{ width: 160 }} allowClear options={[{ value: 'A', label: 'Clase A' }, { value: 'B', label: 'Clase B' }, { value: 'C', label: 'Clase C' }]} />
         </Space>
-        <Table dataSource={filteredData} columns={columns} rowKey="cliente_id" scroll={{ x: 700 }} pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} clientes` }} />
+        <Table dataSource={filteredData} columns={columns} rowKey="cliente_id" scroll={{ x: 900 }} pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} clientes` }} />
       </Card>
     </div>
   )

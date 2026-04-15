@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Select, Input, Space, Tag, Card, Typography, message, Row, Col, Statistic, Button, Modal, InputNumber, Form } from 'antd'
-import { SearchOutlined, InboxOutlined, WarningOutlined, EditOutlined, SettingOutlined, SwapOutlined } from '@ant-design/icons'
+import { SearchOutlined, InboxOutlined, WarningOutlined, EditOutlined, SettingOutlined, SwapOutlined, EyeOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import MovimientosTable from '@/components/movimientos/MovimientosTable'
 import { TableSkeleton } from '@/components/common/Skeletons'
@@ -213,9 +213,16 @@ export default function InventarioPage() {
     {
       title: 'Acciones',
       key: 'acciones',
-      width: 100,
+      width: 130,
       render: (_, record) => (
         <Space size="small">
+          <Button
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => router.push(`/productos/${record.producto_id}`)}
+            title="Ver producto"
+            size="small"
+          />
           <Button
             type="link"
             icon={<EditOutlined />}

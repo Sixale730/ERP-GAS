@@ -110,6 +110,8 @@ export default function OrdenesVentaPage() {
       title: 'Cliente',
       dataIndex: 'cliente_nombre',
       key: 'cliente_nombre',
+      width: 220,
+      ellipsis: true,
     },
     {
       title: 'Cotización',
@@ -281,7 +283,7 @@ export default function OrdenesVentaPage() {
               dataSource={ordenes}
               columns={columns}
               rowKey="id"
-              scroll={{ x: 800 }}
+              scroll={{ x: 1280 }}
               pagination={{
                 current: pagination.page,
                 pageSize: pagination.pageSize,

@@ -103,6 +103,8 @@ export default function FacturasPage() {
       title: 'Cliente',
       dataIndex: 'cliente_nombre',
       key: 'cliente_nombre',
+      width: 220,
+      ellipsis: true,
     },
     {
       title: 'Sucursal',
@@ -324,7 +326,7 @@ export default function FacturasPage() {
             dataSource={facturas}
             columns={columns}
             rowKey="id"
-            scroll={{ x: 900 }}
+            scroll={{ x: 1280 }}
             pagination={{
               current: pagination.page,
               pageSize: pagination.pageSize,

@@ -518,6 +518,7 @@ Se genera con `src/lib/cfdi/pago-builder.ts` y se timbra en `/api/cfdi/complemen
 - **console.log**: envolver en `if (process.env.NODE_ENV === 'development')` o eliminar. No dejar logs en codigo de produccion.
 - **React Query invalidation**: invalidar query keys especificos, no usar `posKeys.all` u otros keys demasiado amplios.
 - **Theme AntD**: definido como constante `ANTD_THEME` fuera del componente en `layout.tsx`, no inline.
+- **Tablas AntD con scroll**: TODA columna de texto largo (Cliente, Nombre, Producto, Descripción, Razón Social, etc.) debe tener `width: NÚMERO` + `ellipsis: true`. El valor de `scroll={{ x: N }}` debe ser **igual o mayor** a la suma de todos los `width` fijos — si es menor, las columnas sin width colapsan al mínimo y parten cada letra en una línea nueva (bug visual).
 
 ## Scripts de Importacion (`scripts/`)
 
