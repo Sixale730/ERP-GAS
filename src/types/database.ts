@@ -1066,6 +1066,7 @@ export type Database = {
           cantidad: number
           cantidad_reservada: number
           en_transito: number
+          prioridad: number
           updated_at: string
           sku: string
           producto_nombre: string

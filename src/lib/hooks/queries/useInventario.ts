@@ -19,6 +19,7 @@ export interface InventarioRow {
   almacen_codigo: string
   almacen_nombre: string
   nivel_stock: string
+  prioridad: number
 }
 
 // Query keys factory
@@ -59,7 +60,9 @@ async function fetchInventario(almacenFilter?: string | null, pagination?: Pagin
     .schema('erp')
     .from('v_inventario_detalle')
     .select('*', { count: 'exact' })
-    .order('producto_nombre')
+    .order('prioridad', { ascending: true })
+    .order('cantidad', { ascending: false })
+    .order('producto_nombre', { ascending: true })
 
   if (orgId) {
     query = query.eq('organizacion_id', orgId)
