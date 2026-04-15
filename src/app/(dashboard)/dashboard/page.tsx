@@ -49,7 +49,7 @@ export default function DashboardPage() {
       key: 'nombre',
     },
     {
-      title: 'Stock',
+      title: 'Total en físico',
       dataIndex: 'stock_total',
       key: 'stock_total',
       render: (stock: number) => (

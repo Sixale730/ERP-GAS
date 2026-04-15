@@ -81,7 +81,7 @@ export default function DashboardPOS() {
       key: 'nombre',
     },
     {
-      title: 'Stock',
+      title: 'Total en físico',
       dataIndex: 'stock_total',
       key: 'stock_total',
       render: (stock: number) => (

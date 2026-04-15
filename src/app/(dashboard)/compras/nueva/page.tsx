@@ -102,16 +102,34 @@ function NuevaOrdenCompraContent() {
         .schema('erp')
         .from('v_productos_stock')
         .select('*')
-        .lt('stock_total', 10)
+        .or('stock_total.lt.20,stock_minimo.gt.0')
+        .eq('es_servicio', false)
 
       if (data && data.length > 0) {
-        const itemsOC: ItemOrden[] = data.map(p => {
+        const candidatos = data
+          .map(p => {
+            const fisico = Number(p.stock_total || 0)
+            const transito = Number(p.en_transito_total || 0)
+            const maximo = Number(p.stock_maximo || 0)
+            const objetivo = maximo > 0 ? maximo : 20
+            const proyectado = fisico + transito
+            const faltante = objetivo - proyectado
+            return { p, faltante, proyectado, objetivo }
+          })
+          .filter(({ p, proyectado, objetivo }) => {
+            const minimo = Number(p.stock_minimo || 0)
+            if (minimo > 0) return proyectado <= minimo
+            return proyectado < objetivo && proyectado < 10
+          })
+          .filter(({ faltante }) => faltante > 0)
+
+        const itemsOC: ItemOrden[] = candidatos.map(({ p, faltante }) => {
           const producto = productos.find(prod => prod.id === p.id)
           const margen = getMargenParaCategoria(producto?.categoria_id || null)
           const precioData = preciosMap.get(p.id)
           const precioBase = precioData?.precio || producto?.costo_promedio || 0
           const precioConMargen = precioBase * (1 - margen / 100)
-          const cantidadSugerida = Math.max(20 - (p.stock_total || 0), 10)
+          const cantidadSugerida = Math.max(Math.ceil(faltante), 1)
           const subtotalItem = Math.round(cantidadSugerida * precioConMargen * 100) / 100
 
           return {
@@ -475,7 +493,7 @@ function NuevaOrdenCompraContent() {
         <Alert
           type="info"
           message="Productos con stock bajo pre-cargados"
-          description={`Se agregaron ${items.length} productos con stock bajo. La cantidad sugerida repone hasta 20 unidades. Selecciona proveedor y almacen para continuar.`}
+          description={`Se agregaron ${items.length} productos con stock bajo. La cantidad sugerida considera físico + en tránsito para llegar al stock máximo (o 20 si no está configurado). Selecciona proveedor y almacen para continuar.`}
           showIcon
           closable
           style={{ marginBottom: 16 }}

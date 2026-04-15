@@ -255,11 +255,11 @@ function NuevaCotizacionContent() {
     try {
       const { data } = await supabase
         .schema('erp')
-        .from('inventario')
-        .select('producto_id, cantidad')
+        .from('v_inventario_detalle')
+        .select('producto_id, cantidad, cantidad_reservada')
         .eq('almacen_id', almId)
 
-      setInventarioMap(new Map(data?.map(i => [i.producto_id, Number(i.cantidad)]) || []))
+      setInventarioMap(new Map(data?.map((i: any) => [i.producto_id, Number(i.cantidad || 0) - Number(i.cantidad_reservada || 0)]) || []))
       setMostrarAlertaStock(true) // Reiniciar alerta al cambiar almacén
     } catch (error) {
       console.error('Error loading inventario:', error)
@@ -899,14 +899,14 @@ function NuevaCotizacionContent() {
                   type="warning"
                   closable
                   onClose={() => setMostrarAlertaStock(false)}
-                  message="Productos sin stock disponible"
+                  message="Productos sin disponible para venta"
                   description={
                     <ul style={{ margin: 0, paddingLeft: 20 }}>
                       {productosSinStock.map(p => {
                         const stock = inventarioMap.get(p.producto_id) ?? 0
                         return (
                           <li key={p.key}>
-                            <strong>{p.sku}</strong>: Stock {stock}, Solicitado {p.cantidad}
+                            <strong>{p.sku}</strong>: Disp. para venta {stock}, Solicitado {p.cantidad}
                           </li>
                         )
                       })}

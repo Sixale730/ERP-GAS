@@ -1051,6 +1051,7 @@ export type Database = {
           stock_total: number
           reservado_total: number
           disponible_total: number
+          en_transito_total: number
           stock_minimo: number
           stock_maximo: number
           es_servicio: boolean
@@ -1064,6 +1065,7 @@ export type Database = {
           almacen_id: string
           cantidad: number
           cantidad_reservada: number
+          en_transito: number
           updated_at: string
           sku: string
           producto_nombre: string

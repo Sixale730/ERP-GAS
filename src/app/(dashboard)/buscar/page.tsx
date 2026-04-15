@@ -354,7 +354,7 @@ function BuscarContent() {
                             }}>{item.titulo}</Text>
                             {item.tipo === 'producto' && item.stock_disponible !== undefined && (
                               <Tag color={item.stock_disponible > 0 ? 'green' : 'red'} style={{ margin: 0, fontSize: 11 }}>
-                                {item.stock_disponible > 0 ? `Stock: ${item.stock_disponible}` : 'Sin stock'}
+                                {item.stock_disponible > 0 ? `Disp. venta: ${item.stock_disponible}` : 'Sin disponible'}
                               </Tag>
                             )}
                             {item.tipo === 'cliente' && item.saldo_pendiente !== undefined && (

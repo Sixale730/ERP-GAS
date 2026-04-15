@@ -46,6 +46,7 @@ interface InventarioAlmacen {
   cantidad: number
   reservado: number
   disponible: number
+  en_transito: number
 }
 
 export default function ProductoDetallePage() {
@@ -104,11 +105,7 @@ export default function ProductoDetallePage() {
       const [viewRes, prodRes, invRes, ocRes, ovRes] = await Promise.all([
         supabase.schema('erp').from('v_productos_stock').select('*').eq('id', id).eq('organizacion_id', orgId!).single(),
         supabase.schema('erp').from('productos').select('numero_parte, moneda').eq('id', id).single(),
-        supabase.schema('erp').from('inventario').select(`
-          cantidad,
-          reservado,
-          almacenes:almacen_id (id, nombre)
-        `).eq('producto_id', id),
+        supabase.schema('erp').from('v_inventario_detalle').select('almacen_id, almacen_nombre, cantidad, cantidad_reservada, en_transito').eq('producto_id', id),
         supabase.schema('erp').from('orden_compra_items').select(`
           cantidad_solicitada,
           cantidad_recibida,
@@ -136,14 +133,15 @@ export default function ProductoDetallePage() {
       }
       setProducto(prodData)
 
-      // Procesar inventario
+      // Procesar inventario (vista v_inventario_detalle ya trae reservado y tránsito dinámicos)
       if (!invRes.error && invRes.data) {
-        const invFormatted = invRes.data.map(i => ({
-          almacen_id: (i.almacenes as any)?.id,
-          almacen_nombre: (i.almacenes as any)?.nombre || 'Sin nombre',
-          cantidad: i.cantidad,
-          reservado: i.reservado || 0,
-          disponible: i.cantidad - (i.reservado || 0)
+        const invFormatted = invRes.data.map((i: any) => ({
+          almacen_id: i.almacen_id,
+          almacen_nombre: i.almacen_nombre || 'Sin nombre',
+          cantidad: Number(i.cantidad || 0),
+          reservado: Number(i.cantidad_reservada || 0),
+          disponible: Number(i.cantidad || 0) - Number(i.cantidad_reservada || 0),
+          en_transito: Number(i.en_transito || 0),
         }))
         setInventario(invFormatted)
       }
@@ -320,7 +318,7 @@ export default function ProductoDetallePage() {
       key: 'almacen_nombre',
     },
     {
-      title: 'Cantidad',
+      title: 'Total en físico',
       dataIndex: 'cantidad',
       key: 'cantidad',
       align: 'right' as const,
@@ -332,13 +330,19 @@ export default function ProductoDetallePage() {
       align: 'right' as const,
     },
     {
-      title: 'Disponible',
+      title: 'Disponible para venta',
       dataIndex: 'disponible',
       key: 'disponible',
       align: 'right' as const,
       render: (val: number) => (
         <Tag color={val > 0 ? 'green' : 'red'}>{val}</Tag>
       ),
+    },
+    {
+      title: 'En tránsito',
+      dataIndex: 'en_transito',
+      key: 'en_transito',
+      align: 'right' as const,
     },
   ], [])
 
@@ -476,7 +480,7 @@ export default function ProductoDetallePage() {
           <Card title="Resumen de Stock" style={{ position: 'sticky', top: 88 }}>
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text>Stock Total:</Text>
+                <Text>Total en físico:</Text>
                 <Text strong>{producto.stock_total}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -497,7 +501,7 @@ export default function ProductoDetallePage() {
               )}
               <Divider style={{ margin: '12px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Title level={4} style={{ margin: 0 }}>Disponible:</Title>
+                <Title level={4} style={{ margin: 0 }}>Disponible para venta:</Title>
                 <Title level={4} style={{
                   margin: 0,
                   color: producto.disponible_total > 0 ? '#3f8600' : '#cf1322'
@@ -532,7 +536,7 @@ export default function ProductoDetallePage() {
 
               {producto.disponible_total === 0 && (
                 <Tag color="red" style={{ width: '100%', textAlign: 'center', padding: '8px' }}>
-                  Sin stock disponible
+                  Sin disponible para venta
                 </Tag>
               )}
             </Space>

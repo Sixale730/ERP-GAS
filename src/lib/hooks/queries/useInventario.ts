@@ -10,6 +10,7 @@ export interface InventarioRow {
   almacen_id: string
   cantidad: number
   cantidad_reservada: number
+  en_transito: number
   sku: string
   producto_nombre: string
   unidad_medida: string

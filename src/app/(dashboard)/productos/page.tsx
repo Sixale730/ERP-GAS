@@ -60,10 +60,10 @@ export default function ProductosPage() {
       render: (cat) => cat || <span style={{ color: '#999' }}>Sin categoria</span>,
     },
     {
-      title: 'Stock Total',
+      title: 'Total en físico',
       dataIndex: 'stock_total',
       key: 'stock_total',
-      width: 120,
+      width: 130,
       align: 'right',
       sorter: (a, b) => a.stock_total - b.stock_total,
       render: (stock) => {
@@ -74,12 +74,20 @@ export default function ProductosPage() {
       },
     },
     {
-      title: 'Disponible',
+      title: 'Disponible para venta',
       dataIndex: 'disponible_total',
       key: 'disponible_total',
-      width: 120,
+      width: 160,
       align: 'right',
       render: (disponible) => disponible,
+    },
+    {
+      title: 'En tránsito',
+      dataIndex: 'en_transito_total',
+      key: 'en_transito_total',
+      width: 110,
+      align: 'right',
+      render: (v) => v || 0,
     },
     {
       title: 'Acciones',
