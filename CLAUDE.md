@@ -276,7 +276,7 @@ Reportes: `useReportesVentas`, `useReportesInventario`, `useReportesFinanzas`, `
 ### Reportes (`/reportes/*`)
 ~45 reportes organizados por area:
 - **Ventas**: `ventas-pos`, `ventas-forma-pago`, `ventas-cliente`, `ventas-vendedor`, `ventas-categoria`, `comparativo-ventas`, `conversion-cotizaciones`, `ordenes-venta`, `productos-vendidos`, `abc-clientes`, `abc-productos`.
-- **Inventario**: `inventario`, `movimientos`, `rotacion-inventario`, `productos-sin-movimiento`, `valuacion-inventario`, `punto-reorden`, `conciliacion-inventario`, `margen-utilidad`, `historial-precios-compra`.
+- **Inventario**: `inventario`, `movimientos`, `movimientos/ajuste/[id]` (detalle de ajuste masivo), `rotacion-inventario`, `productos-sin-movimiento`, `valuacion-inventario`, `punto-reorden`, `conciliacion-inventario`, `margen-utilidad`, `historial-precios-compra`.
 - **Finanzas**: `flujo-efectivo`, `estado-resultados`, `cartera-vencida`, `estado-cuenta-cliente`, `facturas-saldos`, `pagos-recibidos`.
 - **Fiscal**: `cfdi-emitidos`, `complementos-pago`, `diot`, `reporte-iva`.
 - **Compras**: `ordenes-compra`, `compras-proveedor`.
@@ -392,8 +392,10 @@ Tipos: `inventario`, `ventas`, `cobranza`, `finanzas`, `pos`.
 | `erp.productos` | Productos (SKU, precio, categoria) |
 | `erp.precios_productos` | Precios por producto y lista |
 | `erp.historial_precios` | Historial de cambios de precio |
-| `erp.inventario` | Stock por producto y almacen |
-| `erp.movimientos_inventario` | Entradas / salidas |
+| `erp.inventario` | Stock por producto y almacen (`cantidad` = físico real; `cantidad_reservada` ya NO se usa — se calcula dinámico) |
+| `erp.movimientos_inventario` | Entradas / salidas con `referencia_tipo` (`ajuste`, `ajuste_masivo`, `cotizacion`, `factura`, `orden_compra`, `transferencia`) |
+| `erp.ajustes_inventario` | Cabecera de ajustes masivos: motivo, descripción/informe, aprobado_por, es_sistema, totales |
+| `erp.ajuste_inventario_items` | Detalle por producto: cantidad_antes, cantidad_despues, diferencia, justificacion, movimiento_id |
 
 ### Clientes y usuarios
 | Tabla | Descripcion |
@@ -437,8 +439,33 @@ Tipos: `inventario`, `ventas`, `cobranza`, `finanzas`, `pos`.
 - `erp.recalcular_totales_cotizacion(uuid)` / `erp.recalcular_totales_factura(uuid)`
 - `erp.crear_super_admin_inicial(...)` → setup inicial
 - `erp.registrar_usuario_autorizado(p_auth_user_id, p_email, p_nombre, p_avatar_url)` → registra usuario desde whitelist
+- `erp.ajustar_inventario(inventario_id, cantidad_final, nota)` → ajuste individual manual desde `/inventario`. Inserta movimiento con `referencia_tipo='ajuste'`
+- `erp.ajustar_inventario_masivo(motivo, descripcion, items jsonb, es_sistema, aprobado_por)` → ajuste masivo transaccional. Crea header en `ajustes_inventario` + N items + N movimientos con `referencia_tipo='ajuste_masivo'`. Todo o nada
 
 > **Importante**: las RPCs tienen wrappers en `public.*`. Al modificar una hay que actualizar ambos. Al cambiar tipos de retorno, hacer `DROP` + `CREATE` (no `CREATE OR REPLACE`).
+
+## Semantica de Inventario (convencion global)
+
+Cuatro conceptos unificados en toda la UI (columnas, alertas, reportes, búsqueda):
+
+| Termino | Formula | Origen |
+|---|---|---|
+| **Total en físico** | `erp.inventario.cantidad` | Piezas reales en almacén |
+| **Reservado** | Σ `cotizacion_items.cantidad` donde `cotizaciones.status='orden_venta'` | Calculo dinámico |
+| **Disponible para venta** | físico − reservado | Calculo derivado |
+| **En tránsito** | Σ `GREATEST(oci.cantidad_solicitada − oci.cantidad_recibida, 0)` donde OC en `('enviada','parcialmente_recibida')` y `is_active=true` | Calculo dinámico |
+
+> La columna `erp.inventario.cantidad_reservada` existe pero **no se usa** — quedó obsoleta. Todas las vistas calculan reservado en vivo desde `cotizacion_items`.
+
+### Vistas dinámicas
+- **`erp.v_inventario_detalle`** — una fila por `(producto, almacen)`. Expone `cantidad`, `cantidad_reservada`, `en_transito`, nivel_stock, etc. Usa LATERAL joins para reservado y tránsito.
+- **`erp.v_productos_stock`** — una fila por producto (agregado cross-almacen). Expone `stock_total`, `reservado_total`, `disponible_total`, `en_transito_total`.
+
+### Alertas de sobre-venta
+En cotizaciones/OVs nuevas o editadas (`/cotizaciones/nueva`, `/cotizaciones/[id]`, `/cotizaciones/[id]/editar`, `/ordenes-venta/nueva`) el `inventarioMap` carga la vista `v_inventario_detalle` y guarda **disponible (cantidad − cantidad_reservada)**, no solo físico. Previene sobre-venta cuando ya hay piezas comprometidas en otras OVs.
+
+### Generador automático de OCs (`/compras/nueva`)
+Lógica: `objetivo = stock_maximo || 20` · `proyectado = fisico + en_transito` · `sugerencia = max(objetivo − proyectado, 1)`. Filtra por `stock_total<20 OR stock_minimo>0`, excluye servicios. Considera piezas en tránsito para no duplicar órdenes.
 
 ## Triggers Automaticos
 
@@ -525,6 +552,11 @@ Pipeline de importacion de datos "mascotienda" (tienda de mascotas) para demo:
 - [x] Landing publica con formulario de leads
 - [x] Multi-org con switcher para super_admin (`selectedOrgId` en `uiStore`)
 - [x] PWA (manifest + icons)
+- [x] Semantica unificada de inventario (Total en físico / Disponible para venta / Reservado / En tránsito) en productos, inventario, reportes, dashboard, búsqueda global
+- [x] Calculo dinámico de reservado y tránsito en `v_inventario_detalle` y `v_productos_stock` (evita columna estática obsoleta)
+- [x] Alertas de sobre-venta en cotizaciones/OVs comparan contra Disponible para venta
+- [x] Generador de OC automáticas considera piezas en tránsito
+- [x] Ajustes masivos de inventario auditables con informe (`erp.ajustes_inventario` + RPC `ajustar_inventario_masivo` + página `/reportes/movimientos/ajuste/[id]`). Tag "Ajuste Masivo" clickable en `MovimientosTable`
 
 ### Pendiente / mejoras
 - [ ] RLS endurecido end-to-end para multi-tenant
