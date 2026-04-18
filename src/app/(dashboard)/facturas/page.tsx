@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Table, Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
+import { Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
+import { useRouter } from 'next/navigation'
 import { SearchOutlined, EyeOutlined, FilePdfOutlined, LoadingOutlined, GlobalOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useFacturas, type FacturaRow } from '@/lib/hooks/queries/useFacturas'
 import { TableSkeleton } from '@/components/common/Skeletons'
 import BotonExportar from '@/components/common/BotonExportar'
+import { PageHeaderActions } from '@/components/common/PageHeaderActions'
+import { ResponsiveListTable } from '@/components/common/ResponsiveListTable'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyCurrency, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura, prepararDatosFacturaPDF } from '@/lib/utils/pdf'
@@ -14,7 +17,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 import dayjs from 'dayjs'
 
-const { Title } = Typography
+const { Text } = Typography
 
 const statusColors: Record<string, string> = {
   pendiente: 'orange',
@@ -31,6 +34,7 @@ const statusLabels: Record<string, string> = {
 }
 
 export default function FacturasPage() {
+  const router = useRouter()
   const { organizacion } = useAuth()
   const esPOS = organizacion?.codigo === 'MASCOTIENDA'
   const [searchText, setSearchText] = useState('')
@@ -218,34 +222,30 @@ export default function FacturasPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <Space>
-          <Title level={2} style={{ margin: 0 }}>Facturas</Title>
-          {esPOS && (
-            <Button
-                icon={<GlobalOutlined />}
-                href="/facturas/global"
-              >
+      <PageHeaderActions
+        titulo="Facturas"
+        actions={
+          <>
+            {esPOS && (
+              <Button icon={<GlobalOutlined />} href="/facturas/global">
                 Factura Global
               </Button>
-          )}
-        </Space>
-        <Space wrap>
-          {totalPorCobrarUSD > 0 && (
-            <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
-              Por cobrar: {formatMoneyCurrency(totalPorCobrarUSD, 'USD')}
-            </Tag>
-          )}
-          {totalPorCobrarMXN > 0 && (
-            <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
-              Por cobrar: {formatMoneyCurrency(totalPorCobrarMXN, 'MXN')}
-            </Tag>
-          )}
-          {facturasVencidas > 0 && (
-            <Tag color="orange" style={{ fontSize: 14, padding: '4px 8px' }}>
-              {facturasVencidas} vencidas
-            </Tag>
-          )}
+            )}
+            {totalPorCobrarUSD > 0 && (
+              <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
+                Por cobrar: {formatMoneyCurrency(totalPorCobrarUSD, 'USD')}
+              </Tag>
+            )}
+            {totalPorCobrarMXN > 0 && (
+              <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
+                Por cobrar: {formatMoneyCurrency(totalPorCobrarMXN, 'MXN')}
+              </Tag>
+            )}
+            {facturasVencidas > 0 && (
+              <Tag color="orange" style={{ fontSize: 14, padding: '4px 8px' }}>
+                {facturasVencidas} vencidas
+              </Tag>
+            )}
           <BotonExportar
             nombre="Facturas"
             tituloReporte="LISTADO DE FACTURAS"
@@ -291,8 +291,9 @@ export default function FacturasPage() {
               })
             }}
           />
-        </Space>
-      </div>
+          </>
+        }
+      />
 
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
@@ -322,7 +323,7 @@ export default function FacturasPage() {
         {isLoading ? (
           <TableSkeleton rows={8} columns={8} />
         ) : (
-          <Table
+          <ResponsiveListTable<FacturaRow>
             dataSource={facturas}
             columns={columns}
             rowKey="id"
@@ -335,6 +336,31 @@ export default function FacturasPage() {
               showTotal: (total) => `${total} facturas`,
               onChange: (page, pageSize) => setPagination({ page, pageSize }),
             }}
+            onMobileItemClick={(record) => router.push(`/facturas/${record.id}`)}
+            mobileRender={(f) => (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <Text strong style={{ fontSize: 14 }}>{f.folio}</Text>
+                  <Text style={{ fontSize: 13, flexShrink: 0 }}>
+                    {formatMoneyCurrency(f.total, f.moneda || 'USD')}
+                  </Text>
+                </div>
+                <Text style={{ fontSize: 13, display: 'block', marginTop: 2, wordBreak: 'break-word' }}>
+                  {f.cliente_nombre || '—'}
+                </Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, gap: 8, flexWrap: 'wrap' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {formatDate(f.fecha)}
+                    {f.saldo > 0 && (
+                      <> · Saldo {formatMoneyCurrency(f.saldo, f.moneda || 'USD')}</>
+                    )}
+                  </Text>
+                  <Tag color={statusColors[f.status]} style={{ margin: 0 }}>
+                    {statusLabels[f.status] || f.status}
+                  </Tag>
+                </div>
+              </div>
+            )}
           />
         )}
       </Card>

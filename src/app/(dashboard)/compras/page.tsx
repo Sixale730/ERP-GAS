@@ -29,6 +29,9 @@ import { PlusOutlined, SearchOutlined, EyeOutlined, ThunderboltOutlined, Shoppin
 import type { ColumnsType } from 'antd/es/table'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatDate, formatDateTime } from '@/lib/utils/format'
+import { useRouter } from 'next/navigation'
+import { ResponsiveListTable } from '@/components/common/ResponsiveListTable'
+import { MobileFilters } from '@/components/common/MobileFilters'
 import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 import dayjs from 'dayjs'
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -36,9 +39,10 @@ import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useOrdenesCompra, useProveedoresCompra, useAlmacenesCompra, ordenesCompraKeys } from '@/lib/hooks/queries/useOrdenesCompra'
 import BotonExportar from '@/components/common/BotonExportar'
+import { PageHeaderActions } from '@/components/common/PageHeaderActions'
 import type { OrdenCompraView } from '@/types/database'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface ProductoFaltante {
   producto_id: string
@@ -74,6 +78,7 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 }
 
 export default function ComprasPage() {
+  const router = useRouter()
   const queryClient = useQueryClient()
   const { erpUser, orgId } = useAuth()
   const { getMargenParaCategoria } = useMargenesCategoria()
@@ -585,67 +590,66 @@ export default function ComprasPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 8 }}>
-        <Title level={2} style={{ margin: 0 }}>Ordenes de Compra</Title>
-        <Space wrap>
-          <BotonExportar
-            nombre="Ordenes_de_Compra"
-            tituloReporte="LISTADO DE ÓRDENES DE COMPRA"
-            columnas={[
-              { titulo: 'Folio', dataIndex: 'folio' },
-              { titulo: 'Proveedor', dataIndex: 'proveedor' },
-              { titulo: 'Fecha', dataIndex: 'fecha' },
-              { titulo: 'Total', dataIndex: 'total', formato: 'moneda' },
-              { titulo: 'Status', dataIndex: 'status' },
-            ]}
-            datos={[]}
-            fetchTodos={async () => {
-              const supabase = getSupabaseClient()
-              let query = supabase
-                .schema('erp')
-                .from('v_ordenes_compra')
-                .select('folio, proveedor_nombre, fecha, total, status')
-                .order('created_at', { ascending: false })
-              if (statusFilter) query = query.eq('status', statusFilter)
-              if (proveedorFilter) query = query.eq('proveedor_id', proveedorFilter)
-              if (searchText) { const s = sanitizeSearchInput(searchText); query = query.or(`folio.ilike.%${s}%,proveedor_nombre.ilike.%${s}%`) }
-              const { data, error: err } = await query
-              if (err) throw err
-              return (data || []).map((r: any) => ({
-                folio: r.folio,
-                proveedor: r.proveedor_nombre,
-                fecha: formatDate(r.fecha),
-                total: r.total,
-                status: STATUS_CONFIG[r.status]?.label || r.status,
-              }))
-            }}
-          />
-          <Button
-            icon={<ThunderboltOutlined />}
-            onClick={handleOpenModal}
-          >
-            Generar Automatica
-          </Button>
-          <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              href="/compras/nueva"
-            >
+      <PageHeaderActions
+        titulo="Ordenes de Compra"
+        style={{ marginBottom: 24 }}
+        actions={
+          <>
+            <BotonExportar
+              nombre="Ordenes_de_Compra"
+              tituloReporte="LISTADO DE ÓRDENES DE COMPRA"
+              columnas={[
+                { titulo: 'Folio', dataIndex: 'folio' },
+                { titulo: 'Proveedor', dataIndex: 'proveedor' },
+                { titulo: 'Fecha', dataIndex: 'fecha' },
+                { titulo: 'Total', dataIndex: 'total', formato: 'moneda' },
+                { titulo: 'Status', dataIndex: 'status' },
+              ]}
+              datos={[]}
+              fetchTodos={async () => {
+                const supabase = getSupabaseClient()
+                let query = supabase
+                  .schema('erp')
+                  .from('v_ordenes_compra')
+                  .select('folio, proveedor_nombre, fecha, total, status')
+                  .order('created_at', { ascending: false })
+                if (statusFilter) query = query.eq('status', statusFilter)
+                if (proveedorFilter) query = query.eq('proveedor_id', proveedorFilter)
+                if (searchText) { const s = sanitizeSearchInput(searchText); query = query.or(`folio.ilike.%${s}%,proveedor_nombre.ilike.%${s}%`) }
+                const { data, error: err } = await query
+                if (err) throw err
+                return (data || []).map((r: any) => ({
+                  folio: r.folio,
+                  proveedor: r.proveedor_nombre,
+                  fecha: formatDate(r.fecha),
+                  total: r.total,
+                  status: STATUS_CONFIG[r.status]?.label || r.status,
+                }))
+              }}
+            />
+            <Button icon={<ThunderboltOutlined />} onClick={handleOpenModal}>
+              Generar Automatica
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} href="/compras/nueva">
               Nueva Orden
             </Button>
-        </Space>
-      </div>
+          </>
+        }
+      />
 
       <Card>
-        <Space style={{ marginBottom: 16 }} wrap>
-          <Input
-            placeholder="Buscar por folio o proveedor..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
-            allowClear
-          />
+        <MobileFilters
+          alwaysVisible={
+            <Input
+              placeholder="Buscar por folio o proveedor..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: 250 }}
+              allowClear
+            />
+          }
+        >
           <Select
             placeholder="Filtrar por status"
             value={statusFilter}
@@ -670,9 +674,9 @@ export default function ComprasPage() {
               label: p.razon_social,
             }))}
           />
-        </Space>
+        </MobileFilters>
 
-        <Table
+        <ResponsiveListTable<OrdenCompraView>
           dataSource={filteredOrdenes}
           columns={columns}
           rowKey="id"
@@ -685,6 +689,29 @@ export default function ComprasPage() {
             showSizeChanger: true,
             showTotal: (total) => `${total} ordenes`,
             onChange: (page, pageSize) => setPagination({ page, pageSize }),
+          }}
+          onMobileItemClick={(record) => router.push(`/compras/${record.id}`)}
+          mobileRender={(o) => {
+            const sc = STATUS_CONFIG[o.status]
+            return (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <Text strong style={{ fontSize: 14 }}>{o.folio}</Text>
+                  <Text style={{ fontSize: 13, flexShrink: 0 }}>
+                    ${(o.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} {o.moneda}
+                  </Text>
+                </div>
+                <Text style={{ fontSize: 13, display: 'block', marginTop: 2, wordBreak: 'break-word' }}>
+                  {o.proveedor_nombre || '—'}
+                </Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, gap: 8, flexWrap: 'wrap' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {formatDate(o.fecha)} · {o.almacen_nombre}
+                  </Text>
+                  {sc && <Tag color={sc.color} style={{ margin: 0 }}>{sc.label}</Tag>}
+                </div>
+              </div>
+            )
           }}
         />
       </Card>

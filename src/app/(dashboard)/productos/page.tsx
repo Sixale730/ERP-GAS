@@ -1,16 +1,20 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
+import { Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useRouter } from 'next/navigation'
 import { useProductos, useDeleteProducto } from '@/lib/hooks/queries/useProductos'
 import { TableSkeleton } from '@/components/common/Skeletons'
+import { PageHeaderActions } from '@/components/common/PageHeaderActions'
+import { ResponsiveListTable } from '@/components/common/ResponsiveListTable'
 import type { ProductoStock } from '@/types/database'
 
-const { Title } = Typography
+const { Text } = Typography
 
 export default function ProductosPage() {
+  const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
@@ -129,16 +133,14 @@ export default function ProductosPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <Title level={2} style={{ margin: 0 }}>Productos</Title>
-        <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            href="/productos/nuevo"
-          >
+      <PageHeaderActions
+        titulo="Productos"
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} href="/productos/nuevo">
             Nuevo Producto
           </Button>
-      </div>
+        }
+      />
 
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
@@ -155,7 +157,7 @@ export default function ProductosPage() {
         {isLoading ? (
           <TableSkeleton rows={8} columns={6} />
         ) : (
-          <Table
+          <ResponsiveListTable<ProductoStock>
             dataSource={productos}
             columns={columns}
             rowKey="id"
@@ -167,6 +169,34 @@ export default function ProductosPage() {
               showSizeChanger: true,
               showTotal: (total) => `${total} productos`,
               onChange: (page, pageSize) => setPagination({ page, pageSize }),
+            }}
+            onMobileItemClick={(record) => router.push(`/productos/${record.id}`)}
+            mobileRender={(p) => {
+              const stockColor = p.stock_total === 0 ? 'red' : p.stock_total < 10 ? 'orange' : 'green'
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <Text strong style={{ fontSize: 14, wordBreak: 'break-word' }}>
+                      {p.nombre}
+                    </Text>
+                    <Tag color={stockColor} style={{ margin: 0, flexShrink: 0 }}>
+                      {p.stock_total}
+                    </Tag>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {p.sku}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {p.categoria_nombre || 'Sin categoría'}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                    <Text style={{ fontSize: 12 }}>Disp.: {p.disponible_total ?? 0}</Text>
+                    <Text style={{ fontSize: 12 }}>Tránsito: {p.en_transito_total ?? 0}</Text>
+                  </div>
+                </div>
+              )
             }}
           />
         )}

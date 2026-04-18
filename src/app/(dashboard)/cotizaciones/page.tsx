@@ -1,20 +1,24 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { Table, Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
+import { Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
+import { useRouter } from 'next/navigation'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, ShoppingCartOutlined, LoadingOutlined, StarOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useQuery } from '@tanstack/react-query'
 import { useCotizaciones, useDeleteCotizacion, type CotizacionRow } from '@/lib/hooks/queries/useCotizaciones'
 import { TableSkeleton } from '@/components/common/Skeletons'
 import BotonExportar from '@/components/common/BotonExportar'
+import { PageHeaderActions } from '@/components/common/PageHeaderActions'
+import { ResponsiveListTable } from '@/components/common/ResponsiveListTable'
+import { MobileFilters } from '@/components/common/MobileFilters'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatDate, formatDateTime, formatMoneyMXN } from '@/lib/utils/format'
 import { generarPDFCotizacion, prepararDatosCotizacionPDF } from '@/lib/utils/pdf'
 import dayjs from 'dayjs'
 import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 
-const { Title } = Typography
+const { Text } = Typography
 
 const statusColors: Record<string, string> = {
   propuesta: 'processing',
@@ -27,6 +31,7 @@ const statusLabels: Record<string, string> = {
 }
 
 export default function CotizacionesPage() {
+  const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
@@ -268,67 +273,68 @@ export default function CotizacionesPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <Title level={2} style={{ margin: 0 }}>Cotizaciones</Title>
-        <Space>
-          <BotonExportar
-            nombre="Cotizaciones"
-            tituloReporte="LISTADO DE COTIZACIONES"
-            columnas={[
-              { titulo: 'Folio', dataIndex: 'folio' },
-              { titulo: 'Cliente', dataIndex: 'cliente' },
-              { titulo: 'Fecha', dataIndex: 'fecha' },
-              { titulo: 'Vigencia', dataIndex: 'vigencia', formato: 'numero' },
-              { titulo: 'Total', dataIndex: 'total', formato: 'moneda' },
-              { titulo: 'Moneda', dataIndex: 'moneda' },
-              { titulo: 'Status', dataIndex: 'status' },
-              { titulo: 'Prob.', dataIndex: 'probabilidad', formato: 'numero' },
-            ]}
-            datos={[]}
-            fetchTodos={async () => {
-              const supabase = getSupabaseClient()
-              let query = supabase
-                .schema('erp')
-                .from('v_cotizaciones')
-                .select('folio, cliente_nombre, fecha, vigencia_dias, total, moneda, status, probabilidad')
-                .like('folio', 'COT-%')
-                .order('created_at', { ascending: false })
-              if (statusFilter) query = query.eq('status', statusFilter)
-              if (debouncedSearch) { const s = sanitizeSearchInput(debouncedSearch); query = query.or(`folio.ilike.%${s}%,cliente_nombre.ilike.%${s}%`) }
-              const { data, error: err } = await query
-              if (err) throw err
-              return (data || []).map((r: any) => ({
-                folio: r.folio,
-                cliente: r.cliente_nombre,
-                fecha: formatDate(r.fecha),
-                vigencia: r.vigencia_dias,
-                total: r.total,
-                moneda: r.moneda,
-                status: statusLabels[r.status] || r.status,
-                probabilidad: r.probabilidad != null ? `${r.probabilidad}%` : '',
-              }))
-            }}
-          />
-          <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              href="/cotizaciones/nueva"
-            >
+      <PageHeaderActions
+        titulo="Cotizaciones"
+        actions={
+          <>
+            <BotonExportar
+              nombre="Cotizaciones"
+              tituloReporte="LISTADO DE COTIZACIONES"
+              columnas={[
+                { titulo: 'Folio', dataIndex: 'folio' },
+                { titulo: 'Cliente', dataIndex: 'cliente' },
+                { titulo: 'Fecha', dataIndex: 'fecha' },
+                { titulo: 'Vigencia', dataIndex: 'vigencia', formato: 'numero' },
+                { titulo: 'Total', dataIndex: 'total', formato: 'moneda' },
+                { titulo: 'Moneda', dataIndex: 'moneda' },
+                { titulo: 'Status', dataIndex: 'status' },
+                { titulo: 'Prob.', dataIndex: 'probabilidad', formato: 'numero' },
+              ]}
+              datos={[]}
+              fetchTodos={async () => {
+                const supabase = getSupabaseClient()
+                let query = supabase
+                  .schema('erp')
+                  .from('v_cotizaciones')
+                  .select('folio, cliente_nombre, fecha, vigencia_dias, total, moneda, status, probabilidad')
+                  .like('folio', 'COT-%')
+                  .order('created_at', { ascending: false })
+                if (statusFilter) query = query.eq('status', statusFilter)
+                if (debouncedSearch) { const s = sanitizeSearchInput(debouncedSearch); query = query.or(`folio.ilike.%${s}%,cliente_nombre.ilike.%${s}%`) }
+                const { data, error: err } = await query
+                if (err) throw err
+                return (data || []).map((r: any) => ({
+                  folio: r.folio,
+                  cliente: r.cliente_nombre,
+                  fecha: formatDate(r.fecha),
+                  vigencia: r.vigencia_dias,
+                  total: r.total,
+                  moneda: r.moneda,
+                  status: statusLabels[r.status] || r.status,
+                  probabilidad: r.probabilidad != null ? `${r.probabilidad}%` : '',
+                }))
+              }}
+            />
+            <Button type="primary" icon={<PlusOutlined />} href="/cotizaciones/nueva">
               Nueva Cotizacion
             </Button>
-        </Space>
-      </div>
+          </>
+        }
+      />
 
       <Card>
-        <Space style={{ marginBottom: 16 }} wrap>
-          <Input
-            placeholder="Buscar por folio o cliente..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: '100%', maxWidth: 250 }}
-            allowClear
-          />
+        <MobileFilters
+          alwaysVisible={
+            <Input
+              placeholder="Buscar por folio o cliente..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: '100%', maxWidth: 250 }}
+              allowClear
+            />
+          }
+        >
           <Select
             placeholder="Filtrar por status"
             value={statusFilter}
@@ -350,7 +356,7 @@ export default function CotizacionesPage() {
               { value: 'vencidas', label: 'Solo vencidas' },
             ]}
           />
-        </Space>
+        </MobileFilters>
 
         {pipelineStats && pipelineStats.count > 0 && (!statusFilter || statusFilter === 'propuesta') && (
           <div style={{ marginBottom: 16, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -369,7 +375,7 @@ export default function CotizacionesPage() {
         {isLoading ? (
           <TableSkeleton rows={8} columns={7} />
         ) : (
-          <Table
+          <ResponsiveListTable<CotizacionRow>
             dataSource={cotizaciones}
             columns={columns}
             rowKey="id"
@@ -382,6 +388,32 @@ export default function CotizacionesPage() {
               showTotal: (total) => `${total} cotizaciones`,
               onChange: (page, pageSize) => setPagination({ page, pageSize }),
             }}
+            onMobileItemClick={(record) => router.push(`/cotizaciones/${record.id}`)}
+            mobileRender={(c) => (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <Text strong style={{ fontSize: 14 }}>{c.folio}</Text>
+                  <Text style={{ fontSize: 13, flexShrink: 0 }}>
+                    {formatMoneyMXN(c.total)} {c.moneda}
+                  </Text>
+                </div>
+                <Text style={{ fontSize: 13, display: 'block', marginTop: 2, wordBreak: 'break-word' }}>
+                  {c.cliente_nombre || '—'}
+                </Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, gap: 8, flexWrap: 'wrap' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {formatDate(c.fecha)}
+                  </Text>
+                  <Space size={4} wrap>
+                    <Tag color={statusColors[c.status]} style={{ margin: 0 }}>
+                      {statusLabels[c.status] || c.status}
+                    </Tag>
+                    {c.esta_vencida && <Tag color="default" style={{ margin: 0 }}>Vencida</Tag>}
+                    {c.num_ovs_generadas > 0 && <Tag color="green" style={{ margin: 0 }}>{c.num_ovs_generadas} OV</Tag>}
+                  </Space>
+                </div>
+              </div>
+            )}
           />
         )}
       </Card>

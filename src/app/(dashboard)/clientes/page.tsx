@@ -1,17 +1,21 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Table, Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
+import { Button, Input, Space, Tag, Card, Typography, message, Popconfirm } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useRouter } from 'next/navigation'
 import { useClientes, useDeleteCliente } from '@/lib/hooks/queries/useClientes'
 import { TableSkeleton } from '@/components/common/Skeletons'
-import { formatMoney, formatMoneyMXN } from '@/lib/utils/format'
+import { PageHeaderActions } from '@/components/common/PageHeaderActions'
+import { ResponsiveListTable } from '@/components/common/ResponsiveListTable'
+import { formatMoneyMXN } from '@/lib/utils/format'
 import type { Cliente } from '@/types/database'
 
-const { Title } = Typography
+const { Text } = Typography
 
 export default function ClientesPage() {
+  const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
@@ -129,16 +133,14 @@ export default function ClientesPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <Title level={2} style={{ margin: 0 }}>Clientes</Title>
-        <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            href="/clientes/nuevo"
-          >
+      <PageHeaderActions
+        titulo="Clientes"
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} href="/clientes/nuevo">
             Nuevo Cliente
           </Button>
-      </div>
+        }
+      />
 
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
@@ -155,7 +157,7 @@ export default function ClientesPage() {
         {isLoading ? (
           <TableSkeleton rows={8} columns={7} />
         ) : (
-          <Table
+          <ResponsiveListTable<Cliente>
             dataSource={filteredClientes}
             columns={columns}
             rowKey="id"
@@ -167,6 +169,38 @@ export default function ClientesPage() {
               showSizeChanger: true,
               showTotal: (total) => `${total} clientes`,
               onChange: (page, pageSize) => setPagination({ page, pageSize }),
+            }}
+            onMobileItemClick={(record) => router.push(`/clientes/${record.id}`)}
+            mobileRender={(c) => {
+              const porcentajeCred = c.limite_credito > 0 ? (c.saldo_pendiente / c.limite_credito) * 100 : 0
+              const credColor = c.limite_credito === 0 ? 'default' : porcentajeCred > 80 ? 'red' : porcentajeCred > 50 ? 'orange' : 'green'
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <Text strong style={{ fontSize: 14, wordBreak: 'break-word' }}>
+                      {c.nombre_comercial}
+                    </Text>
+                    <Text
+                      style={{ fontSize: 13, flexShrink: 0, color: c.saldo_pendiente > 0 ? '#cf1322' : undefined }}
+                    >
+                      {formatMoneyMXN(c.saldo_pendiente)}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, gap: 8, flexWrap: 'wrap' }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {c.codigo} · {c.rfc || 'sin RFC'}
+                    </Text>
+                    <Tag color={credColor} style={{ margin: 0 }}>
+                      {c.limite_credito === 0 ? 'Sin credito' : `Lim. ${formatMoneyMXN(c.limite_credito)}`}
+                    </Tag>
+                  </div>
+                  {c.telefono && (
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>
+                      Tel. {c.telefono}
+                    </Text>
+                  )}
+                </div>
+              )
             }}
           />
         )}

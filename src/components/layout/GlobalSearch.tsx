@@ -145,11 +145,11 @@ export default function GlobalSearch() {
     }
 
     return (
-      <div className="global-search-item" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '2px 0', width: '100%' }}>
-        <div style={{ marginTop: 2 }}>{iconByType[item.tipo]}</div>
+      <div className="global-search-item" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '2px 0', width: '100%', minWidth: 0 }}>
+        <div style={{ marginTop: 2, flexShrink: 0 }}>{iconByType[item.tipo]}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 500 }}>{item.titulo}</span>
+            <span style={{ fontWeight: 500, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{item.titulo}</span>
             {item.tipo === 'producto' && item.stock_disponible !== undefined && (
               <Tag color={item.stock_disponible > 0 ? 'green' : 'red'} style={{ margin: 0, fontSize: 11, lineHeight: '18px' }}>
                 {item.stock_disponible > 0 ? `Disp. venta: ${item.stock_disponible}` : 'Sin disponible'}
