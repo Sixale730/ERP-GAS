@@ -135,7 +135,7 @@ src/
 │   └── globals.css
 ├── components/
 │   ├── layout/                # AppLayout, Sidebar, GlobalSearch, NavigationProgress
-│   ├── common/                # Skeletons y helpers
+│   ├── common/                # Skeletons, helpers, responsive primitives (PageHeaderActions, ResponsiveListTable, MobileFilters)
 │   ├── landing/               # Componentes de la landing + demos
 │   ├── productos/
 │   ├── precios/
@@ -266,6 +266,8 @@ Reportes: `useReportesVentas`, `useReportesInventario`, `useReportesFinanzas`, `
 | `/catalogos/proveedores` | CRUD proveedores |
 | `/catalogos/listas-precios` | CRUD listas de precios |
 | `/catalogos/precios-productos` | Matriz precios por producto y lista |
+| `/catalogos/documentos` | Formatos imprimibles/plantillas. La tarjeta "Entrega de Material a Revisión" es exclusiva de la org **SOLAC** (RFC `MOCD830414SL4`); otras orgs ven la sección vacía |
+| `/catalogos/documentos/entrega-revision` | Editor + vista previa PDF + descarga del formato SOLAC. Form con fecha, descripción, observaciones, firma entrega/recibe + toggle de líneas guía |
 | `/configuracion` | Ajustes generales |
 | `/configuracion/usuarios` | Usuarios, roles y permisos |
 | `/configuracion/cfdi` | Config Finkok, CSD, certificados |
@@ -275,7 +277,7 @@ Reportes: `useReportesVentas`, `useReportesInventario`, `useReportesFinanzas`, `
 
 ### Reportes (`/reportes/*`)
 ~45 reportes organizados por area:
-- **Ventas**: `ventas-pos`, `ventas-forma-pago`, `ventas-cliente`, `ventas-vendedor`, `ventas-categoria`, `comparativo-ventas`, `conversion-cotizaciones`, `ordenes-venta`, `productos-vendidos`, `abc-clientes`, `abc-productos`.
+- **Ventas**: `ventas-pos`, `ventas-forma-pago`, `ventas-cliente`, `ventas-vendedor`, `ventas-categoria`, `comparativo-ventas`, `conversion-cotizaciones`, `ordenes-venta`, `ordenes-venta-surtir` (disponibilidad por OV + OC más antigua, asignación FIFO cliente), `productos-vendidos`, `abc-clientes`, `abc-productos`.
 - **Inventario**: `inventario`, `movimientos`, `movimientos/ajuste/[id]` (detalle de ajuste masivo), `rotacion-inventario`, `productos-sin-movimiento`, `valuacion-inventario`, `punto-reorden`, `conciliacion-inventario`, `margen-utilidad`, `historial-precios-compra`.
 - **Finanzas**: `flujo-efectivo`, `estado-resultados`, `cartera-vencida`, `estado-cuenta-cliente`, `facturas-saldos`, `pagos-recibidos`.
 - **Fiscal**: `cfdi-emitidos`, `complementos-pago`, `diot`, `reporte-iva`.
@@ -464,6 +466,20 @@ Cuatro conceptos unificados en toda la UI (columnas, alertas, reportes, búsqued
 ### Alertas de sobre-venta
 En cotizaciones/OVs nuevas o editadas (`/cotizaciones/nueva`, `/cotizaciones/[id]`, `/cotizaciones/[id]/editar`, `/ordenes-venta/nueva`) el `inventarioMap` carga la vista `v_inventario_detalle` y guarda **disponible (cantidad − cantidad_reservada)**, no solo físico. Previene sobre-venta cuando ya hay piezas comprometidas en otras OVs.
 
+### Vigencia de cotizaciones
+La columna calculada `erp.v_cotizaciones.esta_vencida BOOLEAN` es `TRUE` cuando `status='propuesta' AND fecha + vigencia_dias < CURRENT_DATE`. Flag puramente informativo: **no cambia el status** ni bloquea acciones (editar, convertir a OV, eliminar siguen permitidos).
+- Dashboard KPI "Cotizaciones pendientes" y pipeline comercial filtran `.eq('esta_vencida', false)` para contar solo vigentes.
+- Listado `/cotizaciones` muestra Tag gris "Vencida" junto al status y ofrece filtro "Todas las vigencias / Solo vigentes / Solo vencidas".
+
+### Reporte "Órdenes de Venta a Surtir" (`/reportes/ordenes-venta-surtir`)
+Lista las OVs abiertas (`status='orden_venta'`) con una fila expandible por OV. Por cada línea de producto calcula si se cubre desde el almacén asignado, desde otros almacenes o queda pendiente. Para los faltantes sugiere la OC más antigua con ese material.
+- **Algoritmo FIFO** en cliente (`allocateFIFO()` en `src/lib/hooks/queries/useReporteSurtir.ts`): recorre OVs por `created_at ASC` y "consume" el stock físico (no el disponible) simulando la asignación. Esto permite que las OVs más viejas surtan primero.
+- **Usa `cantidad` físico de `v_inventario_detalle`, NO `disponible`**. Restar el reservado duplicaría la reserva porque el `reservado` dinámico viene de las mismas OVs que se están asignando.
+- OC más antigua = `ordenes_compra` con `status IN ('enviada','parcialmente_recibida')` y `is_active=true`, ordenadas por `created_at ASC`. Un `pendienteRestante` mutable evita sobreasignar la misma OC.
+- Servicios (`productos.es_servicio=true`) siempre se muestran como "N/A".
+- Export Excel con 2 hojas (Resumen por OV / Detalle por línea) via `exportarSurtirExcel()` en `src/lib/utils/excel-surtir.ts`.
+- Estados por línea: `completo` · `completo_otro_almacen` · `parcial` · `sin_stock` · `servicio`.
+
 ### Generador automático de OCs (`/compras/nueva`)
 Lógica: `objetivo = stock_maximo || 20` · `proyectado = fisico + en_transito` · `sugerencia = max(objetivo − proyectado, 1)`. Filtra por `stock_total<20 OR stock_minimo>0`, excluye servicios. Considera piezas en tránsito para no duplicar órdenes.
 
@@ -520,6 +536,19 @@ Se genera con `src/lib/cfdi/pago-builder.ts` y se timbra en `/api/cfdi/complemen
 - **Theme AntD**: definido como constante `ANTD_THEME` fuera del componente en `layout.tsx`, no inline.
 - **Tablas AntD con scroll**: TODA columna de texto largo (Cliente, Nombre, Producto, Descripción, Razón Social, etc.) debe tener `width: NÚMERO` + `ellipsis: true`. El valor de `scroll={{ x: N }}` debe ser **igual o mayor** a la suma de todos los `width` fijos — si es menor, las columnas sin width colapsan al mínimo y parten cada letra en una línea nueva (bug visual).
 
+### Responsive / Móvil (convenciones establecidas)
+La app debe funcionar bien en móvil (PWA). Patrones establecidos:
+
+- **Breakpoints AntD (`Grid.useBreakpoint()`)**: `!screens.sm` = xs (<576px), `!screens.md` = móvil general (<768px). El AppLayout usa `!screens.md` para el drawer del sidebar y `!screens.sm` (flag `isNarrowMobile`) para el header ultra-compacto.
+- **Header móvil** (`AppLayout.tsx`): en xs la búsqueda global colapsa a un ícono 🔍 que abre un `Drawer` superior (`height: 85vh`) con `GlobalSearch`. El drawer se cierra solo al navegar (listener sobre `pathname`). `Landing` y texto del selector de org se ocultan en xs.
+- **`<PageHeaderActions>`** (`src/components/common/PageHeaderActions.tsx`): header de listado con titulo + acciones. En xs el título va arriba y las acciones (export, nuevo, etc.) bajan a una `Space wrap` debajo para no comprimirse. Usado en productos, clientes, cotizaciones, ordenes-venta, facturas, compras.
+- **`<ResponsiveListTable>`** (`src/components/common/ResponsiveListTable.tsx`): en `>=sm` renderiza `<Table>`; en xs renderiza `<List>` de cards con un `mobileRender(record)`. Mantiene paginación, loading, rowKey. Prop `onMobileItemClick` para navegar al tap. Aplicado a los 6 listados principales.
+- **`<MobileFilters>`** (`src/components/common/MobileFilters.tsx`): en `>=sm` muestra todos los filtros en fila; en xs solo mantiene visible el input de búsqueda (`alwaysVisible`) y oculta el resto detrás de un botón "Filtros". Usado en cotizaciones y compras.
+- **Grids responsivos en stats**: `xs={12}` en los stat cards de dashboard/inventario (2×N en móvil, no 1×N).
+- **Detail pages con título dinámico largo**: NO usar `<Space>` para agrupar `[Volver + Title + Tag + Editar]` en una sola fila, porque el flex puede comprimir el título a ancho cero y partir cada letra en una línea. Patrón correcto: fila superior con botones + tag (`display:flex, flexWrap:wrap`), y debajo `<Title level={3} wordBreak:'break-word'>` en su propia fila. Aplicado en `productos/[id]` y `clientes/[id]`.
+- **Tipografía móvil**: `globals.css` baja tamaños de `h1/h2/h3` y `ant-statistic-*` en `@media (max-width: 767px)`. Touch targets `min-height: 36px` para botones.
+- **GlobalSearch en drawer**: `getPopupContainer={trigger => trigger.parentElement}` para que el dropdown de resultados quede anclado al drawer, no al body. Los items usan `wordBreak:'break-word'` + regla global `.ant-select-item-option-content { white-space: normal }` para que textos largos se partan sin overflow.
+
 ## Scripts de Importacion (`scripts/`)
 
 Pipeline de importacion de datos "mascotienda" (tienda de mascotas) para demo:
@@ -558,6 +587,10 @@ Pipeline de importacion de datos "mascotienda" (tienda de mascotas) para demo:
 - [x] Alertas de sobre-venta en cotizaciones/OVs comparan contra Disponible para venta
 - [x] Generador de OC automáticas considera piezas en tránsito
 - [x] Ajustes masivos de inventario auditables con informe (`erp.ajustes_inventario` + RPC `ajustar_inventario_masivo` + página `/reportes/movimientos/ajuste/[id]`). Tag "Ajuste Masivo" clickable en `MovimientosTable`
+- [x] Flag informativo `esta_vencida` en `v_cotizaciones`: dashboard y pipeline excluyen vencidas; listado las marca con Tag y ofrece filtro de vigencia
+- [x] Sección `/catalogos/documentos` con formatos imprimibles. Primer documento "Entrega de Material a Revisión" exclusivo de org SOLAC (editor + vista previa PDF + descarga)
+- [x] Reporte `/reportes/ordenes-venta-surtir` con asignación FIFO en cliente, agrupación colapsable por OV, OC más antigua sugerida y export Excel 2 hojas
+- [x] Responsive / móvil: header compacto con search drawer, `PageHeaderActions` + `ResponsiveListTable` + `MobileFilters` aplicados a los 6 listados principales, grids 2col en stats, tipografía ajustada y touch targets
 
 ### Pendiente / mejoras
 - [ ] RLS endurecido end-to-end para multi-tenant
