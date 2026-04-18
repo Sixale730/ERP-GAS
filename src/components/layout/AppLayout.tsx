@@ -248,9 +248,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
           placement="top"
           onClose={() => setSearchDrawerOpen(false)}
           open={searchDrawerOpen}
-          height="auto"
+          height="85vh"
           title="Buscar"
-          styles={{ body: { padding: 12 } }}
+          styles={{ body: { padding: 12, overflow: 'auto' } }}
         >
           <GlobalSearch />
         </Drawer>
