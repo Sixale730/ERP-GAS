@@ -247,7 +247,7 @@ export default function InventarioPage() {
       <Title level={2}>Inventario</Title>
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={6}>
+        <Col xs={12} sm={6}>
           <Card>
             <Statistic
               title="Total Registros"
@@ -256,7 +256,7 @@ export default function InventarioPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={12} sm={6}>
           <Card>
             <Statistic
               title="Stock Bajo"
@@ -266,7 +266,7 @@ export default function InventarioPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={12} sm={6}>
           <Card>
             <Statistic
               title="Stock Negativo"
@@ -276,7 +276,7 @@ export default function InventarioPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={12} sm={6}>
           <Card>
             <Statistic
               title="Stock en Exceso"

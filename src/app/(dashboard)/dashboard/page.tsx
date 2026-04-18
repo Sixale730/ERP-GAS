@@ -172,7 +172,7 @@ export default function DashboardPage() {
       </div>
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card>
             <Statistic
               title="Total Productos"
@@ -182,7 +182,7 @@ export default function DashboardPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card>
             <Statistic
               title="Stock Bajo"
@@ -192,7 +192,7 @@ export default function DashboardPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card hoverable style={{ cursor: 'pointer', position: 'relative' }}>
             <Statistic
               title="Cotizaciones Pendientes"
@@ -203,7 +203,7 @@ export default function DashboardPage() {
             <a href="/cotizaciones" style={{ position: 'absolute', inset: 0, opacity: 0 }} tabIndex={-1} aria-hidden="true" />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card>
             <Statistic
               title="Por Cobrar"
@@ -215,7 +215,7 @@ export default function DashboardPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card>
             <Statistic
               title="Ventas del Mes"
@@ -241,7 +241,7 @@ export default function DashboardPage() {
             </div>
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card hoverable style={{ cursor: 'pointer', position: 'relative' }}>
             <Statistic
               title="Órdenes por Surtir"

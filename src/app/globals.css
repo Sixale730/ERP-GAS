@@ -61,7 +61,22 @@ body {
   }
 
   /* Títulos más pequeños */
+  .ant-typography h1 {
+    font-size: 22px !important;
+  }
   .ant-typography h2 {
+    font-size: 18px !important;
+  }
+  .ant-typography h3 {
+    font-size: 16px !important;
+  }
+
+  /* Statistic más compacto: título arriba y número un poco menor */
+  .ant-statistic-title {
+    font-size: 12px !important;
+    margin-bottom: 2px !important;
+  }
+  .ant-statistic-content {
     font-size: 20px !important;
   }
 

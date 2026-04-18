@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import {
   Card, Collapse, Tag, Button, Space, Typography, Empty, Select, Input,
-  Badge, Tooltip, Skeleton, Drawer, InputNumber, Switch, Alert, Divider, message,
+  Badge, Tooltip, Skeleton, Drawer, InputNumber, Switch, Alert, Divider, message, Grid,
 } from 'antd'
 import {
   BulbOutlined,
@@ -110,14 +110,41 @@ const SEVERITY_ORDER: InsightSeveridad[] = ['critico', 'alerta', 'info', 'oportu
 
 function InsightCard({ insight, onDismiss }: { insight: InsightItem; onDismiss: (key: string) => void }) {
   const color = SEVERIDAD_COLOR[insight.severidad]
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.sm
   return (
     <Card
       size="small"
       style={{ marginBottom: 8, borderLeft: `4px solid ${color}`, animation: 'fadeIn 0.3s ease-out' }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: isMobile ? 8 : 16,
+          flexDirection: isMobile ? 'column' : 'row',
+        }}
+      >
+        {/* Header compacto en mobile: metrica + dismiss arriba del texto */}
+        {isMobile && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <Text strong style={{ fontSize: 18, lineHeight: 1.1, color, wordBreak: 'break-word' }}>
+              {formatMetrica(insight.metrica.valor, insight.metrica.unidad)}
+            </Text>
+            <Tooltip title="Descartar">
+              <Button
+                type="text"
+                size="small"
+                icon={<CloseOutlined />}
+                onClick={() => onDismiss(insight.key)}
+                style={{ color: '#bfbfbf', fontSize: 12, width: 24, height: 24 }}
+              />
+            </Tooltip>
+          </div>
+        )}
+
         {/* Izquierda: Título + Mensaje + Acción */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
           <Text strong style={{ fontSize: 15, display: 'block', marginBottom: 4, lineHeight: 1.4 }}>
             {insight.titulo}
           </Text>
@@ -131,33 +158,44 @@ function InsightCard({ insight, onDismiss }: { insight: InsightItem; onDismiss: 
                 {insight.accion.label} <RightOutlined style={{ fontSize: 10 }} />
               </Button>
             )}
-          </div>
-        </div>
-        {/* Derecha: Métrica + Tendencia + Descartar */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 4 }}>
-          <Tooltip title="Descartar">
-            <Button
-              type="text"
-              size="small"
-              icon={<CloseOutlined />}
-              onClick={() => onDismiss(insight.key)}
-              style={{ color: '#bfbfbf', fontSize: 12, width: 24, height: 24 }}
-            />
-          </Tooltip>
-          <div style={{ textAlign: 'right' }}>
-            <Text strong style={{ fontSize: 22, lineHeight: 1, color }}>
-              {formatMetrica(insight.metrica.valor, insight.metrica.unidad)}
-            </Text>
-            {insight.metrica.tendencia && (
-              <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+            {isMobile && insight.metrica.tendencia && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 {getTendenciaIcon(insight.metrica.tendencia)}
                 <Text type="secondary" style={{ fontSize: 11, textTransform: 'capitalize' }}>
                   {insight.metrica.tendencia}
                 </Text>
-              </div>
+              </span>
             )}
           </div>
         </div>
+
+        {/* Derecha (solo desktop): Métrica + Tendencia + Descartar */}
+        {!isMobile && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 4, maxWidth: '40%' }}>
+            <Tooltip title="Descartar">
+              <Button
+                type="text"
+                size="small"
+                icon={<CloseOutlined />}
+                onClick={() => onDismiss(insight.key)}
+                style={{ color: '#bfbfbf', fontSize: 12, width: 24, height: 24 }}
+              />
+            </Tooltip>
+            <div style={{ textAlign: 'right' }}>
+              <Text strong style={{ fontSize: 22, lineHeight: 1.1, color, wordBreak: 'break-word' }}>
+                {formatMetrica(insight.metrica.valor, insight.metrica.unidad)}
+              </Text>
+              {insight.metrica.tendencia && (
+                <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                  {getTendenciaIcon(insight.metrica.tendencia)}
+                  <Text type="secondary" style={{ fontSize: 11, textTransform: 'capitalize' }}>
+                    {insight.metrica.tendencia}
+                  </Text>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </Card>
   )
