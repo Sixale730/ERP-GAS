@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin, Table, Input, Switch, List, Tag } from 'antd'
-import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined, AppstoreOutlined } from '@ant-design/icons'
+import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin, Table, Input, Switch, List, Tag, Dropdown, Modal } from 'antd'
+import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined, AppstoreOutlined, ThunderboltOutlined, SyncOutlined, DownOutlined } from '@ant-design/icons'
+import { useQueryClient } from '@tanstack/react-query'
 import type { ColumnsType } from 'antd/es/table'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
@@ -22,6 +23,7 @@ interface CategoriaConMargen extends Categoria {
 }
 
 export default function ConfiguracionPage() {
+  const queryClient = useQueryClient()
   const { tipoCambio, fechaTipoCambio, margenGanancia, loading, updateTipoCambio, updateMargenGanancia, reload } = useConfiguracion()
   const { config: margenesConfig, loading: loadingMargenes, updateConfig: updateMargenes, reload: reloadMargenes } = useMargenesCategoria()
   const { data: tipoCambioData, fetchFromBanxico, isFetchingBanxico } = useTipoCambioBanxico()
@@ -214,10 +216,38 @@ export default function ConfiguracionPage() {
     }))
   }
 
-  const handleReloadAll = () => {
+  // Recarga SUAVE: limpia el cache de React Query y refresca la sesion.
+  // No libera memoria JS del navegador, pero es instantaneo y no pierde
+  // el contexto de la pagina. Util cuando los datos se ven desactualizados.
+  const handleSoftReload = async () => {
+    queryClient.clear()
     reload()
     reloadMargenes()
     loadCategorias()
+    try {
+      await refreshUser()
+    } catch {
+      // refreshUser falla si la sesion ya no es valida; el usuario sera
+      // redirigido al login por el middleware en el siguiente request.
+    }
+    message.success('Datos recargados')
+  }
+
+  // Recarga DURA: reload completo de la pagina (equivalente a F5). Libera
+  // TODO (heap JS, cache, listeners, timers). Unica solucion real cuando
+  // el sistema se pone lento despues de varias horas de uso.
+  const handleHardReload = () => {
+    Modal.confirm({
+      title: 'Recargar sistema completo',
+      content:
+        'Esto recargara la pagina completa, liberando la memoria acumulada. Util si el sistema se ha puesto lento. Perderas cualquier formulario sin guardar.',
+      okText: 'Recargar',
+      cancelText: 'Cancelar',
+      icon: <ThunderboltOutlined style={{ color: '#faad14' }} />,
+      onOk: () => {
+        window.location.reload()
+      },
+    })
   }
 
   // Ejemplo de calculo
@@ -279,9 +309,29 @@ export default function ConfiguracionPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 8 }}>
         <Title level={2} style={{ margin: 0 }}>Configuracion del Sistema</Title>
-        <Button icon={<ReloadOutlined />} onClick={handleReloadAll}>
-          Recargar
-        </Button>
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: 'soft',
+                icon: <SyncOutlined />,
+                label: 'Recargar datos (rapido)',
+                onClick: handleSoftReload,
+              },
+              {
+                key: 'hard',
+                icon: <ThunderboltOutlined />,
+                label: 'Recargar sistema completo',
+                onClick: handleHardReload,
+              },
+            ],
+          }}
+          trigger={['click']}
+        >
+          <Button icon={<ReloadOutlined />}>
+            Recargar <DownOutlined />
+          </Button>
+        </Dropdown>
       </div>
 
       <Row gutter={[16, 16]}>

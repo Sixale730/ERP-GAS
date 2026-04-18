@@ -268,7 +268,7 @@ Reportes: `useReportesVentas`, `useReportesInventario`, `useReportesFinanzas`, `
 | `/catalogos/precios-productos` | Matriz precios por producto y lista |
 | `/catalogos/documentos` | Formatos imprimibles/plantillas. La tarjeta "Entrega de Material a Revisión" es exclusiva de la org **SOLAC** (RFC `MOCD830414SL4`); otras orgs ven la sección vacía |
 | `/catalogos/documentos/entrega-revision` | Editor + vista previa PDF + descarga del formato SOLAC. Form con fecha, descripción, observaciones, firma entrega/recibe + toggle de líneas guía |
-| `/configuracion` | Ajustes generales |
+| `/configuracion` | Ajustes generales (tipo cambio, margen, modulos) + boton Recargar con dropdown: **Recargar datos** (soft: `queryClient.clear()` + `refreshUser()`) y **Recargar sistema completo** (hard: `window.location.reload()` con confirm). El hard es la unica solucion real al leak de memoria del navegador tras horas de uso |
 | `/configuracion/usuarios` | Usuarios, roles y permisos |
 | `/configuracion/cfdi` | Config Finkok, CSD, certificados |
 | `/configuracion/admin` | Admin global (solo super_admin) |
@@ -601,3 +601,4 @@ Pipeline de importacion de datos "mascotienda" (tienda de mascotas) para demo:
 - [ ] Crear RPCs para reportes pesados (ABC, estado de resultados) que hagan agregacion en PostgreSQL
 - [ ] Virtualización de tablas grandes con `<Table virtual />`
 - [ ] Busqueda global: consolidar 6 queries en una RPC `erp.busqueda_global()`
+- [ ] **Causa raíz del slowdown tras horas de uso**: hoy hay un boton "Recargar sistema" (hard reload) como cura. Atacar la raiz con: (1) bajar `gcTime` de 30 min a 10 min en `src/lib/react-query/provider.tsx`; (2) un `setInterval` en AppLayout que haga `queryClient.clear()` cada ~30-60 min cuando no hay mutaciones pendientes; (3) auditar componentes pesados (reportes, modales) para asegurar cleanup correcto de refs y closures; (4) considerar una warning pasiva cuando `performance.memory.usedJSHeapSize` supere un umbral (solo Chrome)
