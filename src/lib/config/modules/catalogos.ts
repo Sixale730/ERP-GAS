@@ -19,6 +19,7 @@ export const catalogosManifest = {
         { key: '/catalogos/proveedores', label: 'Proveedores', icono: 'ShopOutlined' },
         { key: '/catalogos/listas-precios', label: 'Listas de Precios', icono: 'UnorderedListOutlined' },
         { key: '/catalogos/precios-productos', label: 'Precios de Productos', icono: 'DollarOutlined' },
+        { key: '/catalogos/documentos', label: 'Documentos', icono: 'FileTextOutlined' },
       ],
     },
   ],
