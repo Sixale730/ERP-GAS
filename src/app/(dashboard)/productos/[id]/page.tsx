@@ -360,22 +360,23 @@ export default function ProductoDetallePage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/productos')}>
-            Volver
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Space>
+            <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/productos')}>
+              Volver
+            </Button>
+            <Tag color={producto.is_active ? 'green' : 'red'} style={{ margin: 0 }}>
+              {producto.is_active ? 'Activo' : 'Inactivo'}
+            </Tag>
+          </Space>
+          <Button type="primary" icon={<EditOutlined />} onClick={() => router.push(`/productos/${id}/editar`)}>
+            Editar
           </Button>
-          <Title level={2} style={{ margin: 0 }}>
-            {producto.nombre}
-          </Title>
-          <Tag color={producto.is_active ? 'green' : 'red'}>
-            {producto.is_active ? 'Activo' : 'Inactivo'}
-          </Tag>
-        </Space>
-
-        <Button type="primary" icon={<EditOutlined />} onClick={() => router.push(`/productos/${id}/editar`)}>
-          Editar
-        </Button>
+        </div>
+        <Title level={3} style={{ margin: '12px 0 0', wordBreak: 'break-word' }}>
+          {producto.nombre}
+        </Title>
       </div>
 
       <Row gutter={16}>

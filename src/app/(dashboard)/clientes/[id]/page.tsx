@@ -225,22 +225,23 @@ export default function ClienteDetallePage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/clientes')}>
-            Volver
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Space>
+            <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/clientes')}>
+              Volver
+            </Button>
+            <Tag color={cliente.is_active ? 'green' : 'red'} style={{ margin: 0 }}>
+              {cliente.is_active ? 'Activo' : 'Inactivo'}
+            </Tag>
+          </Space>
+          <Button type="primary" icon={<EditOutlined />} onClick={() => router.push(`/clientes/${id}/editar`)}>
+            Editar
           </Button>
-          <Title level={2} style={{ margin: 0 }}>
-            {cliente.nombre_comercial}
-          </Title>
-          <Tag color={cliente.is_active ? 'green' : 'red'}>
-            {cliente.is_active ? 'Activo' : 'Inactivo'}
-          </Tag>
-        </Space>
-
-        <Button type="primary" icon={<EditOutlined />} onClick={() => router.push(`/clientes/${id}/editar`)}>
-          Editar
-        </Button>
+        </div>
+        <Title level={3} style={{ margin: '12px 0 0', wordBreak: 'break-word' }}>
+          {cliente.nombre_comercial}
+        </Title>
       </div>
 
       <Row gutter={16}>

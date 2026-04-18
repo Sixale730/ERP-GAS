@@ -455,7 +455,8 @@ export default function GlobalSearch() {
         onSearch={handleSearch}
         onSelect={handleSelect}
         value={searchValue}
-        popupMatchSelectWidth={Math.max(dropdownWidth, 480)}
+        popupMatchSelectWidth={dropdownWidth < 480 ? dropdownWidth : Math.max(dropdownWidth, 480)}
+        getPopupContainer={(trigger) => (trigger.parentElement as HTMLElement) || document.body}
       >
         <Input
           placeholder="Buscar productos, clientes, facturas..."
