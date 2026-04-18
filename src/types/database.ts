@@ -1114,6 +1114,7 @@ export type Database = {
           cotizacion_origen_id: string | null
           cotizacion_origen_folio: string | null
           num_ovs_generadas: number
+          esta_vencida: boolean
         }
       }
       v_facturas: {

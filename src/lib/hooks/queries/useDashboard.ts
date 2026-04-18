@@ -91,12 +91,13 @@ async function fetchDashboardData(): Promise<DashboardData> {
       .lt('stock_total', 10)
       .limit(5),
 
-    // Cotizaciones pendientes (propuesta = pendientes de convertir a orden de venta)
+    // Cotizaciones pendientes (propuesta y NO vencidas = pipeline vivo)
     supabase
       .schema('erp')
-      .from('cotizaciones')
+      .from('v_cotizaciones')
       .select('id', { count: 'exact' })
-      .in('status', ['propuesta'])
+      .eq('status', 'propuesta')
+      .eq('esta_vencida', false)
       .limit(1),
 
     // Facturas por cobrar
@@ -136,12 +137,13 @@ async function fetchDashboardData(): Promise<DashboardData> {
       .order('fecha', { ascending: true })
       .limit(20),
 
-    // Pipeline comercial (cotizaciones abiertas, solo campos necesarios)
+    // Pipeline comercial (cotizaciones abiertas y vigentes)
     supabase
       .schema('erp')
-      .from('cotizaciones')
+      .from('v_cotizaciones')
       .select('total, probabilidad')
-      .in('status', ['propuesta'])
+      .eq('status', 'propuesta')
+      .eq('esta_vencida', false)
       .limit(1000),
   ])
 

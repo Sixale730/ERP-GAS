@@ -16,12 +16,6 @@ import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 
 const { Title } = Typography
 
-// Helper para verificar si la cotizacion esta caducada
-function esCaducada(fecha: string, vigenciaDias: number): boolean {
-  const vencimiento = dayjs(fecha).add(vigenciaDias, 'day')
-  return dayjs().isAfter(vencimiento)
-}
-
 const statusColors: Record<string, string> = {
   propuesta: 'processing',
   cancelada: 'error',
@@ -36,6 +30,7 @@ export default function CotizacionesPage() {
   const [searchText, setSearchText] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [vigenciaFilter, setVigenciaFilter] = useState<'todas' | 'vigentes' | 'vencidas'>('todas')
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
@@ -48,20 +43,21 @@ export default function CotizacionesPage() {
   }, [searchText])
 
   // React Query hooks with server-side pagination and search
-  const { data: cotizacionesResult, isLoading, isError, error } = useCotizaciones(statusFilter, pagination, debouncedSearch)
+  const { data: cotizacionesResult, isLoading, isError, error } = useCotizaciones(statusFilter, pagination, debouncedSearch, vigenciaFilter)
   const cotizaciones = cotizacionesResult?.data ?? []
   const deleteCotizacion = useDeleteCotizacion()
 
-  // Pipeline stats (cotizaciones abiertas)
+  // Pipeline stats (cotizaciones abiertas y vigentes)
   const { data: pipelineStats } = useQuery({
     queryKey: ['cotizaciones', 'pipeline'],
     queryFn: async () => {
       const supabase = getSupabaseClient()
       const { data, error: err } = await supabase
         .schema('erp')
-        .from('cotizaciones')
+        .from('v_cotizaciones')
         .select('total, probabilidad')
-        .in('status', ['propuesta'])
+        .eq('status', 'propuesta')
+        .eq('esta_vencida', false)
       if (err) throw err
       const rows = data || []
       const totalPipeline = rows.reduce((sum, r) => sum + (r.total || 0), 0)
@@ -175,10 +171,9 @@ export default function CotizacionesPage() {
           <Tag color={statusColors[status]}>
             {statusLabels[status] || status}
           </Tag>
-          {esCaducada(record.fecha, record.vigencia_dias || 30) &&
-           status !== 'cancelada' && (
-            <Tag color="warning" icon={<ClockCircleOutlined />}>
-              Caducada
+          {record.esta_vencida && (
+            <Tag color="default" icon={<ClockCircleOutlined />}>
+              Vencida
             </Tag>
           )}
         </Space>
@@ -343,6 +338,16 @@ export default function CotizacionesPage() {
             options={[
               { value: 'propuesta', label: 'Propuesta' },
               { value: 'cancelada', label: 'Cancelada' },
+            ]}
+          />
+          <Select
+            value={vigenciaFilter}
+            onChange={setVigenciaFilter}
+            style={{ width: '100%', maxWidth: 180 }}
+            options={[
+              { value: 'todas', label: 'Todas las vigencias' },
+              { value: 'vigentes', label: 'Solo vigentes' },
+              { value: 'vencidas', label: 'Solo vencidas' },
             ]}
           />
         </Space>

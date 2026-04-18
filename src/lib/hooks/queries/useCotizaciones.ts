@@ -16,23 +16,31 @@ export interface CotizacionRow {
   almacen_nombre?: string
   probabilidad: number | null
   num_ovs_generadas: number
+  esta_vencida: boolean
   created_at?: string
   updated_at?: string
 }
+
+export type VigenciaFilter = 'todas' | 'vigentes' | 'vencidas'
 
 // Query keys factory
 export const cotizacionesKeys = {
   all: ['cotizaciones'] as const,
   lists: () => [...cotizacionesKeys.all, 'list'] as const,
-  list: (filters?: { status?: string | null; pagination?: PaginationParams; search?: string }) => [...cotizacionesKeys.lists(), filters] as const,
+  list: (filters?: { status?: string | null; vigencia?: VigenciaFilter; pagination?: PaginationParams; search?: string }) => [...cotizacionesKeys.lists(), filters] as const,
   details: () => [...cotizacionesKeys.all, 'detail'] as const,
   detail: (id: string) => [...cotizacionesKeys.details(), id] as const,
 }
 
-const COTIZACIONES_LIST_COLUMNS = 'id, folio, fecha, vigencia_dias, status, total, moneda, cliente_nombre, cliente_rfc, almacen_nombre, probabilidad, num_ovs_generadas, created_at, updated_at'
+const COTIZACIONES_LIST_COLUMNS = 'id, folio, fecha, vigencia_dias, status, total, moneda, cliente_nombre, cliente_rfc, almacen_nombre, probabilidad, num_ovs_generadas, esta_vencida, created_at, updated_at'
 
 // Fetch cotizaciones with optional status filter and pagination
-async function fetchCotizaciones(statusFilter?: string | null, pagination?: PaginationParams, search?: string): Promise<PaginatedResult<CotizacionRow>> {
+async function fetchCotizaciones(
+  statusFilter?: string | null,
+  pagination?: PaginationParams,
+  search?: string,
+  vigenciaFilter?: VigenciaFilter,
+): Promise<PaginatedResult<CotizacionRow>> {
   const supabase = getSupabaseClient()
   let query = supabase
     .schema('erp')
@@ -43,6 +51,12 @@ async function fetchCotizaciones(statusFilter?: string | null, pagination?: Pagi
 
   if (statusFilter) {
     query = query.eq('status', statusFilter)
+  }
+
+  if (vigenciaFilter === 'vigentes') {
+    query = query.eq('esta_vencida', false)
+  } else if (vigenciaFilter === 'vencidas') {
+    query = query.eq('esta_vencida', true)
   }
 
   if (search) {
@@ -112,10 +126,15 @@ async function deleteCotizacion(cotizacion: CotizacionRow) {
 }
 
 // Hook: Lista de cotizaciones with server-side pagination
-export function useCotizaciones(statusFilter?: string | null, pagination?: PaginationParams, search?: string) {
+export function useCotizaciones(
+  statusFilter?: string | null,
+  pagination?: PaginationParams,
+  search?: string,
+  vigenciaFilter?: VigenciaFilter,
+) {
   return useQuery({
-    queryKey: cotizacionesKeys.list({ status: statusFilter, pagination, search }),
-    queryFn: () => fetchCotizaciones(statusFilter, pagination, search),
+    queryKey: cotizacionesKeys.list({ status: statusFilter, vigencia: vigenciaFilter, pagination, search }),
+    queryFn: () => fetchCotizaciones(statusFilter, pagination, search, vigenciaFilter),
   })
 }
 
