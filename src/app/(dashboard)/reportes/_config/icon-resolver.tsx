@@ -35,6 +35,7 @@ import {
   FieldTimeOutlined,
   StarOutlined,
   SearchOutlined,
+  DeliveredProcedureOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
 
@@ -75,6 +76,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ style?: React.CSSProperties
   FieldTimeOutlined,
   StarOutlined,
   SearchOutlined,
+  DeliveredProcedureOutlined,
 }
 
 export function resolveIcon(name: string, style?: React.CSSProperties): ReactNode {

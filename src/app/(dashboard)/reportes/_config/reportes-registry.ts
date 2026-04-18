@@ -131,6 +131,17 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     requiereModulo: 'ordenes_venta',
     implementado: true,
   },
+  {
+    key: 'ordenes-venta-surtir',
+    titulo: 'Ordenes de Venta a Surtir',
+    descripcion: 'Disponibilidad de material por OV y sugerencia de OC mas antigua',
+    icono: 'DeliveredProcedureOutlined',
+    iconColor: '#1890ff',
+    ruta: '/reportes/ordenes-venta-surtir',
+    categoria: 'ventas_comercial',
+    requiereTodos: ['ordenes_venta', 'inventario'],
+    implementado: true,
+  },
 
   // ── Fase 1: Ventas y Comercial ────────────────────────────────────────────
   {
