@@ -12,9 +12,10 @@ import {
   TeamOutlined,
   GlobalOutlined,
   HomeOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import GlobalSearch from './GlobalSearch'
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -43,15 +44,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const collapsed = useUIStore(s => s.sidebarCollapsed)
   const setCollapsed = useUIStore(s => s.setSidebarCollapsed)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [searchDrawerOpen, setSearchDrawerOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const screens = useBreakpoint()
   const isMobile = mounted && !screens.md // solo después de mount para evitar hydration mismatch
+  const isNarrowMobile = mounted && !screens.sm // xs real: < 576px
 
   useEffect(() => {
     setMounted(true)
   }, [])
   const router = useRouter()
+  const pathname = usePathname()
   const { loading, displayName, avatarUrl, role, signOut, isAdmin, isSuperAdmin, organizacion, erpUser, orgId, refreshUser } = useAuth()
+
+  // Cerrar drawers al navegar
+  useEffect(() => {
+    setDrawerOpen(false)
+    setSearchDrawerOpen(false)
+  }, [pathname])
   const queryClient = useQueryClient()
   useInactivityLogout(signOut)
   const { modulosActivos } = useModulos()
@@ -232,6 +242,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </Drawer>
       )}
 
+      {/* Drawer de busqueda para xs */}
+      {isNarrowMobile && (
+        <Drawer
+          placement="top"
+          onClose={() => setSearchDrawerOpen(false)}
+          open={searchDrawerOpen}
+          height="auto"
+          title="Buscar"
+          styles={{ body: { padding: 12 } }}
+        >
+          <GlobalSearch />
+        </Drawer>
+      )}
+
       {/* Sider para desktop */}
       {!isMobile && (
         <Sider
@@ -281,10 +305,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
             }}
           />
 
-          {/* Barra de busqueda global */}
-          <div style={{ width: isMobile ? 200 : 450, margin: '0 12px', height: 64, display: 'flex', alignItems: 'center', lineHeight: 'normal' }}>
-            <GlobalSearch />
-          </div>
+          {/* Barra de busqueda global (oculta en xs; se accede via icono) */}
+          {!isNarrowMobile && (
+            <div style={{ width: isMobile ? 240 : 450, margin: '0 12px', height: 64, display: 'flex', alignItems: 'center', lineHeight: 'normal' }}>
+              <GlobalSearch />
+            </div>
+          )}
+          {isNarrowMobile && (
+            <>
+              <Button
+                type="text"
+                icon={<SearchOutlined />}
+                onClick={() => setSearchDrawerOpen(true)}
+                style={{ fontSize: '18px', width: 40, height: 40 }}
+                aria-label="Buscar"
+              />
+              <div style={{ flex: 1 }} />
+            </>
+          )}
 
           {isSuperAdmin && orgList.length > 0 && (
             <Select
@@ -311,17 +349,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
               placeholder={
                 <Space size={4}>
                   <GlobalOutlined />
-                  <span>{isMobile ? 'Org' : 'Organización'}</span>
+                  {!isNarrowMobile && <span>{isMobile ? 'Org' : 'Organización'}</span>}
                 </Space>
               }
-              style={{ width: isMobile ? 120 : 220 }}
+              style={{ width: isNarrowMobile ? 90 : (isMobile ? 120 : 220) }}
               options={orgList
                 .filter(o => !o.codigo || o.codigo !== 'SISTEMA')
                 .map(o => ({ value: o.id, label: o.nombre }))}
             />
           )}
 
-          {isSuperAdmin && (
+          {isSuperAdmin && !isNarrowMobile && (
             <Button type="text" icon={<HomeOutlined />} href="/?landing=1" target="_blank" size="small">
               {!isMobile && 'Landing'}
             </Button>
