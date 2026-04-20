@@ -58,7 +58,8 @@
       "Bash(grep -B 3 -A 3 \"Alert\\\\|<Alert\" /c/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/clientes/[id]/page.tsx)",
       "Bash(grep -B 2 -A 8 \"<Alert\" /c/ERP-GAS/src/app/\\\\\\(dashboard\\\\\\)/clientes/[id]/editar/page.tsx)",
       "Bash(xargs -I {} basename {} .ts)",
-      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -5 {}')"
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -5 {}')",
+      "Bash(npx eslint *)"
     ]
   },
   "enableAllProjectMcpServers": true,

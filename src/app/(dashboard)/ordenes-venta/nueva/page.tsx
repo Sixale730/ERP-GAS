@@ -493,11 +493,11 @@ export default function NuevaOrdenVentaPage() {
       render: (val: number, record: OrdenVentaItem) => (
         <InputNumber
           value={val}
-          onChange={(v) => handleUpdateItem(record.key, 'margen_porcentaje', v || 0)}
+          onChange={(v) => handleUpdateItem(record.key, 'margen_porcentaje', v ?? 0)}
           style={{ width: '100%' }}
           size="small"
-          formatter={(value) => `${value}%`}
-          parser={(value) => parseFloat(value?.replace('%', '') || '0') as any}
+          step={1}
+          suffix="%"
         />
       ),
     },
@@ -526,10 +526,11 @@ export default function NuevaOrdenVentaPage() {
       render: (val: number, record: OrdenVentaItem) => (
         <InputNumber
           min={0}
+          step={0.01}
+          precision={2}
+          prefix="$"
           value={val}
-          onChange={(v) => handleUpdateItem(record.key, 'precio_unitario', v || 0)}
-          formatter={(value) => `$ ${Number(value).toFixed(2)}`}
-          parser={(value) => parseFloat(value?.replace(/\$\s?/g, '') || '0') as any}
+          onChange={(v) => handleUpdateItem(record.key, 'precio_unitario', v ?? 0)}
           style={{ width: '100%' }}
           size="small"
         />

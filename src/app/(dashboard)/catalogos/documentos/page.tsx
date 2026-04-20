@@ -28,6 +28,14 @@ const DOCUMENTOS: DocumentoItem[] = [
     icono: <FilePdfOutlined style={{ fontSize: 28, color: '#2980b9' }} />,
     soloOrgRfc: SOLAC_RFC,
   },
+  {
+    key: 'prestamo-material',
+    ruta: '/catalogos/documentos/prestamo-material',
+    titulo: 'Vale de Préstamo de Material',
+    descripcion: 'Formato para prestar material al cliente en espera de la orden de compra y documentos de facturación.',
+    icono: <FilePdfOutlined style={{ fontSize: 28, color: '#2980b9' }} />,
+    soloOrgRfc: SOLAC_RFC,
+  },
 ]
 
 export default function DocumentosPage() {
