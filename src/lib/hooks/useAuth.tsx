@@ -248,6 +248,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      // TOKEN_REFRESHED no cambia el perfil ni la org del usuario: solo refrescamos
+      // la sesión sin re-consultar la BD. Evita que un blip del RPC borre organizacion
+      // y tire al usuario de pantallas dependientes (p.ej. docs exclusivos de SOLAC).
+      if (event === 'TOKEN_REFRESHED' && session) {
+        setState((prev) => ({ ...prev, user: session.user, session }))
+        return
+      }
+
       if (session) {
         let role: UserRole | null = null
         let orgId: string | null = null
@@ -264,8 +272,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setState((prev) => ({
           user: session.user,
-          erpUser,
-          organizacion,
+          // Si el re-fetch falla (timeout, blip de red), conservamos los valores
+          // previos en vez de dejar la UI viendo "organizacion: null".
+          erpUser: erpUser ?? prev.erpUser,
+          organizacion: organizacion ?? prev.organizacion,
           session,
           loading: false,
           role: erpUser?.rol || role || prev.role,
@@ -303,8 +313,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { erpUser, organizacion } = await fetchERPUser()
       setState((prev) => ({
         ...prev,
-        erpUser,
-        organizacion,
+        erpUser: erpUser ?? prev.erpUser,
+        organizacion: organizacion ?? prev.organizacion,
         role: erpUser?.rol || prev.role,
         orgId: erpUser?.organizacion_id || prev.orgId,
       }))
