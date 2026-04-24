@@ -76,6 +76,7 @@ function NuevaOrdenCompraContent() {
   const [monedaSeleccionada, setMonedaSeleccionada] = useState<'USD' | 'MXN'>('USD')
   const [tipoCambioLocal, setTipoCambioLocal] = useState<number>(tipoCambio)
   const [stockBajoCargado, setStockBajoCargado] = useState(false)
+  const [proveedorSeleccionado, setProveedorSeleccionado] = useState<string | null>(null)
 
   useEffect(() => {
     loadInitialData()
@@ -88,14 +89,16 @@ function NuevaOrdenCompraContent() {
     }
   }, [tipoCambio])
 
-  // Cargar productos de stock bajo si viene de Dashboard
+  // Cargar productos de stock bajo si viene de Dashboard.
+  // Se re-ejecuta si cambia el proveedor para filtrar sugerencias por proveedor_principal_id.
   useEffect(() => {
-    if (cargarStockBajo && productos.length > 0 && preciosMap.size > 0 && !stockBajoCargado && !loadingMargenes) {
-      cargarProductosStockBajo()
+    if (cargarStockBajo && productos.length > 0 && preciosMap.size > 0 && !loadingMargenes) {
+      cargarProductosStockBajo(proveedorSeleccionado)
     }
-  }, [cargarStockBajo, productos, preciosMap, stockBajoCargado, loadingMargenes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargarStockBajo, productos, preciosMap, loadingMargenes, proveedorSeleccionado])
 
-  const cargarProductosStockBajo = async () => {
+  const cargarProductosStockBajo = async (proveedorIdFiltro: string | null = null) => {
     const supabase = getSupabaseClient()
     try {
       const { data } = await supabase
@@ -116,12 +119,20 @@ function NuevaOrdenCompraContent() {
             const faltante = objetivo - proyectado
             return { p, faltante, proyectado, objetivo }
           })
-          .filter(({ p, proyectado, objetivo }) => {
+          .filter(({ p, proyectado }) => {
             const minimo = Number(p.stock_minimo || 0)
             if (minimo > 0) return proyectado <= minimo
-            return proyectado < objetivo && proyectado < 10
+            // Sin stock_minimo: basta con estar bajo el objetivo (antes exigia < 10 extra, ocultando productos en rango 10-19)
+            return proyectado < (Number(p.stock_maximo) > 0 ? Number(p.stock_maximo) : 20)
           })
           .filter(({ faltante }) => faltante > 0)
+          // Filtro por proveedor principal cuando el usuario ya selecciono uno en el form
+          .filter(({ p }) => {
+            if (!proveedorIdFiltro) return true
+            // Buscar el producto completo para leer proveedor_principal_id
+            const prod = productos.find(pr => pr.id === p.id)
+            return prod?.proveedor_principal_id === proveedorIdFiltro
+          })
 
         const itemsOC: ItemOrden[] = candidatos.map(({ p, faltante }) => {
           const producto = productos.find(prod => prod.id === p.id)
@@ -145,6 +156,10 @@ function NuevaOrdenCompraContent() {
           }
         })
         setItems(itemsOC)
+        setStockBajoCargado(true)
+      } else {
+        // Si el filtro por proveedor no arroja resultados, vaciar la lista
+        setItems([])
         setStockBajoCargado(true)
       }
     } catch (error) {
@@ -316,11 +331,11 @@ function NuevaOrdenCompraContent() {
         message.error('La operación tardó demasiado. Intenta de nuevo.')
       }, 15000)
 
-      // Crear orden (folio se genera automáticamente via trigger)
-      const ordenData = {
+      // Crear orden + items en una sola llamada transaccional (RPC erp.crear_orden_compra).
+      // Si cualquier parte falla, PostgreSQL revierte y no queda OC huerfana sin items.
+      const pOrden = {
         proveedor_id: values.proveedor_id,
         almacen_destino_id: values.almacen_id,
-        organizacion_id: orgId,
         fecha: values.fecha?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'),
         fecha_esperada: values.fecha_esperada?.format('YYYY-MM-DD') || null,
         status: enviar ? 'enviada' : 'borrador',
@@ -334,46 +349,37 @@ function NuevaOrdenCompraContent() {
         creado_por_nombre: creadoPorNombre || erpUser?.nombre || null,
       }
 
-      const { data: orden, error: ordenError } = await supabase
-        .schema('erp')
-        .from('ordenes_compra')
-        .insert(ordenData)
-        .select()
-        .single()
-
-      if (ordenError) throw ordenError
-
-      // Crear items
-      const itemsData = items.map((item) => ({
-        orden_compra_id: orden.id,
+      const pItems = items.map((item) => ({
         producto_id: item.producto_id,
         cantidad_solicitada: item.cantidad,
         precio_unitario: item.precio_unitario,
         descuento_porcentaje: item.descuento_porcentaje,
-        organizacion_id: orgId,
       }))
 
-      const { error: itemsError } = await supabase
-        .schema('erp')
-        .from('orden_compra_items')
-        .insert(itemsData)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('crear_orden_compra', {
+        p_orden: pOrden,
+        p_items: pItems,
+      })
 
-      if (itemsError) throw itemsError
+      if (rpcError) throw rpcError
 
-      // Registrar en historial
+      const ordenResult = rpcData as { id: string; folio: string }
+
+      // Registrar en historial (fuera de la transaccion, best-effort)
       const proveedor = proveedores.find(p => p.id === values.proveedor_id)
       const proveedorNombre = proveedor?.nombre_comercial || proveedor?.razon_social || 'proveedor'
       await registrarHistorial({
         documentoTipo: 'orden_compra',
-        documentoId: orden.id,
-        documentoFolio: orden.folio,
+        documentoId: ordenResult.id,
+        documentoFolio: ordenResult.folio,
         usuarioId: erpUser?.id,
         usuarioNombre: erpUser?.nombre || erpUser?.email,
         accion: 'creado',
         descripcion: `Orden de Compra creada para ${proveedorNombre}`,
       })
 
-      message.success(`Orden ${orden.folio} guardada correctamente`)
+      message.success(`Orden ${ordenResult.folio} guardada correctamente`)
       router.push('/compras')
     } catch (error: any) {
       console.error('Error saving orden:', error)
@@ -492,8 +498,14 @@ function NuevaOrdenCompraContent() {
       {stockBajoCargado && (
         <Alert
           type="info"
-          message="Productos con stock bajo pre-cargados"
-          description={`Se agregaron ${items.length} productos con stock bajo. La cantidad sugerida considera físico + en tránsito para llegar al stock máximo (o 20 si no está configurado). Selecciona proveedor y almacen para continuar.`}
+          message={proveedorSeleccionado
+            ? `Sugerencias filtradas por proveedor: ${items.length} productos`
+            : 'Productos con stock bajo pre-cargados'}
+          description={
+            proveedorSeleccionado
+              ? `Se muestran ${items.length} productos con stock bajo asignados al proveedor seleccionado (proveedor_principal_id). Cambia el proveedor para ver otras sugerencias, o limpia el selector para ver todos.`
+              : `Se agregaron ${items.length} productos con stock bajo. La cantidad sugerida considera físico + en tránsito para llegar al stock máximo (o 20 si no está configurado). Selecciona un proveedor para filtrar solo los productos que surte.`
+          }
           showIcon
           closable
           style={{ marginBottom: 16 }}
@@ -514,8 +526,10 @@ function NuevaOrdenCompraContent() {
                     <Select
                       placeholder="Selecciona proveedor"
                       showSearch
+                      allowClear
                       optionFilterProp="label"
                       loading={loadingData}
+                      onChange={(value) => setProveedorSeleccionado(value || null)}
                       options={proveedores.map((p) => ({
                         value: p.id,
                         label: p.razon_social,
