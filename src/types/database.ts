@@ -1349,6 +1349,10 @@ export type Database = {
           max_valor: number | null
           is_global: boolean
           permite_override_usuario: boolean
+          etiqueta: string | null
+          subgrupo: string | null
+          aplicado_en: unknown
+          requiere_confirmacion: boolean
           modificado_por: string | null
           modificado_por_nombre: string | null
           created_at: string

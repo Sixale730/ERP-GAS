@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { Space, Tag, Typography, Tooltip, Popover, Spin } from 'antd'
-import { InfoCircleOutlined, HistoryOutlined } from '@ant-design/icons'
+import { InfoCircleOutlined, HistoryOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import type { ConfigItem } from '@/types/configuracion-sistema'
 import { useConfigAudit } from '@/lib/hooks/queries/useConfiguracionSistema'
 import { formatDateTime } from '@/lib/utils/format'
@@ -71,22 +72,30 @@ export function ConfigItemRow({ item, mode = 'read', control, actions }: Props) 
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <Space size={6} wrap>
-          <Text strong>{item.clave}</Text>
-          <Tag color="default" style={{ marginInlineEnd: 0 }}>{item.tipo}</Tag>
-          {modificado && <Tag color="blue">modificado</Tag>}
-          {item.permite_override_usuario && <Tag color="purple">override usuario</Tag>}
-          <Popover
-            content={<AuditPopoverContent categoria={item.categoria} clave={item.clave} />}
-            title={null}
-            trigger="click"
-            placement="topLeft"
-          >
-            <Tooltip title="Ver historial de cambios">
-              <HistoryOutlined style={{ color: '#999', cursor: 'pointer' }} />
-            </Tooltip>
-          </Popover>
-        </Space>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Space size={6} wrap>
+            <Text strong style={{ fontSize: 14 }}>{item.etiqueta || item.clave}</Text>
+            <Tag color="default" style={{ marginInlineEnd: 0 }}>{item.tipo}</Tag>
+            {modificado && <Tag color="blue">modificado</Tag>}
+            {item.permite_override_usuario && <Tag color="purple">override usuario</Tag>}
+            {item.requiere_confirmacion && <Tag color="orange">sensible</Tag>}
+              <Popover
+              content={<AuditPopoverContent categoria={item.categoria} clave={item.clave} />}
+              title={null}
+              trigger="click"
+              placement="topLeft"
+            >
+              <Tooltip title="Ver historial de cambios">
+                <HistoryOutlined style={{ color: '#999', cursor: 'pointer' }} />
+              </Tooltip>
+            </Popover>
+          </Space>
+          {item.etiqueta && (
+            <div style={{ marginTop: 2 }}>
+              <Text code style={{ fontSize: 11, color: '#999' }}>{item.clave}</Text>
+            </div>
+          )}
+        </div>
 
         <Space size={8} align="center">
           {mode === 'read' ? (
@@ -103,6 +112,29 @@ export function ConfigItemRow({ item, mode = 'read', control, actions }: Props) 
           <InfoCircleOutlined style={{ marginInlineEnd: 4 }} />
           {item.descripcion}
         </Text>
+      )}
+
+      {item.aplicado_en && item.aplicado_en.length > 0 && (
+        <div style={{ fontSize: 12, color: '#666' }}>
+          <EnvironmentOutlined style={{ marginInlineEnd: 4 }} />
+          <Text type="secondary" style={{ fontSize: 12 }}>Aplicado en: </Text>
+          {item.aplicado_en.map((ap, i) => (
+            <span key={i}>
+              {i > 0 && ' · '}
+              {ap.ruta === '*' ? (
+                <Tooltip title={ap.descripcion}>
+                  <Text style={{ fontSize: 12 }}>Global</Text>
+                </Tooltip>
+              ) : (
+                <Tooltip title={ap.descripcion}>
+                  <Link href={ap.ruta} style={{ fontSize: 12 }}>
+                    {ap.ruta}
+                  </Link>
+                </Tooltip>
+              )}
+            </span>
+          ))}
+        </div>
       )}
 
       <div style={{ fontSize: 11, color: '#999' }}>

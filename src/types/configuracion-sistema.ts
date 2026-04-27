@@ -9,6 +9,11 @@ export type ConfigCategoria =
   | 'performance'
   | 'ui'
 
+export interface ConfigAplicadoEn {
+  ruta: string
+  descripcion: string
+}
+
 export interface ConfigItem {
   id: string
   organizacion_id: string | null
@@ -23,6 +28,14 @@ export interface ConfigItem {
   max_valor: number | null
   is_global: boolean
   permite_override_usuario: boolean
+  /** Etiqueta legible para UI. Si null, usar `clave`. */
+  etiqueta: string | null
+  /** Subgrupo dentro de la categoria, para agrupar visualmente. Solo aplica cuando una categoria tiene >5 claves. */
+  subgrupo: string | null
+  /** Lista de pantallas donde se aplica este parametro. Cada item: {ruta, descripcion}. */
+  aplicado_en: ConfigAplicadoEn[] | null
+  /** Si true, mostrar Modal.confirm antes de guardar. */
+  requiere_confirmacion: boolean
   modificado_por: string | null
   modificado_por_nombre: string | null
   created_at: string
