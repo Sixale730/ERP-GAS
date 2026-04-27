@@ -1311,6 +1311,25 @@ export type Database = {
         }
         Returns: unknown
       }
+      get_configuracion_sistema_v2: {
+        Args: {
+          p_categoria: string
+          p_clave: string
+          p_organizacion_id: string
+          p_usuario_id?: string | null
+        }
+        Returns: unknown
+      }
+      set_configuracion_usuario: {
+        Args: {
+          p_categoria: string
+          p_clave: string
+          p_valor: unknown
+          p_usuario_id: string
+          p_organizacion_id: string
+        }
+        Returns: string
+      }
       list_configuracion_sistema: {
         Args: {
           p_organizacion_id: string

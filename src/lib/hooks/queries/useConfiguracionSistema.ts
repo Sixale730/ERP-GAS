@@ -50,17 +50,20 @@ export function useConfigValue<T>(
   fallback: T
 ): T {
   const { effectiveOrgId, ownOrgId } = useOrgContext()
+  const { erpUser } = useAuth()
   const orgId = effectiveOrgId ?? ownOrgId
+  const userId = erpUser?.id ?? null
 
   const { data } = useQuery({
-    queryKey: configSistemaKeys.value(orgId, categoria, clave),
+    queryKey: [...configSistemaKeys.value(orgId, categoria, clave), userId],
     queryFn: async () => {
       if (!orgId) return null
       const supabase = getSupabaseClient()
-      const { data, error } = await supabase.schema('erp').rpc('get_configuracion_sistema', {
+      const { data, error } = await supabase.schema('erp').rpc('get_configuracion_sistema_v2', {
         p_categoria: categoria,
         p_clave: clave,
         p_organizacion_id: orgId,
+        p_usuario_id: userId ?? null,
       })
       if (error) throw error
       return data
@@ -71,6 +74,43 @@ export function useConfigValue<T>(
 
   if (data === null || data === undefined) return fallback
   return data as T
+}
+
+export function useSetConfigUsuario() {
+  const queryClient = useQueryClient()
+  const { effectiveOrgId, ownOrgId } = useOrgContext()
+  const { erpUser } = useAuth()
+  const orgId = effectiveOrgId ?? ownOrgId
+
+  return useMutation({
+    mutationFn: async ({
+      categoria,
+      clave,
+      valor,
+    }: {
+      categoria: string
+      clave: string
+      valor: unknown
+    }) => {
+      if (!orgId || !erpUser?.id) throw new Error('No hay usuario u organizacion')
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase.schema('erp').rpc('set_configuracion_usuario', {
+        p_categoria: categoria,
+        p_clave: clave,
+        p_valor: valor,
+        p_usuario_id: erpUser.id,
+        p_organizacion_id: orgId,
+      })
+      if (error) throw error
+      return data as string
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: configSistemaKeys.all })
+      queryClient.invalidateQueries({
+        queryKey: configSistemaKeys.value(orgId, variables.categoria, variables.clave),
+      })
+    },
+  })
 }
 
 /**
