@@ -7,6 +7,8 @@ import { ArrowLeftOutlined, FileExcelOutlined, StopOutlined } from '@ant-design/
 import type { ColumnsType } from 'antd/es/table'
 import { useProductosSinMovimiento, type ProductoSinMovimientoRow } from '@/lib/hooks/queries/useReportesInventario'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useConfigValue } from '@/lib/hooks/queries/useConfiguracionSistema'
+import { CONFIG_KEYS } from '@/lib/config/keys'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple, formatDate, formatNumber } from '@/lib/utils/format'
 import dayjs from 'dayjs'
@@ -17,7 +19,9 @@ const { Search } = Input
 export default function ReporteProductosSinMovimientoPage() {
   const router = useRouter()
   const { organizacion } = useAuth()
-  const [diasMinimos, setDiasMinimos] = useState(30)
+  // Default configurable en /configuracion/sistema (inventario.dias_sin_movimiento_alerta)
+  const diasDefault = useConfigValue<number>('inventario', CONFIG_KEYS.INVENTARIO.DIAS_SIN_MOVIMIENTO_ALERTA, 60)
+  const [diasMinimos, setDiasMinimos] = useState(diasDefault)
   const [busqueda, setBusqueda] = useState('')
   const [generandoExcel, setGenerandoExcel] = useState(false)
 
