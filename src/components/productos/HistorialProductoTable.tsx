@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Table, Tag, Space } from 'antd'
+import { useMemo, useState } from 'react'
+import { Table, Tag, Pagination, Empty, Skeleton } from 'antd'
 import {
   FileTextOutlined,
   ShoppingCartOutlined,
@@ -10,8 +10,9 @@ import {
   SwapOutlined,
 } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
+import dayjs from 'dayjs'
 import { useHistorialProducto, useHistorialProductoCount } from '@/lib/hooks/queries/useHistorialProducto'
-import { formatDate, formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
+import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
 import type { HistorialProductoItem } from '@/types/database'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -45,20 +46,32 @@ function getFolioRoute(tipo: HistorialProductoItem['tipo_documento'], documentoI
   }
 }
 
-export default function HistorialProductoTable({ productoId, pageSize = 10 }: Props) {
-  const router = useRouter()
-  const [page, setPage] = useState(1)
+const STATUS_COLOR_MAP: Record<string, string> = {
+  borrador: 'default',
+  enviada: 'blue',
+  aprobada: 'green',
+  convertida: 'purple',
+  facturada: 'purple',
+  cancelada: 'red',
+  vencida: 'orange',
+  pendiente: 'gold',
+  parcialmente_recibida: 'cyan',
+  recibida: 'green',
+  pagada: 'green',
+  entrada: 'green',
+  salida: 'red',
+}
 
-  const { data: items = [], isLoading } = useHistorialProducto(productoId, { page, pageSize })
-  const { data: total = 0 } = useHistorialProductoCount(productoId)
-
-  const columns: ColumnsType<HistorialProductoItem> = [
+function buildColumns(router: ReturnType<typeof useRouter>): ColumnsType<HistorialProductoItem> {
+  return [
     {
-      title: 'Fecha',
+      title: 'Hora',
       dataIndex: 'fecha',
-      key: 'fecha',
-      width: 120,
-      render: (val: string) => formatDate(val),
+      key: 'hora',
+      width: 70,
+      render: (val: string) => (
+        <span style={{ fontSize: 12, color: '#666' }}>{dayjs(val).format('HH:mm')}</span>
+      ),
     },
     {
       title: 'Tipo',
@@ -131,42 +144,93 @@ export default function HistorialProductoTable({ productoId, pageSize = 10 }: Pr
       width: 120,
       render: (val: string | null) => {
         if (!val) return '-'
-        const colorMap: Record<string, string> = {
-          borrador: 'default',
-          enviada: 'blue',
-          aprobada: 'green',
-          convertida: 'purple',
-          facturada: 'purple',
-          cancelada: 'red',
-          vencida: 'orange',
-          pendiente: 'gold',
-          parcialmente_recibida: 'cyan',
-          recibida: 'green',
-          pagada: 'green',
-          entrada: 'green',
-          salida: 'red',
-        }
-        return <Tag color={colorMap[val] || 'default'}>{val.replace(/_/g, ' ')}</Tag>
+        return <Tag color={STATUS_COLOR_MAP[val] || 'default'}>{val.replace(/_/g, ' ')}</Tag>
       },
     },
   ]
+}
+
+function formatFechaGrupo(fecha: string): string {
+  const d = dayjs(fecha)
+  const hoy = dayjs().startOf('day')
+  const dDay = d.startOf('day')
+  const diff = hoy.diff(dDay, 'day')
+  if (diff === 0) return `Hoy · ${d.format('D MMMM YYYY')}`
+  if (diff === 1) return `Ayer · ${d.format('D MMMM YYYY')}`
+  return d.format('dddd D [de] MMMM, YYYY')
+}
+
+export default function HistorialProductoTable({ productoId, pageSize = 10 }: Props) {
+  const router = useRouter()
+  const [page, setPage] = useState(1)
+
+  const { data: items = [], isLoading } = useHistorialProducto(productoId, { page, pageSize })
+  const { data: total = 0 } = useHistorialProductoCount(productoId)
+
+  const columns = useMemo(() => buildColumns(router), [router])
+
+  // Agrupar por fecha (solo dia, no hora) preservando orden DESC
+  const grupos = useMemo(() => {
+    const map = new Map<string, HistorialProductoItem[]>()
+    for (const item of items) {
+      const key = dayjs(item.fecha).format('YYYY-MM-DD')
+      const arr = map.get(key) ?? []
+      arr.push(item)
+      map.set(key, arr)
+    }
+    return Array.from(map.entries())
+  }, [items])
+
+  if (isLoading) {
+    return <Skeleton active paragraph={{ rows: 6 }} />
+  }
+
+  if (items.length === 0) {
+    return <Empty description="Sin historial para este producto" />
+  }
 
   return (
-    <Table<HistorialProductoItem>
-      dataSource={items}
-      columns={columns}
-      rowKey="id"
-      loading={isLoading}
-      size="small"
-      pagination={{
-        current: page,
-        pageSize,
-        total,
-        onChange: (p) => setPage(p),
-        showSizeChanger: false,
-        showTotal: (t) => `${t} registros`,
-      }}
-      locale={{ emptyText: 'Sin historial para este producto' }}
-    />
+    <div>
+      {grupos.map(([fechaKey, itemsDia]) => (
+        <div key={fechaKey} style={{ marginBottom: 16 }}>
+          <div
+            style={{
+              padding: '8px 12px',
+              background: '#fafafa',
+              borderLeft: '3px solid #1890ff',
+              fontSize: 13,
+              fontWeight: 500,
+              color: '#333',
+              marginBottom: 4,
+              textTransform: 'capitalize',
+            }}
+          >
+            {formatFechaGrupo(itemsDia[0].fecha)}
+            <span style={{ marginInlineStart: 8, fontSize: 11, color: '#999', fontWeight: 400 }}>
+              · {itemsDia.length} {itemsDia.length === 1 ? 'evento' : 'eventos'}
+            </span>
+          </div>
+          <Table<HistorialProductoItem>
+            dataSource={itemsDia}
+            columns={columns}
+            rowKey="id"
+            size="small"
+            pagination={false}
+            showHeader={fechaKey === grupos[0][0]}
+          />
+        </div>
+      ))}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+        <Pagination
+          current={page}
+          pageSize={pageSize}
+          total={total}
+          onChange={(p) => setPage(p)}
+          showSizeChanger={false}
+          showTotal={(t) => `${t} registros`}
+        />
+      </div>
+    </div>
   )
 }
