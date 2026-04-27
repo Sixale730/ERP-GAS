@@ -268,7 +268,8 @@ Reportes: `useReportesVentas`, `useReportesInventario`, `useReportesFinanzas`, `
 | `/catalogos/precios-productos` | Matriz precios por producto y lista |
 | `/catalogos/documentos` | Formatos imprimibles/plantillas. La tarjeta "Entrega de Material a Revisión" es exclusiva de la org **SOLAC** (RFC `MOCD830414SL4`); otras orgs ven la sección vacía |
 | `/catalogos/documentos/entrega-revision` | Editor + vista previa PDF + descarga del formato SOLAC. Form con fecha, descripción, observaciones, firma entrega/recibe + toggle de líneas guía |
-| `/configuracion` | Ajustes generales (tipo cambio, margen, modulos) + boton Recargar con dropdown: **Recargar datos** (soft: `queryClient.clear()` + `refreshUser()`) y **Recargar sistema completo** (hard: `window.location.reload()` con confirm). El hard es la unica solucion real al leak de memoria del navegador tras horas de uso |
+| `/configuracion` | Ajustes generales (tipo cambio, margen, modulos) + boton Recargar con dropdown: **Recargar datos** (soft: `queryClient.clear()` + `refreshUser()`) y **Recargar sistema completo** (hard: `window.location.reload()` con confirm). Tarjeta de acceso a `/configuracion/sistema` para admin |
+| `/configuracion/sistema` | **Panel de Parámetros del Sistema** — 7 tabs (inventario, cotizaciones, pos, cfdi, insights, performance, ui). Cada parámetro: control según tipo (Switch/InputNumber/Input/Select/TextArea), badge "modificado" si difiere del default, popover con audit (últimas 5 modificaciones), botón restaurar default. Búsqueda fuzzy cross-tabs + filtro "solo modificados" + restaurar masivo por categoría. Solo `super_admin` y `admin_cliente` |
 | `/configuracion/usuarios` | Usuarios, roles y permisos |
 | `/configuracion/cfdi` | Config Finkok, CSD, certificados |
 | `/configuracion/admin` | Admin global (solo super_admin) |
@@ -434,6 +435,13 @@ Tipos: `inventario`, `ventas`, `cobranza`, `finanzas`, `pos`.
 |-------|-------------|
 | `erp.insights_estado` | Persistencia de dismissals por usuario |
 
+### Configuración del Sistema
+| Tabla | Descripcion |
+|-------|-------------|
+| `erp.configuracion_sistema` | Parámetros del sistema editables por admin (categoria, clave, valor JSONB, tipo, default, min/max, opciones, override_usuario). Multi-tenant por `organizacion_id`. UNIQUE `(organizacion_id, categoria, clave)` |
+| `erp.configuracion_audit` | Log automático de cambios de configuración (valor anterior/nuevo, usuario, fecha) — disparado por trigger |
+| `erp.configuracion_usuario` | Overrides personales del usuario para claves marcadas con `permite_override_usuario=true` |
+
 ## Funciones Principales (RPCs)
 
 - `erp.generar_folio(tipo VARCHAR)` → folios automaticos (`COT-`, `FAC-`, `PAG-`, etc.)
@@ -591,6 +599,7 @@ Pipeline de importacion de datos "mascotienda" (tienda de mascotas) para demo:
 - [x] Sección `/catalogos/documentos` con formatos imprimibles. Primer documento "Entrega de Material a Revisión" exclusivo de org SOLAC (editor + vista previa PDF + descarga)
 - [x] Reporte `/reportes/ordenes-venta-surtir` con asignación FIFO en cliente, agrupación colapsable por OV, OC más antigua sugerida y export Excel 2 hojas
 - [x] Responsive / móvil: header compacto con search drawer, `PageHeaderActions` + `ResponsiveListTable` + `MobileFilters` aplicados a los 6 listados principales, grids 2col en stats, tipografía ajustada y touch targets
+- [x] **Panel de Parámetros del Sistema** (`/configuracion/sistema`): tabla central `erp.configuracion_sistema` + audit + override por usuario. Hook `useConfigValue<T>(cat, clave, fallback)` con resolución usuario>org>default. Catálogo central de claves en `src/lib/config/keys.ts`. Consumidores reales: generador de OC (`objetivo_stock_default`), vigencia cotización (`vigencia_dias_default`), reporte productos sin movimiento (`dias_sin_movimiento_alerta`), AppLayout auto-clear cache (`auto_clear_cache_minutes`). Trazabilidad de insights con `regla_key` + `parametros_snapshot` + `explicacion` y drawer "¿Por qué este insight?"
 
 ### Pendiente / mejoras
 - [ ] RLS endurecido end-to-end para multi-tenant
@@ -601,4 +610,6 @@ Pipeline de importacion de datos "mascotienda" (tienda de mascotas) para demo:
 - [ ] Crear RPCs para reportes pesados (ABC, estado de resultados) que hagan agregacion en PostgreSQL
 - [ ] Virtualización de tablas grandes con `<Table virtual />`
 - [ ] Busqueda global: consolidar 6 queries en una RPC `erp.busqueda_global()`
-- [ ] **Causa raíz del slowdown tras horas de uso**: hoy hay un boton "Recargar sistema" (hard reload) como cura. Atacar la raiz con: (1) bajar `gcTime` de 30 min a 10 min en `src/lib/react-query/provider.tsx`; (2) un `setInterval` en AppLayout que haga `queryClient.clear()` cada ~30-60 min cuando no hay mutaciones pendientes; (3) auditar componentes pesados (reportes, modales) para asegurar cleanup correcto de refs y closures; (4) considerar una warning pasiva cuando `performance.memory.usedJSHeapSize` supere un umbral (solo Chrome)
+- [ ] **Causa raíz del slowdown tras horas de uso**: parcialmente mitigado vía `performance.auto_clear_cache_minutes` configurable en `/configuracion/sistema` (setInterval en AppLayout que limpia cache cuando no hay mutaciones). Pendiente atacar raíz: (1) bajar `gcTime` de 30 min a 10 min en `src/lib/react-query/provider.tsx`; (2) auditar componentes pesados (reportes, modales) para asegurar cleanup correcto de refs y closures; (3) considerar warning pasiva cuando `performance.memory.usedJSHeapSize` supere un umbral (solo Chrome)
+- [ ] Migrar las 14 reglas de insights restantes para emitir `regla_key` + `parametros_snapshot` + `explicacion` (solo `cartera-vencida` lo hace hoy)
+- [ ] Ampliar consumidores de `useConfigValue` a más hardcodes del código (POS tolerancia caja, CFDI auto-timbrar, etc.)
