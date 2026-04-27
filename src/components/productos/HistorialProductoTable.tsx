@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Table, Tag, Pagination, Empty, Skeleton, Tooltip, Typography } from 'antd'
+import { Table, Tag, Pagination, Empty, Skeleton, Tooltip, Typography, Space, Button } from 'antd'
 import {
   FileTextOutlined,
   ShoppingCartOutlined,
@@ -16,9 +16,14 @@ import {
 const { Text } = Typography
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
-import { useHistorialProducto, useHistorialProductoCount } from '@/lib/hooks/queries/useHistorialProducto'
+import {
+  useHistorialProducto,
+  useHistorialProductoCount,
+  useHistorialCountsPorTipo,
+} from '@/lib/hooks/queries/useHistorialProducto'
 import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
-import type { HistorialProductoItem } from '@/types/database'
+import { useUIStore } from '@/store/uiStore'
+import type { HistorialProductoItem, HistorialProductoTipo } from '@/types/database'
 import type { ColumnsType } from 'antd/es/table'
 
 interface Props {
@@ -217,12 +222,44 @@ function formatFechaGrupo(fecha: string): string {
   return d.format('dddd D [de] MMMM, YYYY')
 }
 
+const TIPOS_ORDEN: HistorialProductoTipo[] = ['movimiento', 'cotizacion', 'orden_venta', 'factura', 'orden_compra']
+
 export default function HistorialProductoTable({ productoId, pageSize = 10 }: Props) {
   const router = useRouter()
   const [page, setPage] = useState(1)
 
-  const { data: items = [], isLoading } = useHistorialProducto(productoId, { page, pageSize })
-  const { data: total = 0 } = useHistorialProductoCount(productoId)
+  // Filtros persistentes en uiStore (cuestan ~0 — solo localStorage, sin red ni BD)
+  const filtrosPersistidos = useUIStore((s) => s.historialFiltrosTipos) as HistorialProductoTipo[]
+  const setFiltros = useUIStore((s) => s.setHistorialFiltrosTipos)
+
+  const tiposActivos = filtrosPersistidos.length > 0 ? filtrosPersistidos : undefined
+
+  const { data: items = [], isLoading } = useHistorialProducto(
+    productoId,
+    { page, pageSize },
+    tiposActivos
+  )
+  const { data: total = 0 } = useHistorialProductoCount(productoId, tiposActivos)
+  const { data: countsPorTipo = [] } = useHistorialCountsPorTipo(productoId)
+
+  const countMap = useMemo(() => {
+    const m = new Map<HistorialProductoTipo, number>()
+    for (const c of countsPorTipo) m.set(c.tipo_documento, c.total)
+    return m
+  }, [countsPorTipo])
+
+  const totalGlobal = useMemo(
+    () => countsPorTipo.reduce((s, c) => s + c.total, 0),
+    [countsPorTipo]
+  )
+
+  const toggleTipo = (tipo: HistorialProductoTipo) => {
+    const set = new Set(filtrosPersistidos)
+    if (set.has(tipo)) set.delete(tipo)
+    else set.add(tipo)
+    setFiltros(Array.from(set))
+    setPage(1)
+  }
 
   const columns = useMemo(() => buildColumns(router), [router])
 
@@ -238,16 +275,65 @@ export default function HistorialProductoTable({ productoId, pageSize = 10 }: Pr
     return Array.from(map.entries())
   }, [items])
 
+  const filtrosActivos = filtrosPersistidos.length > 0
+
+  const renderChips = () => (
+    <div style={{ marginBottom: 12 }}>
+      <Space size={[4, 8]} wrap>
+        <Tag.CheckableTag
+          checked={!filtrosActivos}
+          onChange={() => setFiltros([])}
+        >
+          Todos {totalGlobal > 0 && `(${totalGlobal})`}
+        </Tag.CheckableTag>
+        {TIPOS_ORDEN.map((tipo) => {
+          const cfg = TIPO_CONFIG[tipo]
+          const count = countMap.get(tipo) ?? 0
+          const checked = filtrosPersistidos.includes(tipo)
+          if (count === 0) return null
+          return (
+            <Tag.CheckableTag
+              key={tipo}
+              checked={checked}
+              onChange={() => toggleTipo(tipo)}
+            >
+              <span style={{ marginInlineEnd: 4 }}>{cfg.icon}</span>
+              {cfg.label} ({count})
+            </Tag.CheckableTag>
+          )
+        })}
+        {filtrosActivos && (
+          <Button size="small" type="link" onClick={() => setFiltros([])}>
+            Quitar filtros
+          </Button>
+        )}
+      </Space>
+    </div>
+  )
+
   if (isLoading) {
-    return <Skeleton active paragraph={{ rows: 6 }} />
+    return (
+      <div>
+        {renderChips()}
+        <Skeleton active paragraph={{ rows: 6 }} />
+      </div>
+    )
   }
 
   if (items.length === 0) {
-    return <Empty description="Sin historial para este producto" />
+    return (
+      <div>
+        {renderChips()}
+        <Empty
+          description={filtrosActivos ? 'No hay eventos con los filtros aplicados' : 'Sin historial para este producto'}
+        />
+      </div>
+    )
   }
 
   return (
     <div>
+      {renderChips()}
       {grupos.map(([fechaKey, itemsDia]) => (
         <div key={fechaKey} style={{ marginBottom: 16 }}>
           <div
