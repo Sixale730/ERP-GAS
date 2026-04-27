@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin, Table, Input, Switch, List, Tag, Dropdown, Modal } from 'antd'
-import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined, AppstoreOutlined, ThunderboltOutlined, SyncOutlined, DownOutlined } from '@ant-design/icons'
+import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined, AppstoreOutlined, ThunderboltOutlined, SyncOutlined, DownOutlined, SettingOutlined, RightOutlined } from '@ant-design/icons'
+import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ColumnsType } from 'antd/es/table'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
@@ -333,6 +334,25 @@ export default function ConfiguracionPage() {
           </Button>
         </Dropdown>
       </div>
+
+      {(role === 'super_admin' || role === 'admin_cliente') && (
+        <Card style={{ marginBottom: 16, borderLeft: '4px solid #1890ff' }} hoverable>
+          <Link href="/configuracion/sistema" style={{ display: 'block' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <Space>
+                <SettingOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+                <div>
+                  <Text strong style={{ fontSize: 16, display: 'block' }}>Parametros del Sistema</Text>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    Inventario, cotizaciones, POS, CFDI, insights, rendimiento y UI. Con auditoria de cambios.
+                  </Text>
+                </div>
+              </Space>
+              <RightOutlined />
+            </div>
+          </Link>
+        </Card>
+      )}
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
