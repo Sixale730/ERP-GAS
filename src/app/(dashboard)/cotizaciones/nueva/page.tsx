@@ -13,6 +13,8 @@ import DireccionEnvioSelect from '@/components/common/DireccionEnvioSelect'
 import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
 import { registrarHistorial } from '@/lib/utils/historial'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
+import { useConfigValue } from '@/lib/hooks/queries/useConfiguracionSistema'
+import { CONFIG_KEYS } from '@/lib/config/keys'
 import { useAuth } from '@/lib/hooks/useAuth'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
 import type { CodigoMoneda } from '@/lib/config/moneda'
@@ -47,6 +49,8 @@ function NuevaCotizacionContent() {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const { orgId, erpUser } = useAuth()
+  // Vigencia por defecto al crear cotizacion. Configurable en /configuracion/sistema (cotizaciones).
+  const vigenciaDiasDefault = useConfigValue<number>('cotizaciones', CONFIG_KEYS.COTIZACIONES.VIGENCIA_DIAS_DEFAULT, 15)
   const queryParamsProcessed = useRef(false)
 
   // Configuracion global
@@ -495,7 +499,7 @@ function NuevaCotizacionContent() {
           total,
           moneda,
           tipo_cambio: moneda === 'MXN' ? tipoCambio : null,
-          vigencia_dias: 30,
+          vigencia_dias: vigenciaDiasDefault,
           notas: formValues.notas,
           // Datos CFDI
           cfdi_rfc: formValues.cfdi_rfc || null,
