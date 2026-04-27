@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { useConfiguracionSistema } from '@/lib/hooks/queries/useConfiguracionSistema'
 import { CONFIG_CATEGORIAS, type ConfigCategoria } from '@/types/configuracion-sistema'
 import { ConfigItemRow } from '@/components/configuracion/ConfigItemRow'
+import { ConfigEditor } from '@/components/configuracion/ConfigEditor'
 
 const { Title, Text } = Typography
 
@@ -84,7 +85,14 @@ export default function ConfiguracionSistemaPage() {
               }
             />
           ) : (
-            itemsCat.map((item) => <ConfigItemRow key={item.id} item={item} mode="read" />)
+            itemsCat.map((item) => (
+              <ConfigItemRow
+                key={item.id}
+                item={item}
+                mode="edit"
+                control={<ConfigEditor item={item} />}
+              />
+            ))
           )}
         </div>
       ),
@@ -117,8 +125,8 @@ export default function ConfiguracionSistemaPage() {
       <Alert
         type="info"
         showIcon
-        message="Modo lectura"
-        description="Esta vista muestra los parámetros configurados. La edición se habilitará en la siguiente actualización."
+        message="Cambios con auditoría"
+        description="Cada cambio queda registrado con tu usuario, fecha y valor anterior. Puedes ver el historial haciendo clic en el ícono ⏱ junto al nombre del parámetro."
         style={{ marginBottom: 16 }}
         closable
       />
