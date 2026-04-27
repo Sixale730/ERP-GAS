@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Card, Tabs, Input, Typography, Empty, Spin, Space, Button, Alert, Switch, Modal, message, Badge } from 'antd'
+import { Card, Tabs, Input, Typography, Empty, Spin, Space, Button, Alert, Switch, Modal, message, Badge, Divider } from 'antd'
 import { ArrowLeftOutlined, SettingOutlined, UndoOutlined } from '@ant-design/icons'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useConfiguracionSistema, useResetConfig } from '@/lib/hooks/queries/useConfiguracionSistema'
@@ -13,28 +13,111 @@ import { ConfigEditor } from '@/components/configuracion/ConfigEditor'
 
 const { Title, Text } = Typography
 
+/**
+ * Decide si una categoria debe ser visible en este panel para el usuario actual.
+ * Reglas:
+ *  - cfdi: solo super_admin (admin_cliente NO ve esta tab)
+ *  - pos: oculto para org con codigo 'SOLAC' (no usan POS)
+ *  - resto: super_admin y admin_cliente
+ */
+function puedeVerTab(
+  cat: ConfigCategoria,
+  role: string | null,
+  orgCodigo: string | null | undefined
+): boolean {
+  if (cat === 'cfdi') return role === 'super_admin'
+  if (cat === 'pos' && orgCodigo === 'SOLAC') return false
+  return role === 'super_admin' || role === 'admin_cliente'
+}
+
 export default function ConfiguracionSistemaPage() {
   const router = useRouter()
-  const { role, loading: loadingAuth } = useAuth()
+  const { role, loading: loadingAuth, organizacion } = useAuth()
   const { data: items, isLoading } = useConfiguracionSistema()
   const resetConfig = useResetConfig()
   const [search, setSearch] = useState('')
   const [soloModificados, setSoloModificados] = useState(false)
   const [activeTab, setActiveTab] = useState<ConfigCategoria>('inventario')
 
+  const orgCodigo = organizacion?.codigo ?? null
+  const categoriasVisibles = useMemo(
+    () => CONFIG_CATEGORIAS.filter((c) => puedeVerTab(c.key, role, orgCodigo)),
+    [role, orgCodigo]
+  )
+
+  // Si el tab activo deja de ser visible (por cambio de org en super_admin),
+  // saltar al primero permitido.
+  useEffect(() => {
+    if (categoriasVisibles.length === 0) return
+    if (!categoriasVisibles.some((c) => c.key === activeTab)) {
+      setActiveTab(categoriasVisibles[0].key)
+    }
+  }, [categoriasVisibles, activeTab])
+
   const isModificado = (valor: unknown, valorDefault: unknown) =>
     JSON.stringify(valor) !== JSON.stringify(valorDefault)
 
+  // Renderiza items con subgrupos solo si la categoria total tiene >5 claves
+  // Y al menos un item tiene subgrupo. De lo contrario, render plano.
+  const renderItemsAgrupados = (
+    itemsCat: typeof items extends (infer T)[] | undefined ? NonNullable<typeof items> : never,
+    catKey: ConfigCategoria
+  ) => {
+    const totalCategoria = (items ?? []).filter((i) => i.categoria === catKey).length
+    const debeAgrupar = totalCategoria > 5 && itemsCat.some((i) => i.subgrupo)
+
+    if (!debeAgrupar) {
+      return itemsCat.map((item) => (
+        <ConfigItemRow
+          key={item.id}
+          item={item}
+          mode="edit"
+          control={<ConfigEditor item={item} />}
+        />
+      ))
+    }
+
+    const grupos = new Map<string, typeof itemsCat>()
+    for (const item of itemsCat) {
+      const key = item.subgrupo || 'Otros'
+      const arr = grupos.get(key) ?? []
+      arr.push(item)
+      grupos.set(key, arr)
+    }
+    return Array.from(grupos.entries()).map(([sub, its]) => (
+      <div key={sub}>
+        <Divider orientation="left" style={{ marginTop: 16, marginBottom: 4, fontSize: 13, color: '#666' }}>
+          {sub}
+        </Divider>
+        {its.map((item) => (
+          <ConfigItemRow
+            key={item.id}
+            item={item}
+            mode="edit"
+            control={<ConfigEditor item={item} />}
+          />
+        ))}
+      </div>
+    ))
+  }
+
   const isAuthorized = role === 'super_admin' || role === 'admin_cliente'
+
+  const categoriasVisiblesKeys = useMemo(
+    () => new Set(categoriasVisibles.map((c) => c.key)),
+    [categoriasVisibles]
+  )
 
   const filteredItems = useMemo(() => {
     if (!items) return []
-    let result = items
+    // Filtrar primero por categorias visibles para el rol/org
+    let result = items.filter((i) => categoriasVisiblesKeys.has(i.categoria as ConfigCategoria))
     const q = search.trim().toLowerCase()
     if (q) {
       result = result.filter(
         (i) =>
           i.clave.toLowerCase().includes(q) ||
+          (i.etiqueta ?? '').toLowerCase().includes(q) ||
           (i.descripcion ?? '').toLowerCase().includes(q) ||
           i.categoria.toLowerCase().includes(q)
       )
@@ -43,7 +126,7 @@ export default function ConfiguracionSistemaPage() {
       result = result.filter((i) => isModificado(i.valor, i.valor_default))
     }
     return result
-  }, [items, search, soloModificados])
+  }, [items, search, soloModificados, categoriasVisiblesKeys])
 
   const handleResetCategoria = (categoria: ConfigCategoria) => {
     const itemsModificados = (items ?? []).filter(
@@ -99,7 +182,7 @@ export default function ConfiguracionSistemaPage() {
     )
   }
 
-  const tabItems = CONFIG_CATEGORIAS.map((cat) => {
+  const tabItems = categoriasVisibles.map((cat) => {
     const itemsCat = filteredItems.filter((i) => i.categoria === cat.key)
     const totalModificados = (items ?? []).filter(
       (i) => i.categoria === cat.key && isModificado(i.valor, i.valor_default)
@@ -139,14 +222,7 @@ export default function ConfiguracionSistemaPage() {
               }
             />
           ) : (
-            itemsCat.map((item) => (
-              <ConfigItemRow
-                key={item.id}
-                item={item}
-                mode="edit"
-                control={<ConfigEditor item={item} />}
-              />
-            ))
+            renderItemsAgrupados(itemsCat, cat.key)
           )}
         </div>
       ),

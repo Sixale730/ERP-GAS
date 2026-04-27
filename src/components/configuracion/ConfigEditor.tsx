@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Switch, InputNumber, Input, Select, Button, Space, Tooltip, message } from 'antd'
-import { UndoOutlined, SaveOutlined } from '@ant-design/icons'
+import { Switch, InputNumber, Input, Select, Button, Space, Tooltip, message, Modal } from 'antd'
+import { UndoOutlined, SaveOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import type { ConfigItem } from '@/types/configuracion-sistema'
 import { useSetConfig, useResetConfig } from '@/lib/hooks/queries/useConfiguracionSistema'
 
@@ -12,6 +12,14 @@ interface Props {
 
 function isModificado(valor: unknown, valorDefault: unknown): boolean {
   return JSON.stringify(valor) !== JSON.stringify(valorDefault)
+}
+
+function formatValor(v: unknown): string {
+  if (v === null || v === undefined) return '—'
+  if (typeof v === 'boolean') return v ? 'Sí' : 'No'
+  if (typeof v === 'string') return v
+  if (typeof v === 'number') return String(v)
+  return JSON.stringify(v)
 }
 
 export function ConfigEditor({ item }: Props) {
@@ -25,18 +33,44 @@ export function ConfigEditor({ item }: Props) {
 
   const dirty = JSON.stringify(localValue) !== JSON.stringify(item.valor)
 
-  const handleSave = async () => {
+  const persistir = async () => {
     try {
       await setConfig.mutateAsync({
         categoria: item.categoria,
         clave: item.clave,
         valor: localValue,
       })
-      message.success(`${item.clave} guardado`)
+      message.success(`${item.etiqueta || item.clave} guardado`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al guardar'
       message.error(msg)
     }
+  }
+
+  const handleSave = () => {
+    if (item.requiere_confirmacion) {
+      Modal.confirm({
+        title: 'Confirmar cambio sensible',
+        icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
+        content: (
+          <div>
+            <p>
+              Estás cambiando <strong>{item.etiqueta || item.clave}</strong> de{' '}
+              <code>{formatValor(item.valor)}</code> a <code>{formatValor(localValue)}</code>.
+            </p>
+            <p style={{ color: '#cf1322' }}>
+              Este parámetro afecta operación crítica del sistema. ¿Continuar?
+            </p>
+          </div>
+        ),
+        okText: 'Sí, guardar',
+        cancelText: 'Cancelar',
+        okButtonProps: { danger: true },
+        onOk: persistir,
+      })
+      return
+    }
+    persistir()
   }
 
   const handleReset = async () => {
