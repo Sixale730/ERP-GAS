@@ -24,6 +24,8 @@ import { useModulos } from '@/lib/hooks/useModulos'
 import { useUIStore } from '@/store/uiStore'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useQueryClient } from '@tanstack/react-query'
+import { useConfigValue } from '@/lib/hooks/queries/useConfiguracionSistema'
+import { CONFIG_KEYS } from '@/lib/config/keys'
 
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
@@ -65,6 +67,28 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const queryClient = useQueryClient()
   useInactivityLogout(signOut)
   const { modulosActivos } = useModulos()
+
+  // Mitigacion del leak de memoria: limpia React Query cache periodicamente.
+  // Configurable en /configuracion/sistema (performance.auto_clear_cache_minutes).
+  // 0 = deshabilitado. Solo corre si no hay mutaciones en vuelo.
+  const autoClearMinutes = useConfigValue<number>(
+    'performance',
+    CONFIG_KEYS.PERFORMANCE.AUTO_CLEAR_CACHE_MINUTES,
+    0
+  )
+  useEffect(() => {
+    if (!autoClearMinutes || autoClearMinutes <= 0) return
+    const intervalId = window.setInterval(() => {
+      const tieneMutacionesPendientes = queryClient.isMutating() > 0
+      if (tieneMutacionesPendientes) return
+      queryClient.clear()
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log(`[auto-clear-cache] React Query cache limpiada (cada ${autoClearMinutes} min)`)
+      }
+    }, autoClearMinutes * 60 * 1000)
+    return () => window.clearInterval(intervalId)
+  }, [autoClearMinutes, queryClient])
 
   // Super admin: org selector
   const selectedOrgId = useUIStore((s) => s.selectedOrgId)

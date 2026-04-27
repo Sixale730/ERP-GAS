@@ -1303,6 +1303,93 @@ export type Database = {
         }
         Returns: string
       }
+      get_configuracion_sistema: {
+        Args: {
+          p_categoria: string
+          p_clave: string
+          p_organizacion_id: string
+        }
+        Returns: unknown
+      }
+      get_configuracion_sistema_v2: {
+        Args: {
+          p_categoria: string
+          p_clave: string
+          p_organizacion_id: string
+          p_usuario_id?: string | null
+        }
+        Returns: unknown
+      }
+      set_configuracion_usuario: {
+        Args: {
+          p_categoria: string
+          p_clave: string
+          p_valor: unknown
+          p_usuario_id: string
+          p_organizacion_id: string
+        }
+        Returns: string
+      }
+      list_configuracion_sistema: {
+        Args: {
+          p_organizacion_id: string
+          p_categoria?: string | null
+        }
+        Returns: Array<{
+          id: string
+          organizacion_id: string | null
+          categoria: string
+          clave: string
+          valor: unknown
+          tipo: string
+          descripcion: string | null
+          valor_default: unknown
+          opciones: unknown
+          min_valor: number | null
+          max_valor: number | null
+          is_global: boolean
+          permite_override_usuario: boolean
+          modificado_por: string | null
+          modificado_por_nombre: string | null
+          created_at: string
+          updated_at: string
+        }>
+      }
+      set_configuracion_sistema: {
+        Args: {
+          p_categoria: string
+          p_clave: string
+          p_valor: unknown
+          p_organizacion_id: string
+          p_modificado_por?: string | null
+        }
+        Returns: string
+      }
+      reset_configuracion_sistema: {
+        Args: {
+          p_categoria: string
+          p_clave: string
+          p_organizacion_id: string
+          p_modificado_por?: string | null
+        }
+        Returns: string
+      }
+      get_audit_configuracion_sistema: {
+        Args: {
+          p_categoria: string
+          p_clave: string
+          p_organizacion_id: string
+          p_limit?: number
+        }
+        Returns: Array<{
+          id: string
+          valor_anterior: unknown
+          valor_nuevo: unknown
+          modificado_por: string | null
+          modificado_por_nombre: string | null
+          created_at: string
+        }>
+      }
     }
   }
 }

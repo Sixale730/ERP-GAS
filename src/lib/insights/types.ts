@@ -13,6 +13,8 @@ export interface InsightItem {
   id: string
   /** Key estable para dismissal tracking (ej: "punto-reorden", "cliente-volumen-uuid") */
   key: string
+  /** Key de la regla que genero el insight (ej: "cartera-vencida"). Para trazabilidad. */
+  regla_key?: string
   tipo: InsightTipo
   severidad: InsightSeveridad
   titulo: string
@@ -31,6 +33,10 @@ export interface InsightItem {
     cliente_id?: string
     almacen_id?: string
   }
+  /** Snapshot de los parametros usados al generar este insight. Para responder "por que pasó esto?" */
+  parametros_snapshot?: Record<string, unknown>
+  /** Texto humano que explica como se llego a este insight. */
+  explicacion?: string
   generado_en: string
 }
 

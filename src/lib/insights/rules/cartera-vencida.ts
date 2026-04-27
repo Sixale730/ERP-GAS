@@ -64,12 +64,20 @@ export const carteraVencidaRule: InsightRule = {
     return [{
       id: crypto.randomUUID(),
       key: 'cartera-vencida',
+      regla_key: 'cartera-vencida',
       tipo: 'cobranza',
       severidad,
       titulo: 'Cartera vencida',
       mensaje,
       metrica: { valor: totalVencido, unidad: '$' },
       accion: { label: 'Ver cartera vencida', ruta: '/reportes/cartera-vencida' },
+      parametros_snapshot: {
+        umbral_critico_mxn: umbralCritico,
+        facturas_evaluadas: rows.length,
+        facturas_vencidas: vencidas.length,
+        max_dias_atraso: maxDias,
+      },
+      explicacion: `Hay ${vencidas.length} facturas vencidas con saldo total de ${fmt(totalVencido)}. Umbral configurado para escalar a critico: ${fmt(umbralCritico)}. La factura mas antigua tiene ${maxDias} dias de atraso.`,
       generado_en: new Date().toISOString(),
     }]
   },

@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo } from 'react'
-import { Card, Tag, Button, Space, Typography, Skeleton, Badge, Tooltip } from 'antd'
+import { useMemo, useState } from 'react'
+import { Card, Tag, Button, Space, Typography, Skeleton, Badge, Tooltip, Drawer } from 'antd'
+import Link from 'next/link'
 import {
   CloseCircleOutlined,
   WarningOutlined,
@@ -9,6 +10,8 @@ import {
   BulbOutlined,
   RightOutlined,
   CloseOutlined,
+  QuestionCircleOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import { useInsights, useDismissInsight } from '@/lib/hooks/queries/useInsights'
 import type { InsightItem, InsightSeveridad } from '@/lib/insights/types'
@@ -46,7 +49,16 @@ function formatMetrica(valor: number, unidad: string): string {
 
 // ─── Componente de un insight individual ─────────────────────────────────────
 
-function InsightRow({ insight, onDismiss }: { insight: InsightItem; onDismiss: (key: string) => void }) {
+function InsightRow({
+  insight,
+  onDismiss,
+  onExplain,
+}: {
+  insight: InsightItem
+  onDismiss: (key: string) => void
+  onExplain: (i: InsightItem) => void
+}) {
+  const tieneTrazabilidad = !!(insight.explicacion || insight.parametros_snapshot)
   return (
     <div
       style={{
@@ -67,6 +79,17 @@ function InsightRow({ insight, onDismiss }: { insight: InsightItem; onDismiss: (
             {SEVERIDAD_LABEL[insight.severidad]}
           </Tag>
           <Text strong style={{ fontSize: 14 }}>{insight.titulo}</Text>
+          {tieneTrazabilidad && (
+            <Tooltip title="¿Por qué este insight?">
+              <Button
+                type="text"
+                size="small"
+                icon={<QuestionCircleOutlined />}
+                onClick={() => onExplain(insight)}
+                style={{ color: '#1890ff', padding: '0 4px' }}
+              />
+            </Tooltip>
+          )}
         </div>
         <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>
           {insight.mensaje}
@@ -95,11 +118,65 @@ function InsightRow({ insight, onDismiss }: { insight: InsightItem; onDismiss: (
   )
 }
 
+function ExplainDrawer({ insight, onClose }: { insight: InsightItem | null; onClose: () => void }) {
+  return (
+    <Drawer
+      title={insight ? `¿Por qué "${insight.titulo}"?` : 'Trazabilidad'}
+      placement="right"
+      onClose={onClose}
+      open={!!insight}
+      width={420}
+    >
+      {insight && (
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          {insight.regla_key && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Regla que generó este insight</Text>
+              <div style={{ marginTop: 4 }}>
+                <Tag color="blue">{insight.regla_key}</Tag>
+              </div>
+            </div>
+          )}
+          {insight.explicacion && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Explicación</Text>
+              <div style={{ marginTop: 4, padding: 12, background: '#fafafa', borderRadius: 4 }}>
+                <Text>{insight.explicacion}</Text>
+              </div>
+            </div>
+          )}
+          {insight.parametros_snapshot && Object.keys(insight.parametros_snapshot).length > 0 && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Parámetros usados al evaluar</Text>
+              <div style={{ marginTop: 4 }}>
+                {Object.entries(insight.parametros_snapshot).map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <Text code style={{ fontSize: 12 }}>{k}</Text>
+                    <Text strong style={{ fontSize: 12 }}>{String(v)}</Text>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <Link href="/configuracion/sistema">
+              <Button icon={<SettingOutlined />} block>
+                Ajustar parámetros del sistema
+              </Button>
+            </Link>
+          </div>
+        </Space>
+      )}
+    </Drawer>
+  )
+}
+
 // ─── Panel principal ─────────────────────────────────────────────────────────
 
 export default function InsightsPanel() {
   const { data: insights, isLoading, total } = useInsights()
   const dismissMutation = useDismissInsight()
+  const [explainItem, setExplainItem] = useState<InsightItem | null>(null)
 
   const visibles = useMemo(() => insights.slice(0, 5), [insights])
 
@@ -148,8 +225,14 @@ export default function InsightsPanel() {
       styles={{ body: { paddingTop: 0, paddingBottom: 0 } }}
     >
       {visibles.map((insight) => (
-        <InsightRow key={insight.id} insight={insight} onDismiss={handleDismiss} />
+        <InsightRow
+          key={insight.id}
+          insight={insight}
+          onDismiss={handleDismiss}
+          onExplain={setExplainItem}
+        />
       ))}
+      <ExplainDrawer insight={explainItem} onClose={() => setExplainItem(null)} />
     </Card>
   )
 }

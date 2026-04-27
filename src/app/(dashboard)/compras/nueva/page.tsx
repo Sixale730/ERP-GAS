@@ -31,6 +31,8 @@ import { registrarHistorial } from '@/lib/utils/historial'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
+import { useConfigValue } from '@/lib/hooks/queries/useConfiguracionSistema'
+import { CONFIG_KEYS } from '@/lib/config/keys'
 import UsuarioComprasSelect from '@/components/common/UsuarioComprasSelect'
 import type { Proveedor, Almacen, Producto } from '@/types/database'
 
@@ -62,6 +64,9 @@ function NuevaOrdenCompraContent() {
   const { getMargenParaCategoria, loading: loadingMargenes } = useMargenesCategoria()
   const { tipoCambio } = useConfiguracion()
   const { orgId, erpUser } = useAuth()
+  // Objetivo de stock por defecto cuando un producto no tiene stock_maximo definido.
+  // Configurable desde /configuracion/sistema (categoria=inventario).
+  const objetivoStockDefault = useConfigValue<number>('inventario', CONFIG_KEYS.INVENTARIO.OBJETIVO_STOCK_DEFAULT, 20)
 
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
@@ -114,7 +119,7 @@ function NuevaOrdenCompraContent() {
             const fisico = Number(p.stock_total || 0)
             const transito = Number(p.en_transito_total || 0)
             const maximo = Number(p.stock_maximo || 0)
-            const objetivo = maximo > 0 ? maximo : 20
+            const objetivo = maximo > 0 ? maximo : objetivoStockDefault
             const proyectado = fisico + transito
             const faltante = objetivo - proyectado
             return { p, faltante, proyectado, objetivo }
@@ -122,8 +127,8 @@ function NuevaOrdenCompraContent() {
           .filter(({ p, proyectado }) => {
             const minimo = Number(p.stock_minimo || 0)
             if (minimo > 0) return proyectado <= minimo
-            // Sin stock_minimo: basta con estar bajo el objetivo (antes exigia < 10 extra, ocultando productos en rango 10-19)
-            return proyectado < (Number(p.stock_maximo) > 0 ? Number(p.stock_maximo) : 20)
+            // Sin stock_minimo: basta con estar bajo el objetivo configurable (default 20)
+            return proyectado < (Number(p.stock_maximo) > 0 ? Number(p.stock_maximo) : objetivoStockDefault)
           })
           .filter(({ faltante }) => faltante > 0)
           // Filtro por proveedor principal cuando el usuario ya selecciono uno en el form
