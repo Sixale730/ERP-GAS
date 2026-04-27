@@ -1,14 +1,19 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Table, Tag, Pagination, Empty, Skeleton } from 'antd'
+import { Table, Tag, Pagination, Empty, Skeleton, Tooltip, Typography } from 'antd'
 import {
   FileTextOutlined,
   ShoppingCartOutlined,
   AuditOutlined,
   ShoppingOutlined,
   SwapOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons'
+
+const { Text } = Typography
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
 import { useHistorialProducto, useHistorialProductoCount } from '@/lib/hooks/queries/useHistorialProducto'
@@ -119,12 +124,64 @@ function buildColumns(router: ReturnType<typeof useRouter>): ColumnsType<Histori
       render: (val: string | null) => val || '-',
     },
     {
-      title: 'Cantidad',
+      title: (
+        <Tooltip title="Cantidad indicada en el documento. No siempre representa piezas movidas: una cotización con cantidad 5 no movió stock, solo es propuesta.">
+          <span>Cant. doc <QuestionCircleOutlined style={{ color: '#bfbfbf', fontSize: 11 }} /></span>
+        </Tooltip>
+      ),
       dataIndex: 'cantidad',
       key: 'cantidad',
-      width: 90,
+      width: 95,
       align: 'right',
-      render: (val: number) => val,
+      render: (val: number, record: HistorialProductoItem) => (
+        <Text type={record.afecta_stock ? undefined : 'secondary'}>{val}</Text>
+      ),
+    },
+    {
+      title: (
+        <Tooltip title="Solo eventos que realmente entraron o salieron piezas del almacén. Cotizaciones, OVs y facturas pendientes no afectan stock todavía.">
+          <span>Cambió stock <QuestionCircleOutlined style={{ color: '#bfbfbf', fontSize: 11 }} /></span>
+        </Tooltip>
+      ),
+      key: 'delta_stock',
+      width: 110,
+      align: 'right',
+      render: (_: unknown, record: HistorialProductoItem) => {
+        if (!record.afecta_stock || record.delta_stock == null) {
+          return <Text type="secondary">—</Text>
+        }
+        const positivo = record.delta_stock > 0
+        return (
+          <Tag
+            color={positivo ? 'green' : 'red'}
+            icon={positivo ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+            style={{ marginInlineEnd: 0, fontWeight: 500 }}
+          >
+            {positivo ? '+' : ''}{record.delta_stock}
+          </Tag>
+        )
+      },
+    },
+    {
+      title: (
+        <Tooltip title="Stock físico real justo después de este movimiento. Anclado al stock observable hoy.">
+          <span>Stock después <QuestionCircleOutlined style={{ color: '#bfbfbf', fontSize: 11 }} /></span>
+        </Tooltip>
+      ),
+      key: 'stock_despues',
+      width: 110,
+      align: 'right',
+      render: (_: unknown, record: HistorialProductoItem) => {
+        if (!record.afecta_stock || record.stock_despues == null) {
+          return <Text type="secondary">—</Text>
+        }
+        const negativo = record.stock_despues < 0
+        return (
+          <Text strong style={{ color: negativo ? '#cf1322' : undefined }}>
+            {record.stock_despues}
+          </Text>
+        )
+      },
     },
     {
       title: 'Monto',
