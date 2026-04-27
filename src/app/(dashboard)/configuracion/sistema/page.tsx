@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Card, Tabs, Input, Typography, Empty, Spin, Space, Button, Alert, Switch, Modal, message, Badge } from 'antd'
+import { Card, Tabs, Input, Typography, Empty, Spin, Space, Button, Alert, Switch, Modal, message, Badge, Divider } from 'antd'
 import { ArrowLeftOutlined, SettingOutlined, UndoOutlined } from '@ant-design/icons'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useConfiguracionSistema, useResetConfig } from '@/lib/hooks/queries/useConfiguracionSistema'
@@ -24,6 +24,50 @@ export default function ConfiguracionSistemaPage() {
 
   const isModificado = (valor: unknown, valorDefault: unknown) =>
     JSON.stringify(valor) !== JSON.stringify(valorDefault)
+
+  // Renderiza items con subgrupos solo si la categoria total tiene >5 claves
+  // Y al menos un item tiene subgrupo. De lo contrario, render plano.
+  const renderItemsAgrupados = (
+    itemsCat: typeof items extends (infer T)[] | undefined ? NonNullable<typeof items> : never,
+    catKey: ConfigCategoria
+  ) => {
+    const totalCategoria = (items ?? []).filter((i) => i.categoria === catKey).length
+    const debeAgrupar = totalCategoria > 5 && itemsCat.some((i) => i.subgrupo)
+
+    if (!debeAgrupar) {
+      return itemsCat.map((item) => (
+        <ConfigItemRow
+          key={item.id}
+          item={item}
+          mode="edit"
+          control={<ConfigEditor item={item} />}
+        />
+      ))
+    }
+
+    const grupos = new Map<string, typeof itemsCat>()
+    for (const item of itemsCat) {
+      const key = item.subgrupo || 'Otros'
+      const arr = grupos.get(key) ?? []
+      arr.push(item)
+      grupos.set(key, arr)
+    }
+    return Array.from(grupos.entries()).map(([sub, its]) => (
+      <div key={sub}>
+        <Divider orientation="left" style={{ marginTop: 16, marginBottom: 4, fontSize: 13, color: '#666' }}>
+          {sub}
+        </Divider>
+        {its.map((item) => (
+          <ConfigItemRow
+            key={item.id}
+            item={item}
+            mode="edit"
+            control={<ConfigEditor item={item} />}
+          />
+        ))}
+      </div>
+    ))
+  }
 
   const isAuthorized = role === 'super_admin' || role === 'admin_cliente'
 
@@ -139,14 +183,7 @@ export default function ConfiguracionSistemaPage() {
               }
             />
           ) : (
-            itemsCat.map((item) => (
-              <ConfigItemRow
-                key={item.id}
-                item={item}
-                mode="edit"
-                control={<ConfigEditor item={item} />}
-              />
-            ))
+            renderItemsAgrupados(itemsCat, cat.key)
           )}
         </div>
       ),
