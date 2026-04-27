@@ -1457,10 +1457,12 @@ export interface ConfigMargenesCategoria {
 }
 
 // Historial unificado del producto (RPC)
+export type HistorialProductoTipo = 'cotizacion' | 'orden_venta' | 'factura' | 'orden_compra' | 'movimiento'
+
 export interface HistorialProductoItem {
   id: string
   fecha: string
-  tipo_documento: 'cotizacion' | 'orden_venta' | 'factura' | 'orden_compra' | 'movimiento'
+  tipo_documento: HistorialProductoTipo
   documento_id: string
   folio: string | null
   entidad_nombre: string | null
@@ -1469,4 +1471,15 @@ export interface HistorialProductoItem {
   status: string | null
   moneda: string | null
   notas: string | null
+  /** v2: para movimientos, el delta firmado (+entrada / -salida). NULL para documentos. */
+  delta_stock: number | null
+  /** v2: saldo fisico real despues de este evento. NULL para documentos. */
+  stock_despues: number | null
+  /** v2: true solo si este evento realmente movio piezas en almacen. */
+  afecta_stock: boolean
+}
+
+export interface HistorialProductoCount {
+  tipo_documento: HistorialProductoTipo
+  total: number
 }

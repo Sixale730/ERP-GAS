@@ -33,6 +33,11 @@ interface UIState {
   // Reportes favoritos
   reporteFavoritos: string[]
   toggleReporteFavorito: (key: string) => void
+
+  // Filtros del historial de producto (persistente, aplica a todos los productos)
+  // [] = "Todos los tipos" (sin filtro). Si el array tiene elementos, son los tipos visibles.
+  historialFiltrosTipos: string[]
+  setHistorialFiltrosTipos: (tipos: string[]) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -91,6 +96,10 @@ export const useUIStore = create<UIState>()(
           set({ reporteFavoritos: [...current, key].slice(0, 15) })
         }
       },
+
+      // Filtros del historial de producto
+      historialFiltrosTipos: [],
+      setHistorialFiltrosTipos: (tipos) => set({ historialFiltrosTipos: tipos }),
     }),
     {
       name: 'cuanty-ui-storage',
@@ -100,6 +109,7 @@ export const useUIStore = create<UIState>()(
         tablePageSize: state.tablePageSize,
         selectedOrgId: state.selectedOrgId,
         reporteFavoritos: state.reporteFavoritos,
+        historialFiltrosTipos: state.historialFiltrosTipos,
         // No persistir pageFilters para evitar datos obsoletos
       }),
     }
