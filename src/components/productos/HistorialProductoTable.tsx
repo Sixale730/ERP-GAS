@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Table, Tag, Pagination, Empty, Skeleton, Tooltip, Typography, Space, Button } from 'antd'
+import { Table, Tag, Pagination, Empty, Skeleton, Tooltip, Typography, Space, Button, Grid, List } from 'antd'
 import {
   FileTextOutlined,
   ShoppingCartOutlined,
@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons'
 
 const { Text } = Typography
+const { useBreakpoint } = Grid
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
 import {
@@ -226,6 +227,8 @@ const TIPOS_ORDEN: HistorialProductoTipo[] = ['movimiento', 'cotizacion', 'orden
 
 export default function HistorialProductoTable({ productoId, pageSize = 10 }: Props) {
   const router = useRouter()
+  const screens = useBreakpoint()
+  const isMobile = !screens.sm
   const [page, setPage] = useState(1)
 
   // Filtros persistentes en uiStore (cuestan ~0 — solo localStorage, sin red ni BD)
@@ -333,6 +336,10 @@ export default function HistorialProductoTable({ productoId, pageSize = 10 }: Pr
 
   return (
     <div>
+      <style jsx global>{`
+        .historial-row-doc > td { background: #fafafa !important; }
+        .historial-row-stock > td { background: #fff !important; }
+      `}</style>
       {renderChips()}
       {grupos.map(([fechaKey, itemsDia]) => (
         <div key={fechaKey} style={{ marginBottom: 16 }}>
@@ -353,14 +360,70 @@ export default function HistorialProductoTable({ productoId, pageSize = 10 }: Pr
               · {itemsDia.length} {itemsDia.length === 1 ? 'evento' : 'eventos'}
             </span>
           </div>
-          <Table<HistorialProductoItem>
-            dataSource={itemsDia}
-            columns={columns}
-            rowKey="id"
-            size="small"
-            pagination={false}
-            showHeader={fechaKey === grupos[0][0]}
-          />
+          {isMobile ? (
+            <List
+              dataSource={itemsDia}
+              renderItem={(item) => {
+                const cfg = TIPO_CONFIG[item.tipo_documento]
+                const route = getFolioRoute(item.tipo_documento, item.documento_id)
+                return (
+                  <List.Item
+                    style={{
+                      padding: 12,
+                      background: item.afecta_stock ? '#fff' : '#fafafa',
+                      borderBottom: '1px solid #f0f0f0',
+                      cursor: route ? 'pointer' : 'default',
+                    }}
+                    onClick={() => route && router.push(route)}
+                  >
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Tag color={cfg.color} icon={cfg.icon}>{cfg.label}</Tag>
+                        <Text style={{ fontSize: 11, color: '#999' }}>{dayjs(item.fecha).format('HH:mm')}</Text>
+                      </div>
+                      {item.folio && <div style={{ fontSize: 13, fontWeight: 500 }}>{item.folio}</div>}
+                      {item.entidad_nombre && <div style={{ fontSize: 12, color: '#666' }}>{item.entidad_nombre}</div>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                        {item.afecta_stock && item.delta_stock != null ? (
+                          <Tag
+                            color={item.delta_stock > 0 ? 'green' : 'red'}
+                            icon={item.delta_stock > 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                            style={{ marginInlineEnd: 0 }}
+                          >
+                            {item.delta_stock > 0 ? '+' : ''}{item.delta_stock} · stock {item.stock_despues}
+                          </Tag>
+                        ) : (
+                          <Text type="secondary" style={{ fontSize: 12 }}>Cant. doc: {item.cantidad}</Text>
+                        )}
+                        {item.monto != null && (
+                          <Text style={{ fontSize: 12 }}>
+                            {item.moneda === 'MXN' ? formatMoneyMXN(item.monto) : formatMoneyUSD(item.monto)}
+                          </Text>
+                        )}
+                      </div>
+                      {item.status && (
+                        <div style={{ marginTop: 4 }}>
+                          <Tag color={STATUS_COLOR_MAP[item.status] || 'default'} style={{ fontSize: 11 }}>
+                            {item.status.replace(/_/g, ' ')}
+                          </Tag>
+                        </div>
+                      )}
+                    </div>
+                  </List.Item>
+                )
+              }}
+            />
+          ) : (
+            <Table<HistorialProductoItem>
+              dataSource={itemsDia}
+              columns={columns}
+              rowKey="id"
+              size="small"
+              pagination={false}
+              showHeader={fechaKey === grupos[0][0]}
+              rowClassName={(record) => (record.afecta_stock ? 'historial-row-stock' : 'historial-row-doc')}
+            />
+          )}
         </div>
       ))}
 
