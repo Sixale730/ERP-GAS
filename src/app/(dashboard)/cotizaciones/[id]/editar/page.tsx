@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin, Alert, Collapse, Segmented
+  Card, Form, Select, Button, Table, InputNumber, Input, Space, Typography, message, Divider, Row, Col, AutoComplete, Tooltip, Spin, Collapse, Segmented
 } from 'antd'
 import { DeleteOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, UserOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
@@ -16,6 +16,7 @@ import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SA
 import DireccionEnvioSelect from '@/components/common/DireccionEnvioSelect'
 import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
 import VendedorSelect from '@/components/common/VendedorSelect'
+import AlertaStockInsuficiente from '@/components/cotizaciones/AlertaStockInsuficiente'
 import type { Cliente, Almacen, ListaPrecio } from '@/types/database'
 
 const { Title, Text } = Typography
@@ -119,6 +120,7 @@ export default function EditarCotizacionPage() {
 
   // Inventario del almacén para alertas de stock
   const [inventarioMap, setInventarioMap] = useState<Map<string, number>>(new Map())
+  const [transitoMap, setTransitoMap] = useState<Map<string, number>>(new Map())
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(true)
 
   // Product search
@@ -154,10 +156,11 @@ export default function EditarCotizacionPage() {
       const { data } = await supabase
         .schema('erp')
         .from('v_inventario_detalle')
-        .select('producto_id, cantidad, cantidad_reservada')
+        .select('producto_id, cantidad, cantidad_reservada, en_transito')
         .eq('almacen_id', almId)
 
       setInventarioMap(new Map(data?.map((i: any) => [i.producto_id, Number(i.cantidad || 0) - Number(i.cantidad_reservada || 0)]) || []))
+      setTransitoMap(new Map(data?.map((i: any) => [i.producto_id, Number(i.en_transito || 0)]) || []))
       setMostrarAlertaStock(true)
     } catch (error) {
       console.error('Error loading inventario:', error)
@@ -639,6 +642,29 @@ export default function EditarCotizacionPage() {
     }
   }
 
+  const productosSinStock = useMemo(() =>
+    items
+      .filter(item => {
+        const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
+        return stockDisponible < item.cantidad
+      })
+      .map(item => ({
+        key: item.key,
+        producto_id: item.producto_id,
+        sku: item.sku,
+        nombre: item.producto_nombre,
+        solicitado: item.cantidad,
+        disponible: inventarioMap.get(item.producto_id) ?? 0,
+        en_transito: transitoMap.get(item.producto_id) ?? 0,
+      })),
+    [items, inventarioMap, transitoMap]
+  )
+
+  const idsSinStock = useMemo(
+    () => new Set(productosSinStock.map(p => p.producto_id)),
+    [productosSinStock]
+  )
+
   const columns = useMemo(() => [
     {
       title: 'SKU',
@@ -706,15 +732,39 @@ export default function EditarCotizacionPage() {
       title: 'Cant.',
       dataIndex: 'cantidad',
       width: 70,
-      render: (val: number, record: CotizacionItem) => (
-        <InputNumber
-          min={1}
-          value={val}
-          onChange={(v) => handleUpdateItem(record.key, 'cantidad', v || 1)}
-          style={{ width: '100%' }}
-          size="small"
-        />
-      ),
+      render: (val: number, record: CotizacionItem) => {
+        const enConflicto = idsSinStock.has(record.producto_id)
+        const disponible = inventarioMap.get(record.producto_id) ?? 0
+        const faltan = Math.max(val - disponible, 0)
+        return (
+          <div style={{ position: 'relative' }}>
+            <InputNumber
+              min={1}
+              value={val}
+              onChange={(v) => handleUpdateItem(record.key, 'cantidad', v || 1)}
+              style={{ width: '100%' }}
+              size="small"
+              status={enConflicto ? 'error' : undefined}
+            />
+            {enConflicto && (
+              <Tooltip title={`Faltan ${faltan} pzs (disponible ${disponible})`}>
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: '#cf1322',
+                    pointerEvents: 'auto',
+                  }}
+                />
+              </Tooltip>
+            )}
+          </div>
+        )
+      },
     },
     {
       title: (
@@ -750,7 +800,7 @@ export default function EditarCotizacionPage() {
         <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleRemoveItem(record.key)} size="small" />
       ),
     },
-  ], [handleUpdateItem, handleRemoveItem])
+  ], [handleUpdateItem, handleRemoveItem, idsSinStock, inventarioMap])
 
   if (loading) {
     return (
@@ -996,33 +1046,13 @@ export default function EditarCotizacionPage() {
               />
 
               {/* Alerta de productos sin stock */}
-              {mostrarAlertaStock && almacenId && items.length > 0 && (() => {
-                const productosSinStock = items.filter(item => {
-                  const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
-                  return stockDisponible < item.cantidad
-                })
-                if (productosSinStock.length === 0) return null
-                return (
-                  <Alert
-                    type="warning"
-                    closable
-                    onClose={() => setMostrarAlertaStock(false)}
-                    message="Productos sin disponible para venta"
-                    description={
-                      <ul style={{ margin: 0, paddingLeft: 20 }}>
-                        {productosSinStock.map(p => {
-                          const stock = inventarioMap.get(p.producto_id) ?? 0
-                          return (
-                            <li key={p.key}>
-                              <strong>{p.sku}</strong>: Disp. para venta {stock}, Solicitado {p.cantidad}
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    }
-                  />
-                )
-              })()}
+              {mostrarAlertaStock && almacenId && productosSinStock.length > 0 && (
+                <AlertaStockInsuficiente
+                  items={productosSinStock}
+                  tipo="warning"
+                  onClose={() => setMostrarAlertaStock(false)}
+                />
+              )}
 
               <Table
                 dataSource={items}

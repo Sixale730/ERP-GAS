@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
-  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Alert, Collapse, Input
+  Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Collapse, Input
 } from 'antd'
 import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, HistoryOutlined, LinkOutlined } from '@ant-design/icons'
 import { getSupabaseClient } from '@/lib/supabase/client'
@@ -12,6 +12,7 @@ import { getFormaPagoLabel, getMetodoPagoLabel, getRegimenFiscalLabel, getUsoCfd
 import dayjs from 'dayjs'
 import { generarPDFCotizacion, type OpcionesMoneda } from '@/lib/utils/pdf'
 import HistorialTimeline from '@/components/common/HistorialTimeline'
+import AlertaStockInsuficiente from '@/components/cotizaciones/AlertaStockInsuficiente'
 import { useAuth } from '@/lib/hooks/useAuth'
 import type { CodigoMoneda } from '@/lib/config/moneda'
 
@@ -112,6 +113,7 @@ export default function CotizacionDetallePage() {
   const [cotizacion, setCotizacion] = useState<CotizacionDetalle | null>(null)
   const [items, setItems] = useState<CotizacionItem[]>([])
   const [inventarioMap, setInventarioMap] = useState<Map<string, number>>(new Map())
+  const [transitoMap, setTransitoMap] = useState<Map<string, number>>(new Map())
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(true)
   // OVs generadas desde esta cotización
   const [ovsGeneradas, setOvsGeneradas] = useState<{id: string, folio: string, status: string, total: number, fecha: string}[]>([])
@@ -267,10 +269,11 @@ export default function CotizacionDetallePage() {
       const { data } = await supabase
         .schema('erp')
         .from('v_inventario_detalle')
-        .select('producto_id, cantidad, cantidad_reservada')
+        .select('producto_id, cantidad, cantidad_reservada, en_transito')
         .eq('almacen_id', almId)
 
       setInventarioMap(new Map(data?.map((i: any) => [i.producto_id, Number(i.cantidad || 0) - Number(i.cantidad_reservada || 0)]) || []))
+      setTransitoMap(new Map(data?.map((i: any) => [i.producto_id, Number(i.en_transito || 0)]) || []))
       setMostrarAlertaStock(true)
     } catch (error) {
       console.error('Error loading inventario:', error)
@@ -851,31 +854,28 @@ export default function CotizacionDetallePage() {
           />
 
           {/* Alerta de stock insuficiente - solo en propuesta */}
-          {mostrarAlertaStock && cotizacion.status === 'propuesta' && items.length > 0 && (() => {
-            const productosSinStock = items.filter(item => {
-              if (item.es_servicio) return false
-              const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
-              return stockDisponible < item.cantidad
-            })
-            if (productosSinStock.length === 0) return null
+          {mostrarAlertaStock && cotizacion.status === 'propuesta' && (() => {
+            const itemsSinStock = items
+              .filter(item => {
+                if (item.es_servicio) return false
+                const stockDisponible = inventarioMap.get(item.producto_id) ?? 0
+                return stockDisponible < item.cantidad
+              })
+              .map(item => ({
+                key: item.id,
+                producto_id: item.producto_id,
+                sku: item.sku || '',
+                nombre: item.descripcion || '',
+                solicitado: item.cantidad,
+                disponible: inventarioMap.get(item.producto_id) ?? 0,
+                en_transito: transitoMap.get(item.producto_id) ?? 0,
+              }))
             return (
-              <Alert
-                type="info"
-                closable
+              <AlertaStockInsuficiente
+                items={itemsSinStock}
+                tipo="info"
+                messageSuffix="se requerirá orden de compra"
                 onClose={() => setMostrarAlertaStock(false)}
-                message="Productos sin disponible para venta — se requerirá orden de compra"
-                description={
-                  <ul style={{ margin: 0, paddingLeft: 20 }}>
-                    {productosSinStock.map(p => {
-                      const stock = inventarioMap.get(p.producto_id) ?? 0
-                      return (
-                        <li key={p.id}>
-                          <strong>{p.sku}</strong>: Disp. para venta {stock}, Solicitado {p.cantidad}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                }
                 style={{ marginBottom: 16 }}
               />
             )
