@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card,
@@ -27,7 +27,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import DireccionEnvioSelect from '@/components/common/DireccionEnvioSelect'
-import { formatMoney } from '@/lib/utils/format'
+import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { registrarHistorial } from '@/lib/utils/historial'
 import { TIPO_CAMBIO_DEFAULT, type CodigoMoneda } from '@/lib/config/moneda'
@@ -95,6 +95,11 @@ export default function EditarFacturaPage() {
   const [moneda, setMoneda] = useState<CodigoMoneda>('USD')
   const [tipoCambio, setTipoCambio] = useState<number | null>(null)
   const [direccionEnvioId, setDireccionEnvioId] = useState<string | null>(null)
+
+  const formatMoney = useCallback(
+    (amount: number) => moneda === 'USD' ? formatMoneyUSD(amount) : formatMoneyMXN(amount),
+    [moneda]
+  )
 
   useEffect(() => {
     if (id) {
@@ -415,7 +420,7 @@ export default function EditarFacturaPage() {
       ),
     },
     {
-      title: 'Precio Unit.',
+      title: `Precio ${moneda}`,
       dataIndex: 'precio_unitario',
       key: 'precio_unitario',
       width: 140,
@@ -448,7 +453,7 @@ export default function EditarFacturaPage() {
       ),
     },
     {
-      title: 'Subtotal',
+      title: `Subtotal ${moneda}`,
       dataIndex: 'subtotal',
       key: 'subtotal',
       width: 130,
@@ -468,7 +473,7 @@ export default function EditarFacturaPage() {
         />
       ),
     },
-  ], [handleItemChange, handleRemoveItem])
+  ], [handleItemChange, handleRemoveItem, formatMoney, moneda])
 
   if (loading) {
     return (
@@ -651,6 +656,7 @@ export default function EditarFacturaPage() {
                 title="Subtotal"
                 value={subtotal}
                 prefix="$"
+                suffix={` ${moneda}`}
                 precision={2}
               />
               {descuentoMonto > 0 && (
@@ -658,6 +664,7 @@ export default function EditarFacturaPage() {
                   title={`Descuento (${descuentoPorcentaje}%)`}
                   value={descuentoMonto}
                   prefix="-$"
+                  suffix={` ${moneda}`}
                   precision={2}
                   valueStyle={{ color: '#52c41a' }}
                 />
@@ -666,6 +673,7 @@ export default function EditarFacturaPage() {
                 title="IVA (16%)"
                 value={iva}
                 prefix="$"
+                suffix={` ${moneda}`}
                 precision={2}
               />
               <Divider style={{ margin: '8px 0' }} />
@@ -673,6 +681,7 @@ export default function EditarFacturaPage() {
                 title="Total"
                 value={total}
                 prefix="$"
+                suffix={` ${moneda}`}
                 precision={2}
                 valueStyle={{ color: '#1890ff', fontSize: 28 }}
               />

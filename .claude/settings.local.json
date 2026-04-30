@@ -60,7 +60,8 @@
       "Bash(xargs -I {} basename {} .ts)",
       "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -5 {}')",
       "Bash(npx eslint *)",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "Bash(echo \"exit=$?\")"
     ]
   },
   "enableAllProjectMcpServers": true,
