@@ -54,15 +54,15 @@ async function precargarCache(
   if (tieneInventario) {
     queries.push((async () => {
       const { data } = await supabase.schema('erp').from('v_productos_stock')
-        .select('id, sku, nombre, stock_total, punto_reorden, costo_promedio, categoria_id')
+        .select('id, sku, nombre, stock_total, stock_minimo, costo_promedio, categoria_id')
         .limit(5000)
       cache.productosStock = data || []
     })())
 
     queries.push((async () => {
       const { data } = await supabase.schema('erp').from('v_movimientos')
-        .select('producto_id, tipo, cantidad, fecha')
-        .gte('fecha', fecha90d)
+        .select('producto_id, tipo, cantidad, created_at')
+        .gte('created_at', fecha90dISO)
         .limit(10000)
       cache.movimientos90d = data || []
     })())

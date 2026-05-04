@@ -53,9 +53,9 @@ export interface InsightSharedCache {
   /** ventas_pos de los últimos 90 días (completadas) */
   ventasPOS90d?: { id: string; total: number; created_at: string; metodo_pago: string; cliente_id?: string; cliente_nombre?: string }[]
   /** v_productos_stock */
-  productosStock?: { id: string; sku: string; nombre: string; stock_total: number; punto_reorden: number; costo_promedio: number; categoria_id: string }[]
+  productosStock?: { id: string; sku: string; nombre: string; stock_total: number; stock_minimo: number; costo_promedio: number; categoria_id: string }[]
   /** v_movimientos últimos 90 días */
-  movimientos90d?: { producto_id: string; tipo: string; cantidad: number; fecha: string }[]
+  movimientos90d?: { producto_id: string; tipo: string; cantidad: number; created_at: string }[]
 }
 
 export interface InsightContext {

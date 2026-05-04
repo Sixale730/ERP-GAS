@@ -2,7 +2,7 @@ import type { InsightRule, InsightItem, InsightContext } from '../types'
 
 interface InvRow { producto_id: string; sku: string; producto_nombre: string; almacen_nombre: string; cantidad: number }
 interface ProdRow { id: string; costo_promedio: number }
-interface MovRow { producto_id: string; fecha: string }
+interface MovRow { producto_id: string; created_at: string }
 
 export const capitalRetenidoRule: InsightRule = {
   key: 'capital-retenido',
@@ -38,16 +38,16 @@ export const capitalRetenidoRule: InsightRule = {
     const { data: movimientos } = await supabase
       .schema('erp')
       .from('v_movimientos')
-      .select('producto_id, fecha')
+      .select('producto_id, created_at')
       .eq('organizacion_id', orgId)
       .eq('tipo', 'salida')
-      .order('fecha', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1000)
 
     const ultimoMovMap = new Map<string, string>()
     for (const m of (movimientos || []) as MovRow[]) {
       if (!ultimoMovMap.has(m.producto_id)) {
-        ultimoMovMap.set(m.producto_id, m.fecha)
+        ultimoMovMap.set(m.producto_id, m.created_at)
       }
     }
 

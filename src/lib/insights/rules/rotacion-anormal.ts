@@ -36,7 +36,7 @@ export const rotacionAnormalRule: InsightRule = {
     const { data: movData } = await supabase
       .schema('erp').from('v_movimientos').select('producto_id, cantidad')
       .eq('organizacion_id', orgId).eq('tipo', 'salida')
-      .gte('fecha', hace90.toISOString().split('T')[0])
+      .gte('created_at', hace90.toISOString())
 
     const salidasMap = new Map<string, number>()
     for (const m of (movData || []) as MovRow[]) {
