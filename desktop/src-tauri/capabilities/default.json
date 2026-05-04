@@ -3,11 +3,15 @@
   "identifier": "default",
   "description": "Permisos del wrapper CUANTY ERP",
   "windows": ["main"],
+  "remote": {
+    "urls": ["https://cuanty.cloud/*", "https://*.cuanty.cloud/*"]
+  },
   "permissions": [
     "core:default",
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-is-registered",
-    "opener:default"
+    "opener:default",
+    "opener:allow-open-url"
   ]
 }
