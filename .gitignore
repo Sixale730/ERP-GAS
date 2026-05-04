@@ -34,3 +34,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# desktop wrapper Tauri (vive en rama feat/desktop-tauri, no se trackea en master)
+/desktop/
+
+# paquetes locales de uso unico (assets para subir a Claude web)
+/solac-assets/
+/solac-assets.zip
