@@ -10,10 +10,9 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 
 const { Title } = Typography
-const { RangePicker } = DatePicker
-
 export default function ReporteComprasProveedorPage() {
   const router = useRouter()
   const { organizacion } = useAuth()
@@ -84,7 +83,7 @@ export default function ReporteComprasProveedorPage() {
         <Col xs={24} sm={8}><Card><Statistic title="Total Ordenes" value={stats.numOrdenes} valueStyle={{ color: '#722ed1' }} /></Card></Col>
       </Row>
       <Card>
-        <Space style={{ marginBottom: 16 }}><RangePicker value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" /></Space>
+        <Space style={{ marginBottom: 16 }}><RangePickerConPresets value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" /></Space>
         <Table dataSource={proveedores} columns={columns} rowKey="proveedor_id" scroll={{ x: 900 }} pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} proveedores` }} />
       </Card>
     </div>

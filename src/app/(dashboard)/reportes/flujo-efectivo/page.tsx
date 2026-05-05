@@ -10,10 +10,9 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 
 const { Title, Text } = Typography
-const { RangePicker } = DatePicker
-
 export default function ReporteFlujoEfectivoPage() {
   const router = useRouter()
   const { organizacion } = useAuth()
@@ -78,7 +77,7 @@ export default function ReporteFlujoEfectivoPage() {
         <Col xs={24} sm={8}><Card><Statistic title="Flujo Neto" value={stats.neto} precision={2} prefix={stats.neto >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} valueStyle={{ color: stats.neto >= 0 ? '#52c41a' : '#f5222d' }} /></Card></Col>
       </Row>
       <Card>
-        <Space style={{ marginBottom: 16 }}><RangePicker value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" /></Space>
+        <Space style={{ marginBottom: 16 }}><RangePickerConPresets value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" /></Space>
         <Table dataSource={rows} columns={columns} rowKey="periodo" pagination={false} scroll={{ x: 700 }} locale={{ emptyText: 'No hay datos en el periodo' }} />
       </Card>
     </div>

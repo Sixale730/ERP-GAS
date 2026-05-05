@@ -9,10 +9,9 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 
 const { Title, Text } = Typography
-const { RangePicker } = DatePicker
-
 function LineaResultado({ label, valor, bold, color, indent }: { label: string; valor: number; bold?: boolean; color?: string; indent?: boolean }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 16px', paddingLeft: indent ? 32 : 16, borderBottom: '1px solid #f0f0f0' }}>
@@ -70,7 +69,7 @@ export default function ReporteEstadoResultadosPage() {
       </div>
 
       <Card style={{ marginBottom: 16 }}>
-        <Space><RangePicker value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" /></Space>
+        <Space><RangePickerConPresets value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" /></Space>
       </Card>
 
       {data && (

@@ -10,9 +10,9 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 
 const { Title } = Typography
-const { RangePicker } = DatePicker
 const { Search } = Input
 
 export default function ReporteVentasVendedorPage() {
@@ -162,7 +162,7 @@ export default function ReporteVentasVendedorPage() {
 
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
-          <RangePicker
+          <RangePickerConPresets
             value={fechaRange}
             onChange={(dates) => setFechaRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
             format="DD/MM/YYYY"

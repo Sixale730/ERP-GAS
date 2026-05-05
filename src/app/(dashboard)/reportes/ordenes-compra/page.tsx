@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 import {
   Card, Table, Tag, Typography, Spin, Row, Col, Statistic, Input, Select, Space, Button, DatePicker
 } from 'antd'
@@ -22,8 +23,6 @@ import { formatDate, formatMoneyCurrency } from '@/lib/utils/format'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
-const { RangePicker } = DatePicker
-
 const STATUS_TAG: Record<string, { color: string; label: string }> = {
   borrador: { color: 'default', label: 'Borrador' },
   enviada: { color: 'blue', label: 'Enviada' },
@@ -323,7 +322,7 @@ export default function ReporteOrdenesCompraPage() {
             allowClear
             options={proveedores.map(p => ({ value: p.id, label: p.razon_social }))}
           />
-          <RangePicker
+          <RangePickerConPresets
             value={fechaRange}
             onChange={(dates) => setFechaRange(dates)}
             format="DD/MM/YYYY"

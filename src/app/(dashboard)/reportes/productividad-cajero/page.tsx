@@ -10,10 +10,9 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 
 const { Title } = Typography
-const { RangePicker } = DatePicker
-
 export default function ReporteProductividadCajeroPage() {
   const router = useRouter()
   const { organizacion } = useAuth()
@@ -81,7 +80,7 @@ export default function ReporteProductividadCajeroPage() {
         <Col xs={24} sm={6}><Card><Statistic title="Prom. Venta/Turno" value={stats.promedioTurno} precision={2} prefix="$" valueStyle={{ color: '#722ed1' }} /></Card></Col>
         <Col xs={24} sm={6}><Card><Statistic title="Ticket Prom. General" value={stats.ticketProm} precision={2} prefix="$" valueStyle={{ color: '#fa8c16' }} /></Card></Col>
       </Row>
-      <Card><Space style={{ marginBottom: 16 }}><RangePicker value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" /></Space>
+      <Card><Space style={{ marginBottom: 16 }}><RangePickerConPresets value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" /></Space>
         <Table dataSource={cajeros} columns={columns} rowKey="vendedor_nombre" scroll={{ x: 700 }} pagination={{ pageSize: 20, showTotal: (t) => `${t} cajeros` }} /></Card>
     </div>
   )

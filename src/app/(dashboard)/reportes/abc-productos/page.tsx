@@ -10,9 +10,9 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple, formatNumber } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 
 const { Title } = Typography
-const { RangePicker } = DatePicker
 const { Search } = Input
 
 const ABC_COLOR = { A: 'green', B: 'blue', C: 'orange' } as const
@@ -104,7 +104,7 @@ export default function ReporteABCProductosPage() {
       </Row>
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
-          <RangePicker value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
+          <RangePickerConPresets value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
           <Select placeholder="Todas las clases" value={clasFilter} onChange={setClasFilter} style={{ width: 160 }} allowClear options={[{ value: 'A', label: 'Clase A' }, { value: 'B', label: 'Clase B' }, { value: 'C', label: 'Clase C' }]} />
           <Search placeholder="Buscar SKU o producto..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} allowClear style={{ width: 250 }} />
         </Space>

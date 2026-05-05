@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 import {
   Button,
   Card,
@@ -39,8 +40,6 @@ import {
 } from '@/lib/hooks/queries/useReporteSurtir'
 
 const { Title, Text } = Typography
-const { RangePicker } = DatePicker
-
 const ESTADO_COLOR: Record<EstadoSurtido, string> = {
   completo: 'green',
   completo_otro_almacen: 'blue',
@@ -417,7 +416,7 @@ export default function OrdenesVentaSurtirPage() {
       {/* Filtros + Tabla */}
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
-          <RangePicker
+          <RangePickerConPresets
             value={fechaRange}
             onChange={(v) => setFechaRange(v as [Dayjs, Dayjs] | null)}
             format="DD/MM/YYYY"

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 import {
   Card, Table, Tag, Typography, Spin, Row, Col, Statistic, Select, Space, Button, DatePicker
 } from 'antd'
@@ -20,8 +21,6 @@ import { formatDateTime, formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
-const { RangePicker } = DatePicker
-
 export default function ReporteCortesCajaPage() {
   const router = useRouter()
   const { organizacion } = useAuth()
@@ -249,7 +248,7 @@ export default function ReporteCortesCajaPage() {
       {/* Tabla */}
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
-          <RangePicker
+          <RangePickerConPresets
             value={fechaRange}
             onChange={(dates) => setFechaRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
             format="DD/MM/YYYY"

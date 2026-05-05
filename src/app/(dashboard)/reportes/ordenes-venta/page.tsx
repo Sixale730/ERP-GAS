@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 import {
   Card, Table, Tag, Typography, Spin, Row, Col, Statistic, Input, Select, Space, Button, DatePicker
 } from 'antd'
@@ -22,8 +23,6 @@ import { formatDate, formatMoneyCurrency } from '@/lib/utils/format'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
-const { RangePicker } = DatePicker
-
 const STATUS_TAG: Record<string, { color: string; label: string }> = {
   orden_venta: { color: 'blue', label: 'Pendiente' },
   facturada: { color: 'green', label: 'Facturada' },
@@ -318,7 +317,7 @@ export default function ReporteOrdenesVentaPage() {
               { value: 'MXN', label: 'MXN' },
             ]}
           />
-          <RangePicker
+          <RangePickerConPresets
             value={fechaRange}
             onChange={(dates) => setFechaRange(dates)}
             format="DD/MM/YYYY"

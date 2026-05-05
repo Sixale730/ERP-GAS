@@ -10,9 +10,9 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatNumber } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 
 const { Title } = Typography
-const { RangePicker } = DatePicker
 const { Search } = Input
 
 export default function ReporteRotacionInventarioPage() {
@@ -123,7 +123,7 @@ export default function ReporteRotacionInventarioPage() {
 
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
-          <RangePicker value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
+          <RangePickerConPresets value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
           <Search placeholder="Buscar SKU o producto..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} allowClear style={{ width: 250 }} />
         </Space>
         <Table dataSource={filteredData} columns={columns} rowKey="producto_id" scroll={{ x: 800 }} pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} productos` }} />

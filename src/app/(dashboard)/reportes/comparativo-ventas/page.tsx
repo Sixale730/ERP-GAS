@@ -10,10 +10,9 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 
 const { Title, Text } = Typography
-const { RangePicker } = DatePicker
-
 export default function ReporteComparativoVentasPage() {
   const router = useRouter()
   const { organizacion } = useAuth()
@@ -160,11 +159,11 @@ export default function ReporteComparativoVentasPage() {
         <Space style={{ marginBottom: 16 }} wrap>
           <div>
             <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>Periodo 1</Text>
-            <RangePicker value={rango1} onChange={(d) => setRango1(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
+            <RangePickerConPresets value={rango1} onChange={(d) => setRango1(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
           </div>
           <div>
             <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>Periodo 2</Text>
-            <RangePicker value={rango2} onChange={(d) => setRango2(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
+            <RangePickerConPresets value={rango2} onChange={(d) => setRango2(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
           </div>
         </Space>
 

@@ -10,10 +10,9 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 
 const { Title } = Typography
-const { RangePicker } = DatePicker
-
 const ABC_COLOR = { A: 'green', B: 'blue', C: 'orange' } as const
 
 export default function ReporteABCClientesPage() {
@@ -90,7 +89,7 @@ export default function ReporteABCClientesPage() {
       </Row>
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
-          <RangePicker value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
+          <RangePickerConPresets value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
           <Select placeholder="Todas las clases" value={clasFilter} onChange={setClasFilter} style={{ width: 160 }} allowClear options={[{ value: 'A', label: 'Clase A' }, { value: 'B', label: 'Clase B' }, { value: 'C', label: 'Clase C' }]} />
         </Space>
         <Table dataSource={filteredData} columns={columns} rowKey="cliente_id" scroll={{ x: 900 }} pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} clientes` }} />

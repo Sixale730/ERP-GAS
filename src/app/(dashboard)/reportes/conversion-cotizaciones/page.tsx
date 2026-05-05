@@ -10,9 +10,9 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { exportarExcel } from '@/lib/utils/excel'
 import { formatMoneySimple, formatDate } from '@/lib/utils/format'
 import dayjs from 'dayjs'
+import { RangePickerConPresets } from '@/components/common/RangePickerConPresets'
 
 const { Title } = Typography
-const { RangePicker } = DatePicker
 const { Search } = Input
 
 const STATUS_TAG: Record<string, { color: string; label: string }> = {
@@ -151,7 +151,7 @@ export default function ReporteConversionCotizacionesPage() {
 
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
-          <RangePicker value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
+          <RangePickerConPresets value={fechaRange} onChange={(d) => setFechaRange(d as [dayjs.Dayjs | null, dayjs.Dayjs | null])} format="DD/MM/YYYY" />
           <Search placeholder="Buscar folio, cliente o vendedor..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} allowClear style={{ width: 280 }} />
         </Space>
         <Table dataSource={filteredData} columns={columns} rowKey="id" scroll={{ x: 900 }} pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} cotizaciones` }} />
