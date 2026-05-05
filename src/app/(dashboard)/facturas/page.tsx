@@ -216,9 +216,16 @@ export default function FacturasPage() {
     return { totalPorCobrarUSD: porCobrarUSD, totalPorCobrarMXN: porCobrarMXN, facturasVencidas: vencidas }
   }, [facturas])
 
-  if (isError) {
-    message.error(`Error al cargar facturas: ${error?.message}`)
-  }
+  // Log error completo en consola y dispara toast UNA sola vez por error
+  // (no en cada render — el patron anterior spam-eaba el toast).
+  useEffect(() => {
+    if (!isError || !error) return
+    console.error('[facturas] Error al cargar:', error)
+    const errAny = error as { message?: string; details?: string; hint?: string; code?: string }
+    const detalle = errAny?.message || errAny?.details || errAny?.hint || 'Error desconocido'
+    const codigo = errAny?.code ? ` (${errAny.code})` : ''
+    message.error(`Error al cargar facturas${codigo}: ${detalle}`)
+  }, [isError, error])
 
   return (
     <div>

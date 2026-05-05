@@ -27,7 +27,7 @@ export const sobreStockRule: InsightRule = {
     // Salidas en últimos 90 días
     const hace90Dias = new Date()
     hace90Dias.setDate(hace90Dias.getDate() - 90)
-    const fechaDesde = hace90Dias.toISOString().split('T')[0]
+    const fechaDesde = hace90Dias.toISOString()
 
     const { data: movData } = await supabase
       .schema('erp')
@@ -35,7 +35,7 @@ export const sobreStockRule: InsightRule = {
       .select('producto_id, cantidad')
       .eq('organizacion_id', orgId)
       .eq('tipo', 'salida')
-      .gte('fecha', fechaDesde)
+      .gte('created_at', fechaDesde)
 
     // Agrupar salidas por producto
     const salidasMap = new Map<string, number>()
