@@ -37,6 +37,19 @@ export default function ReporteEstadoCuentaPage() {
   const fechaDesde = fechaRange?.[0]?.format('YYYY-MM-DD') ?? null
   const fechaHasta = fechaRange?.[1]?.format('YYYY-MM-DD') ?? null
 
+  // Atajos rapidos: cubren la mayoria de los casos sin tener que entrar
+  // al calendario y lidiar con las flechas que mueven ambos paneles.
+  const rangePresets: { label: string; value: [dayjs.Dayjs, dayjs.Dayjs] }[] = useMemo(() => [
+    { label: 'Hoy',              value: [dayjs().startOf('day'),                    dayjs().endOf('day')] },
+    { label: 'Esta semana',      value: [dayjs().startOf('week'),                   dayjs().endOf('week')] },
+    { label: 'Este mes',         value: [dayjs().startOf('month'),                  dayjs().endOf('month')] },
+    { label: 'Mes pasado',       value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
+    { label: 'Ultimos 3 meses',  value: [dayjs().subtract(3, 'month').startOf('month'), dayjs().endOf('month')] },
+    { label: 'Ultimos 6 meses',  value: [dayjs().subtract(6, 'month').startOf('month'), dayjs().endOf('month')] },
+    { label: 'Ano actual',       value: [dayjs().startOf('year'),                   dayjs().endOf('year')] },
+    { label: 'Ano pasado',       value: [dayjs().subtract(1, 'year').startOf('year'),   dayjs().subtract(1, 'year').endOf('year')] },
+  ], [])
+
   // Cargar lista de clientes
   useEffect(() => {
     async function loadClientes() {
@@ -248,6 +261,8 @@ export default function ReporteEstadoCuentaPage() {
             onChange={(dates) => setFechaRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
             format="DD/MM/YYYY"
             placeholder={['Fecha desde', 'Fecha hasta']}
+            presets={rangePresets}
+            allowClear={false}
           />
         </Space>
       </Card>
