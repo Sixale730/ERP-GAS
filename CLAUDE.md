@@ -266,8 +266,9 @@ Reportes: `useReportesVentas`, `useReportesInventario`, `useReportesFinanzas`, `
 | `/catalogos/proveedores` | CRUD proveedores |
 | `/catalogos/listas-precios` | CRUD listas de precios |
 | `/catalogos/precios-productos` | Matriz precios por producto y lista |
-| `/catalogos/documentos` | Formatos imprimibles/plantillas. La tarjeta "Entrega de Material a Revisión" es exclusiva de la org **SOLAC** (RFC `MOCD830414SL4`); otras orgs ven la sección vacía |
+| `/catalogos/documentos` | 3 tarjetas exclusivas org **SOLAC** (RFC `MOCD830414SL4`): Entrega de Material a Revisión, Vale de Préstamo de Material, **Catálogo SOLAC 2026** (descarga directa). Otras orgs ven la sección vacía. Array `DOCUMENTOS` distingue: `ruta` → `router.push` (editor); `descarga` → anchor `<a download>` programático (compat Tauri/desktop, no `window.open` que está bloqueado en webview) |
 | `/catalogos/documentos/entrega-revision` | Editor + vista previa PDF + descarga del formato SOLAC. Form con fecha, descripción, observaciones, firma entrega/recibe + toggle de líneas guía |
+| `/catalogos/documentos/prestamo-material` | Editor + vista previa PDF + descarga del vale de préstamo de material para clientes en espera de OC |
 | `/configuracion` | Ajustes generales (tipo cambio, margen, modulos) + boton Recargar con dropdown: **Recargar datos** (soft: `queryClient.clear()` + `refreshUser()`) y **Recargar sistema completo** (hard: `window.location.reload()` con confirm). Tarjeta de acceso a `/configuracion/sistema` para admin |
 | `/configuracion/sistema` | **Panel de Parámetros del Sistema** — 7 tabs (inventario, cotizaciones, pos, cfdi, insights, performance, ui). Cada parámetro: control según tipo (Switch/InputNumber/Input/Select/TextArea), badge "modificado" si difiere del default, popover con audit (últimas 5 modificaciones), botón restaurar default. Búsqueda fuzzy cross-tabs + filtro "solo modificados" + restaurar masivo por categoría. Solo `super_admin` y `admin_cliente` |
 | `/configuracion/usuarios` | Usuarios, roles y permisos |
@@ -308,7 +309,8 @@ Reportes: `useReportesVentas`, `useReportesInventario`, `useReportesFinanzas`, `
 | `cfdi/csd` | Carga/actualiza CSD (cer + key) |
 | `tipo-cambio/hoy` | Tipo de cambio USD→MXN (Banxico) |
 | `leads/demo` | Captura de leads (publico) |
-| `pagos` | Registro/conciliacion de pagos |
+| `pagos` | Registro/conciliacion de pagos (POST registra · GET lista por factura) |
+| `pagos/[id]` (PATCH) | Edita pago existente. Gate `super_admin`/`admin_cliente`. Llama RPC `editar_pago` que ajusta saldos en cascada |
 | `admin/reiniciar-sistema` | Reset del sistema (solo super_admin) |
 
 ## CFDI 4.0 via Finkok
@@ -414,7 +416,7 @@ Tipos: `inventario`, `ventas`, `cobranza`, `finanzas`, `pos`.
 | `erp.cotizaciones` / `cotizacion_items` | Cotizaciones |
 | `erp.ordenes_venta` | Ordenes de venta |
 | `erp.facturas` / `factura_items` | Facturas |
-| `erp.pagos` | Pagos a facturas |
+| `erp.pagos` | Pagos a facturas. `metodo_pago` usa **códigos SAT c_FormaPago** (`'01'..'99'`), NO strings legacy. Tiene `updated_at` mantenido por `trg_pagos_updated_at` |
 | `erp.cfdi_*` | Datos de timbrado CFDI |
 
 ### Compras
@@ -451,6 +453,7 @@ Tipos: `inventario`, `ventas`, `cobranza`, `finanzas`, `pos`.
 - `erp.registrar_usuario_autorizado(p_auth_user_id, p_email, p_nombre, p_avatar_url)` → registra usuario desde whitelist
 - `erp.ajustar_inventario(inventario_id, cantidad_final, nota)` → ajuste individual manual desde `/inventario`. Inserta movimiento con `referencia_tipo='ajuste'`
 - `erp.ajustar_inventario_masivo(motivo, descripcion, items jsonb, es_sistema, aprobado_por)` → ajuste masivo transaccional. Crea header en `ajustes_inventario` + N items + N movimientos con `referencia_tipo='ajuste_masivo'`. Todo o nada
+- `erp.editar_pago(p_pago_id, p_monto, p_fecha, p_metodo_pago, p_referencia, p_notas)` → edita pago existente. Calcula `delta = nuevo_monto - viejo_monto` y propaga en cascada a `erp.facturas` (monto_pagado, saldo, status), `erp.clientes.saldo_pendiente` y `erp.direcciones_envio.saldo_pendiente`. Si `delta = 0` (solo cambian fecha/método/referencia/notas), no toca saldos. Validaciones: factura no cancelada, monto no excede total, no deja monto pagado negativo. El trigger `trg_registrar_pago` solo cubre INSERT, por eso esta RPC es necesaria para UPDATE atómico
 
 > **Importante**: las RPCs tienen wrappers en `public.*`. Al modificar una hay que actualizar ambos. Al cambiar tipos de retorno, hacer `DROP` + `CREATE` (no `CREATE OR REPLACE`).
 
@@ -499,7 +502,8 @@ Lógica: `objetivo = stock_maximo || 20` · `proyectado = fisico + en_transito` 
 | `trg_historial_precios` | Registra cambios de precios automaticamente |
 | `trg_cotizacion_item_subtotal` | Calcula subtotal de items de cotizacion |
 | `trg_factura_item_subtotal` | Calcula subtotal de items de factura |
-| `trg_registrar_pago` | Actualiza factura y saldo del cliente |
+| `trg_registrar_pago` | Actualiza factura y saldo del cliente al INSERT en `erp.pagos`. Para UPDATE usar la RPC `editar_pago` (el trigger solo cubre INSERT) |
+| `trg_pagos_updated_at` | Auto-mantiene `erp.pagos.updated_at` en cada UPDATE (BEFORE UPDATE → `erp.update_updated_at()`) |
 
 ## Datos Fiscales Mexico
 
@@ -517,6 +521,13 @@ Lógica: `objetivo = stock_maximo || 20` · `proyectado = fisico + en_transito` 
 
 ### Complemento de pago
 Se genera con `src/lib/cfdi/pago-builder.ts` y se timbra en `/api/cfdi/complemento-pago`.
+
+### Catalogo c_FormaPago (SAT) — usado en `erp.pagos.metodo_pago`
+El constraint `pagos_metodo_pago_check` acepta los 22 códigos SAT vigentes:
+`'01'` Efectivo · `'02'` Cheque nominativo · `'03'` Transferencia electrónica · `'04'` Tarjeta de crédito · `'05'` Monedero electrónico · `'06'` Dinero electrónico · `'08'` Vales de despensa · `'12'..'17'` Dación/Subrogación/Consignación/Condonación/Compensación · `'23'..'27'` Novación/Confusión/Remisión/Prescripción/A satisfacción · `'28'` Tarjeta de débito · `'29'` Tarjeta de servicios · `'30'` Aplicación de anticipos · `'31'` Intermediario de pagos · `'99'` Por definir.
+
+Frontend: `FORMAS_PAGO_OPTIONS` en `src/app/(dashboard)/facturas/[id]/page.tsx`.
+API: `FORMAS_PAGO_VALIDAS` en `src/app/api/pagos/route.ts` y `src/app/api/pagos/[id]/route.ts`.
 
 ## Convenciones de Codigo
 
@@ -543,6 +554,16 @@ Se genera con `src/lib/cfdi/pago-builder.ts` y se timbra en `/api/cfdi/complemen
 - **React Query invalidation**: invalidar query keys especificos, no usar `posKeys.all` u otros keys demasiado amplios.
 - **Theme AntD**: definido como constante `ANTD_THEME` fuera del componente en `layout.tsx`, no inline.
 - **Tablas AntD con scroll**: TODA columna de texto largo (Cliente, Nombre, Producto, Descripción, Razón Social, etc.) debe tener `width: NÚMERO` + `ellipsis: true`. El valor de `scroll={{ x: N }}` debe ser **igual o mayor** a la suma de todos los `width` fijos — si es menor, las columnas sin width colapsan al mínimo y parten cada letra en una línea nueva (bug visual).
+- **`<RangePickerConPresets>`** (`src/components/common/RangePickerConPresets.tsx`): wrapper del `<RangePicker>` de AntD que inyecta los 8 presets compartidos (Hoy, Esta semana, Este mes, Mes pasado, Últimos 3/6 meses, Año actual, Año pasado) desde `getRangePresets()` en `src/lib/utils/date-presets.ts`. **Aplicado en los 28 reportes con selector de rango**. Para reportes nuevos, usar este wrapper en lugar de `<RangePicker>` directo. Los presets resuelven el UX confuso de las flechas dobles que mueven ambos paneles del calendario en sincronía. Si necesitas un preset extra (ej. "Trimestre actual"), agregar al helper y propaga a todos los reportes automáticamente.
+- **Descargas de archivos (compat Tauri/desktop)**: usar anchor `<a download>` programático en vez de `window.open(url, '_blank')`. `window.open` está bloqueado por defecto en webviews Tauri/Electron. Patrón:
+  ```ts
+  const a = document.createElement('a')
+  a.href = url
+  a.download = url.split('/').pop() ?? ''
+  a.rel = 'noopener noreferrer'
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  ```
+  Funciona en navegador (móvil + escritorio), Tauri y Electron. Ver `/catalogos/documentos/page.tsx` como referencia.
 
 ### Responsive / Móvil (convenciones establecidas)
 La app debe funcionar bien en móvil (PWA). Patrones establecidos:
@@ -601,6 +622,12 @@ Pipeline de importacion de datos "mascotienda" (tienda de mascotas) para demo:
 - [x] Responsive / móvil: header compacto con search drawer, `PageHeaderActions` + `ResponsiveListTable` + `MobileFilters` aplicados a los 6 listados principales, grids 2col en stats, tipografía ajustada y touch targets
 - [x] **Panel de Parámetros del Sistema** (`/configuracion/sistema`): tabla central `erp.configuracion_sistema` + audit + override por usuario. Hook `useConfigValue<T>(cat, clave, fallback)` con resolución usuario>org>default. Catálogo central de claves en `src/lib/config/keys.ts`. Consumidores reales: generador de OC (`objetivo_stock_default`), vigencia cotización (`vigencia_dias_default`), reporte productos sin movimiento (`dias_sin_movimiento_alerta`), AppLayout auto-clear cache (`auto_clear_cache_minutes`). Trazabilidad de insights con `regla_key` + `parametros_snapshot` + `explicacion` y drawer "¿Por qué este insight?"
 - [x] **Historial del Producto v2** (`/productos/[id]`, sección "Historial del Producto"): RPC `historial_producto_unificado` retorna `delta_stock` (firmado), `stock_despues` (saldo running anclado al stock real actual), `afecta_stock` (bool). Agrupación visual por día con encabezado pegajoso ("Hoy · 27 abril 2026"), columnas "Cambió stock" (Tag verde +N / rojo -N con flechas) y "Stock después" (saldo en negrita). Chips múltiples checkables persistentes en `uiStore.historialFiltrosTipos` con conteos por tipo via RPC `historial_producto_counts_por_tipo`. Filtro server-side con `p_tipos TEXT[]`. Vista mobile como List de Cards. Renglones de documentos no-movimiento con fondo gris para distinguirlos visualmente de movimientos reales
+- [x] **Edición de pagos** (`/facturas/[id]` → "Historial de Pagos" → botón Editar). Gate `super_admin`/`admin_cliente` (vendedor/contador/compras no ven el botón ni pueden invocar el endpoint). Endpoint `PATCH /api/pagos/[id]` + RPC `erp.editar_pago` que recalcula factura/cliente/sucursal en cascada. Pagos con `uuid_complemento_pago` (CFDI ya timbrado) salen como "Bloqueado" — modificar un pago con complemento emitido requeriría cancelar el complemento ante SAT primero
+- [x] **Constraint `erp.pagos.metodo_pago` migrado a códigos SAT** c_FormaPago (`'01'..'99'`). Antes era legacy strings (`'efectivo'/'transferencia'/'tarjeta'/'cheque'`) — bloqueaba TODO intento de registrar pago porque el frontend ya mandaba códigos SAT. Migration 20260505_001
+- [x] **`erp.pagos.updated_at`** (era la única tabla del schema sin esa columna; rompía la convención global y la RPC `editar_pago` fallaba al hacer `SET updated_at = NOW()`). Migration 20260505_003 + trigger `trg_pagos_updated_at`
+- [x] **`<RangePickerConPresets>`** wrapper aplicado en los **28 reportes** con selector de rango. Atajos: Hoy · Esta semana · Este mes · Mes pasado · Últimos 3/6 meses · Año actual · Año pasado. Helper `getRangePresets()` en `src/lib/utils/date-presets.ts`. Resuelve el UX confuso de las flechas dobles del calendario que mueven ambos paneles en sincronía
+- [x] **Catálogo SOLAC 2026** (PDF 8 páginas: Portada · Contenido · Misión/Visión · Línea de Productos · Distribuidor Autorizado · Catálogo de Equipos · Impresoras · Contacto) descargable desde `/catalogos/documentos` para org SOLAC. Servido estático desde `public/documentos/Catalogo_SOLAC_2026.pdf` (1.49 MB raster). Pipeline local de generación HTML+CSS+Playwright en `/catalogo-solac-v2/` (gitignored, 170 MB de imágenes intermedias). Click en la tarjeta usa anchor `<a download>` programático (NO `window.open` — bloqueado en Tauri/desktop)
+- [x] **Insights regla `sobre-stock`** corregida: referenciaba `v_movimientos.fecha` que no existe (la vista solo tiene `created_at`); rompía silenciosamente vía `Promise.allSettled` del engine pero ensuciaba logs y dejaba la regla sin emitir
 
 ### Pendiente / mejoras
 - [ ] RLS endurecido end-to-end para multi-tenant
