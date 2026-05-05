@@ -88,7 +88,15 @@ export default function DocumentosPage() {
                 hoverable
                 onClick={() => {
                   if (doc.descarga) {
-                    window.open(doc.descarga, '_blank')
+                    // anchor with download attribute: funciona en navegador
+                    // y en webview de Tauri/Electron donde window.open esta bloqueado
+                    const a = document.createElement('a')
+                    a.href = doc.descarga
+                    a.download = doc.descarga.split('/').pop() ?? ''
+                    a.rel = 'noopener noreferrer'
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
                   } else if (doc.ruta) {
                     router.push(doc.ruta)
                   }
