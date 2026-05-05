@@ -138,7 +138,8 @@ export default function FacturaDetallePage() {
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
-  const { orgId } = useAuth()
+  const { orgId, role } = useAuth()
+  const puedeEditarPagos = role === 'super_admin' || role === 'admin_cliente'
 
   const [loading, setLoading] = useState(true)
   const [factura, setFactura] = useState<FacturaDetalle | null>(null)
@@ -169,6 +170,8 @@ export default function FacturaDetallePage() {
   const [pagoForm] = Form.useForm()
   const [registrandoPago, setRegistrandoPago] = useState(false)
   const [complementoLoading, setComplementoLoading] = useState<string | null>(null)
+  // Si != null, el modal opera en modo edicion sobre este pago
+  const [editandoPago, setEditandoPago] = useState<PagoRecord | null>(null)
 
   const formatMoney = (amount: number) => {
     if (!factura) return `$${amount.toFixed(2)}`
@@ -593,36 +596,45 @@ export default function FacturaDetallePage() {
 
   // === PAGOS ===
 
-  const handleRegistrarPago = async () => {
+  const handleGuardarPago = async () => {
     if (!factura) return
 
     try {
       const values = await pagoForm.validateFields()
       setRegistrandoPago(true)
 
-      const response = await fetch('/api/pagos', {
-        method: 'POST',
+      const isEditing = editandoPago !== null
+      const url = isEditing ? `/api/pagos/${editandoPago!.id}` : '/api/pagos'
+      const method = isEditing ? 'PATCH' : 'POST'
+
+      const body: Record<string, unknown> = {
+        monto: values.monto,
+        fecha: values.fecha.format('YYYY-MM-DD'),
+        metodo_pago: values.metodo_pago,
+        referencia: values.referencia || null,
+        notas: values.notas || null,
+      }
+      if (!isEditing) {
+        body.factura_id = factura.id
+      }
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          factura_id: factura.id,
-          monto: values.monto,
-          fecha: values.fecha.format('YYYY-MM-DD'),
-          metodo_pago: values.metodo_pago,
-          referencia: values.referencia || null,
-          notas: values.notas || null,
-        }),
+        body: JSON.stringify(body),
       })
 
       const result = await response.json()
 
       if (result.success) {
-        message.success(result.message || 'Pago registrado')
+        message.success(result.message || (isEditing ? 'Pago actualizado' : 'Pago registrado'))
         setPagoModalOpen(false)
+        setEditandoPago(null)
         pagoForm.resetFields()
         loadFactura()
         loadPagos()
       } else {
-        message.error(result.error || 'Error al registrar pago')
+        message.error(result.error || (isEditing ? 'Error al editar pago' : 'Error al registrar pago'))
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -631,6 +643,22 @@ export default function FacturaDetallePage() {
     } finally {
       setRegistrandoPago(false)
     }
+  }
+
+  const handleEditarPago = (pago: PagoRecord) => {
+    if (!puedeEditarPagos) {
+      message.warning('Solo administradores pueden editar pagos')
+      return
+    }
+    setEditandoPago(pago)
+    pagoForm.setFieldsValue({
+      monto: pago.monto,
+      fecha: dayjs(pago.fecha),
+      metodo_pago: pago.metodo_pago,
+      referencia: pago.referencia || '',
+      notas: pago.notas || '',
+    })
+    setPagoModalOpen(true)
   }
 
   const handleGenerarComplemento = async (pagoId: string) => {
@@ -733,7 +761,28 @@ export default function FacturaDetallePage() {
         return <Text type="secondary">-</Text>
       },
     },
-  ], [factura, complementoLoading])
+    ...(puedeEditarPagos ? [{
+      title: 'Acciones',
+      key: 'acciones',
+      width: 100,
+      render: (_: any, record: PagoRecord) => {
+        // No permitir editar pagos con complemento ya timbrado
+        if (record.uuid_complemento_pago) {
+          return <Text type="secondary" style={{ fontSize: 11 }}>Bloqueado</Text>
+        }
+        return (
+          <Button
+            size="small"
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEditarPago(record)}
+          >
+            Editar
+          </Button>
+        )
+      },
+    }] : []),
+  ], [factura, complementoLoading, puedeEditarPagos])
 
   if (loading) {
     return (
@@ -873,6 +922,8 @@ export default function FacturaDetallePage() {
                   icon={<PlusOutlined />}
                   size="small"
                   onClick={() => {
+                    setEditandoPago(null)
+                    pagoForm.resetFields()
                     pagoForm.setFieldsValue({
                       monto: factura.saldo,
                       fecha: dayjs(),
@@ -1144,13 +1195,20 @@ export default function FacturaDetallePage() {
         </Form>
       </Modal>
 
-      {/* Modal Registrar Pago */}
+      {/* Modal Registrar / Editar Pago */}
+      {(() => {
+        // En modo edicion el saldo "real disponible" considera que el monto
+        // viejo ya estaba descontado de saldo. Max permitido = saldo actual + monto del pago.
+        const maxMonto = editandoPago
+          ? Number((factura.saldo + editandoPago.monto).toFixed(2))
+          : factura.saldo
+        return (
       <Modal
-        title={<Space><DollarOutlined /> Registrar Pago</Space>}
+        title={<Space><DollarOutlined /> {editandoPago ? `Editar Pago ${editandoPago.folio}` : 'Registrar Pago'}</Space>}
         open={pagoModalOpen}
-        onCancel={() => { setPagoModalOpen(false); pagoForm.resetFields() }}
-        onOk={handleRegistrarPago}
-        okText="Registrar Pago"
+        onCancel={() => { setPagoModalOpen(false); setEditandoPago(null); pagoForm.resetFields() }}
+        onOk={handleGuardarPago}
+        okText={editandoPago ? 'Guardar Cambios' : 'Registrar Pago'}
         okButtonProps={{ loading: registrandoPago }}
         cancelText="Cancelar"
         destroyOnClose
@@ -1162,7 +1220,7 @@ export default function FacturaDetallePage() {
             rules={[
               { required: true, message: 'Ingrese el monto' },
               { type: 'number', min: 0.01, message: 'El monto debe ser mayor a 0' },
-              { type: 'number', max: factura.saldo, message: `Maximo: $${factura.saldo.toFixed(2)}` },
+              { type: 'number', max: maxMonto, message: `Maximo: $${maxMonto.toFixed(2)}` },
             ]}
           >
             <InputNumber
@@ -1170,7 +1228,7 @@ export default function FacturaDetallePage() {
               style={{ width: '100%' }}
               precision={2}
               min={0.01}
-              max={factura.saldo}
+              max={maxMonto}
             />
           </Form.Item>
           <Form.Item name="fecha" label="Fecha del Pago" rules={[{ required: true, message: 'Seleccione la fecha' }]}>
@@ -1187,6 +1245,8 @@ export default function FacturaDetallePage() {
           </Form.Item>
         </Form>
       </Modal>
+        )
+      })()}
     </div>
   )
 }
