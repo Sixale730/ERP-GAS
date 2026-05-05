@@ -41,3 +41,7 @@ next-env.d.ts
 # paquetes locales de uso unico (assets para subir a Claude web)
 /solac-assets/
 /solac-assets.zip
+
+# pipeline local de generacion del catalogo SOLAC (HTML/CSS + scripts Python +
+# imagenes intermedias). El PDF final vive en public/documentos/.
+/catalogo-solac-v2/

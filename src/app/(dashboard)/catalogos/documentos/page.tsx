@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, Col, Empty, Row, Space, Tag, Typography } from 'antd'
-import { FileTextOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { FileTextOutlined, FilePdfOutlined, BookOutlined, DownloadOutlined } from '@ant-design/icons'
 import { useAuth } from '@/lib/hooks/useAuth'
 
 const { Title, Paragraph, Text } = Typography
@@ -12,11 +12,13 @@ const SOLAC_RFC = 'MOCD830414SL4'
 
 type DocumentoItem = {
   key: string
-  ruta: string
+  ruta?: string
+  descarga?: string
   titulo: string
   descripcion: string
   icono: React.ReactNode
   soloOrgRfc?: string
+  badge?: string
 }
 
 const DOCUMENTOS: DocumentoItem[] = [
@@ -35,6 +37,15 @@ const DOCUMENTOS: DocumentoItem[] = [
     descripcion: 'Formato para prestar material al cliente en espera de la orden de compra y documentos de facturación.',
     icono: <FilePdfOutlined style={{ fontSize: 28, color: '#2980b9' }} />,
     soloOrgRfc: SOLAC_RFC,
+  },
+  {
+    key: 'catalogo-2026',
+    descarga: '/documentos/Catalogo_SOLAC_2026.pdf',
+    titulo: 'Catálogo SOLAC 2026',
+    descripcion: 'Catálogo comercial 2026 con la línea de equipos de medición Gas-PAR® G4S y Familia Lemon® para Gas LP.',
+    icono: <BookOutlined style={{ fontSize: 28, color: '#1B4F8B' }} />,
+    soloOrgRfc: SOLAC_RFC,
+    badge: 'Descargar PDF',
   },
 ]
 
@@ -75,7 +86,13 @@ export default function DocumentosPage() {
             <Col key={doc.key} xs={24} sm={12} lg={8}>
               <Card
                 hoverable
-                onClick={() => router.push(doc.ruta)}
+                onClick={() => {
+                  if (doc.descarga) {
+                    window.open(doc.descarga, '_blank')
+                  } else if (doc.ruta) {
+                    router.push(doc.ruta)
+                  }
+                }}
                 style={{ height: '100%' }}
               >
                 <Space align="start" size={16}>
@@ -85,11 +102,18 @@ export default function DocumentosPage() {
                     <Text type="secondary" style={{ fontSize: 13 }}>
                       {doc.descripcion}
                     </Text>
-                    {doc.soloOrgRfc && (
-                      <Tag color="blue" style={{ marginTop: 4 }}>
-                        Exclusivo {organizacion?.nombre || 'organización'}
-                      </Tag>
-                    )}
+                    <Space size={6} wrap style={{ marginTop: 4 }}>
+                      {doc.badge && (
+                        <Tag color="green" icon={<DownloadOutlined />}>
+                          {doc.badge}
+                        </Tag>
+                      )}
+                      {doc.soloOrgRfc && (
+                        <Tag color="blue">
+                          Exclusivo {organizacion?.nombre || 'organización'}
+                        </Tag>
+                      )}
+                    </Space>
                   </Space>
                 </Space>
               </Card>
