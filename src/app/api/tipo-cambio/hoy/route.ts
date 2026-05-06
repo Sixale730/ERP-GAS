@@ -11,21 +11,48 @@ interface TipoCambioResponse {
   mensaje?: string
   vigente_desde?: string | null
   vigente_hasta?: string | null
+  /**
+   * TC ya publicado por Banxico pero aun no vigente. Se hace efectivo el
+   * `proximo_vigente_desde`. Util para mostrar como info en la UI ("TC de
+   * manana: 17.xxxx") sin afectar calculos. Solo aparece despues de las
+   * 12:00 PM hora MX el dia que Banxico publica.
+   */
+  tipo_cambio_proximo?: number | null
+  proximo_vigente_desde?: string | null
+  proximo_fecha?: string | null
 }
 
 const FALLBACK_RATE = 17.50
 
 function computeVigencia(): { vigente_desde: string; vigente_hasta: string } {
-  // TC published today (day X) applies tomorrow (X+1) through day after (X+2)
+  // TC published today (day X) applies tomorrow (X+1) through day after (X+2),
+  // measured in HORA MX (UTC-6, Mexico federal no observa DST desde 2022).
+  //
+  // Bug previo: setHours(0,0,0,0) sobre un Date construido desde toLocaleString
+  // termina interpretado como hora del SERVER (UTC en Vercel). Resultado: el
+  // TC nuevo entraba en vigor a las 18:00 hora MX del dia anterior, no a las
+  // 00:00 hora MX del dia siguiente como dicta la regla Banxico.
+  //
+  // Fix: construir ISO strings explicitos con offset -06:00 (hora MX centro).
   const now = new Date()
-  const mx = new Date(now.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }))
-  const desde = new Date(mx)
-  desde.setDate(desde.getDate() + 1)
-  desde.setHours(0, 0, 0, 0)
-  const hasta = new Date(mx)
-  hasta.setDate(hasta.getDate() + 2)
-  hasta.setHours(0, 0, 0, 0)
-  return { vigente_desde: desde.toISOString(), vigente_hasta: hasta.toISOString() }
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  })
+  const todayMX = fmt.format(now) // YYYY-MM-DD en hora MX
+  const [yStr, mStr, dStr] = todayMX.split('-')
+  const y = Number(yStr); const m = Number(mStr); const d = Number(dStr)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const addDaysUTC = (yy: number, mm: number, dd: number, n: number) => {
+    const t = new Date(Date.UTC(yy, mm - 1, dd + n))
+    return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() }
+  }
+  const t1 = addDaysUTC(y, m, d, 1)
+  const t2 = addDaysUTC(y, m, d, 2)
+  // 00:00 hora MX (-06:00) -> ISO en UTC = +06:00 horas
+  const vigente_desde = new Date(`${t1.y}-${pad(t1.m)}-${pad(t1.d)}T00:00:00-06:00`).toISOString()
+  const vigente_hasta = new Date(`${t2.y}-${pad(t2.m)}-${pad(t2.d)}T00:00:00-06:00`).toISOString()
+  return { vigente_desde, vigente_hasta }
 }
 
 function todayMexico(): string {
@@ -86,6 +113,50 @@ async function getEffectiveRate(supabase: any): Promise<{ valor: number; fecha: 
   }
 }
 
+/**
+ * TC publicado pero AUN NO vigente — el primero cuyo `vigente_desde` es
+ * mayor a NOW(). Solo existe entre las 12:00 PM y las 23:59 PM del dia que
+ * Banxico publica (entra en vigor a las 00:00 del dia siguiente).
+ * Se devuelve en el response para que la UI lo muestre como info ("TC de
+ * manana: ..."), sin afectar calculos.
+ */
+async function getNextRate(supabase: any): Promise<{ valor: number; fecha: string; vigente_desde: string } | null> {
+  try {
+    const nowUtc = new Date().toISOString()
+    const { data } = await supabase
+      .schema('erp')
+      .from('tipo_cambio_diario')
+      .select('valor, fecha, vigente_desde')
+      .gt('vigente_desde', nowUtc)
+      .order('vigente_desde', { ascending: true })
+      .limit(1)
+      .single()
+    return data ? { valor: Number(data.valor), fecha: data.fecha, vigente_desde: data.vigente_desde } : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Sincroniza `erp.configuracion` con el TC effective (vigente AHORA), no
+ * con el recien bajado de Banxico (que puede ser el del dia siguiente).
+ * Garantiza que cualquier consumidor de `useConfiguracion()` lea el TC
+ * correcto segun la regla "publicado en D rige en D+1".
+ */
+async function syncConfiguracionWithEffective(supabase: any): Promise<void> {
+  try {
+    const effective = await getEffectiveRate(supabase)
+    if (!effective) return
+    await supabase
+      .schema('erp')
+      .from('configuracion')
+      .update({ valor: { valor: effective.valor, fecha: effective.fecha } })
+      .eq('clave', 'tipo_cambio')
+  } catch (err) {
+    console.error('Error syncing configuracion with effective rate:', err)
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
@@ -106,6 +177,7 @@ export async function GET(request: NextRequest) {
     if (!force) {
       const effective = await getEffectiveRate(supabase)
       if (effective) {
+        const next = await getNextRate(supabase)
         return NextResponse.json({
           ok: true,
           tipo_cambio: effective.valor,
@@ -114,6 +186,9 @@ export async function GET(request: NextRequest) {
           cached: true,
           vigente_desde: effective.vigente_desde,
           vigente_hasta: effective.vigente_hasta,
+          tipo_cambio_proximo: next?.valor ?? null,
+          proximo_vigente_desde: next?.vigente_desde ?? null,
+          proximo_fecha: next?.fecha ?? null,
         } satisfies TipoCambioResponse)
       }
     }
@@ -230,7 +305,8 @@ export async function GET(request: NextRequest) {
       } satisfies TipoCambioResponse)
     }
 
-    // Save to tipo_cambio_diario (upsert)
+    // Save to tipo_cambio_diario (upsert) — el TC publicado HOY queda con
+    // vigencia de mañana 00:00 a pasado-mañana 00:00 (regla Banxico).
     try {
       await supabase
         .schema('erp')
@@ -243,19 +319,15 @@ export async function GET(request: NextRequest) {
       console.error('Error saving tipo_cambio_diario:', dbError)
     }
 
-    // Dual-write to configuracion
-    try {
-      await supabase
-        .schema('erp')
-        .from('configuracion')
-        .update({ valor: { valor, fecha: fechaHoy } })
-        .eq('clave', 'tipo_cambio')
-    } catch (dbError) {
-      console.error('Error updating configuracion:', dbError)
-    }
+    // Sincronizar erp.configuracion con el TC effective (vigente AHORA).
+    // OJO: NO escribimos `valor` (recien bajado), porque ese aplica
+    // mañana — escribirlo en `configuracion` haria que el resto de la app
+    // muestre el TC del dia siguiente desde las 12 PM hasta las 23:59.
+    await syncConfiguracionWithEffective(supabase)
 
     // Return the effective rate for today (not the just-fetched one which applies tomorrow)
     const effective = await getEffectiveRate(supabase)
+    const next = await getNextRate(supabase)
     if (effective) {
       return NextResponse.json({
         ok: true,
@@ -265,6 +337,9 @@ export async function GET(request: NextRequest) {
         cached: false,
         vigente_desde: effective.vigente_desde,
         vigente_hasta: effective.vigente_hasta,
+        tipo_cambio_proximo: next?.valor ?? null,
+        proximo_vigente_desde: next?.vigente_desde ?? null,
+        proximo_fecha: next?.fecha ?? null,
       } satisfies TipoCambioResponse)
     }
 
@@ -278,6 +353,9 @@ export async function GET(request: NextRequest) {
       cached: false,
       vigente_desde: vigencia.vigente_desde,
       vigente_hasta: vigencia.vigente_hasta,
+      tipo_cambio_proximo: next?.valor ?? null,
+      proximo_vigente_desde: next?.vigente_desde ?? null,
+      proximo_fecha: next?.fecha ?? null,
     } satisfies TipoCambioResponse)
   } catch (error) {
     console.error('Error in tipo-cambio/hoy:', error)

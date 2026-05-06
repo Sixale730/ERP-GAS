@@ -12,6 +12,10 @@ interface TipoCambioResponse {
   mensaje?: string
   vigente_desde?: string | null
   vigente_hasta?: string | null
+  /** TC ya publicado por Banxico pero aun no vigente. Solo informativo. */
+  tipo_cambio_proximo?: number | null
+  proximo_vigente_desde?: string | null
+  proximo_fecha?: string | null
 }
 
 const tipoCambioKeys = {

@@ -32,6 +32,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { useMargenesCategoria } from '@/lib/hooks/useMargenesCategoria'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useConfigValue } from '@/lib/hooks/queries/useConfiguracionSistema'
+import { useTipoCambioBanxico } from '@/lib/hooks/queries/useTipoCambioBanxico'
 import { CONFIG_KEYS } from '@/lib/config/keys'
 import UsuarioComprasSelect from '@/components/common/UsuarioComprasSelect'
 import type { Proveedor, Almacen, Producto } from '@/types/database'
@@ -62,7 +63,16 @@ function NuevaOrdenCompraContent() {
   const cargarStockBajo = searchParams.get('stock_bajo') === 'true'
   const [form] = Form.useForm()
   const { getMargenParaCategoria, loading: loadingMargenes } = useMargenesCategoria()
-  const { tipoCambio } = useConfiguracion()
+  // Fallback de configuracion (manual) — solo si Banxico aun no responde.
+  const { tipoCambio: tipoCambioConfig } = useConfiguracion()
+  // Source de verdad: TC vigente AHORA segun Banxico (publicado dia D rige D+1).
+  // El response trae tambien tipo_cambio_proximo (TC ya publicado pero aun
+  // no vigente, util para mostrar como info al usuario).
+  const { data: tcBanxico } = useTipoCambioBanxico()
+  const tipoCambio = tcBanxico?.tipo_cambio ?? tipoCambioConfig
+  const tipoCambioProximo = tcBanxico?.tipo_cambio_proximo ?? null
+  const proximoVigenteDesde = tcBanxico?.proximo_vigente_desde ?? null
+  const proximoFecha = tcBanxico?.proximo_fecha ?? null
   const { orgId, erpUser } = useAuth()
   // Objetivo de stock por defecto cuando un producto no tiene stock_maximo definido.
   // Configurable desde /configuracion/sistema (categoria=inventario).
@@ -609,7 +619,17 @@ function NuevaOrdenCompraContent() {
                 </Col>
                 {monedaSeleccionada === 'MXN' && (
                   <Col xs={24} md={8}>
-                    <Form.Item label="Tipo de Cambio">
+                    <Form.Item
+                      label="Tipo de Cambio"
+                      help={
+                        tipoCambioProximo ? (
+                          <Text type="secondary" style={{ fontSize: 11 }}>
+                            TC de mañana: <Text strong style={{ fontSize: 11 }}>${tipoCambioProximo.toFixed(4)}</Text>
+                            {proximoFecha ? ` (Banxico ${proximoFecha})` : ''} — solo informativo
+                          </Text>
+                        ) : undefined
+                      }
+                    >
                       <InputNumber
                         style={{ width: '100%' }}
                         value={tipoCambioLocal}
