@@ -24,35 +24,40 @@ interface TipoCambioResponse {
 
 const FALLBACK_RATE = 17.50
 
-function computeVigencia(): { vigente_desde: string; vigente_hasta: string } {
-  // TC published today (day X) applies tomorrow (X+1) through day after (X+2),
-  // measured in HORA MX (UTC-6, Mexico federal no observa DST desde 2022).
-  //
-  // Bug previo: setHours(0,0,0,0) sobre un Date construido desde toLocaleString
-  // termina interpretado como hora del SERVER (UTC en Vercel). Resultado: el
-  // TC nuevo entraba en vigor a las 18:00 hora MX del dia anterior, no a las
-  // 00:00 hora MX del dia siguiente como dicta la regla Banxico.
-  //
-  // Fix: construir ISO strings explicitos con offset -06:00 (hora MX centro).
-  const now = new Date()
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Mexico_City',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-  })
-  const todayMX = fmt.format(now) // YYYY-MM-DD en hora MX
-  const [yStr, mStr, dStr] = todayMX.split('-')
+/**
+ * Calcula la vigencia para un TC publicado en la fecha `fechaPublicacion`
+ * (formato YYYY-MM-DD). La regla Banxico FIX dice: el TC publicado el dia D
+ * a las 12 PM rige todo el dia D+1 (de 00:00 a 23:59 hora MX).
+ *
+ * IMPORTANTE: la fecha que importa es la que reporta Banxico en
+ * `dato.fecha`, NO la fecha en la que llamamos al endpoint. Si consultamos
+ * antes de las 12 PM, Banxico devuelve el TC del dia habil anterior (que
+ * fue publicado AYER y rige HOY). Si consultamos despues, devuelve el de
+ * hoy (publicado hoy y rige mañana).
+ *
+ * MX no observa DST desde 2022 (federal), offset fijo -06:00.
+ */
+function computeVigenciaFromFecha(fechaPublicacion: string): { vigente_desde: string; vigente_hasta: string } {
+  const [yStr, mStr, dStr] = fechaPublicacion.split('-')
   const y = Number(yStr); const m = Number(mStr); const d = Number(dStr)
   const pad = (n: number) => String(n).padStart(2, '0')
   const addDaysUTC = (yy: number, mm: number, dd: number, n: number) => {
     const t = new Date(Date.UTC(yy, mm - 1, dd + n))
     return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() }
   }
+  // D+1 a las 00:00 hora MX y D+2 a las 00:00 hora MX
   const t1 = addDaysUTC(y, m, d, 1)
   const t2 = addDaysUTC(y, m, d, 2)
-  // 00:00 hora MX (-06:00) -> ISO en UTC = +06:00 horas
   const vigente_desde = new Date(`${t1.y}-${pad(t1.m)}-${pad(t1.d)}T00:00:00-06:00`).toISOString()
   const vigente_hasta = new Date(`${t2.y}-${pad(t2.m)}-${pad(t2.d)}T00:00:00-06:00`).toISOString()
   return { vigente_desde, vigente_hasta }
+}
+
+/** Convierte "05/05/2026" (dd/mm/yyyy de Banxico) a "2026-05-05". */
+function parseBanxicoFecha(s: string): string | null {
+  const m = s.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (!m) return null
+  return `${m[3]}-${m[2]}-${m[1]}`
 }
 
 function todayMexico(): string {
@@ -312,14 +317,27 @@ export async function GET(request: NextRequest) {
       } satisfies TipoCambioResponse)
     }
 
-    // Save to tipo_cambio_diario (upsert) — el TC publicado HOY queda con
-    // vigencia de mañana 00:00 a pasado-mañana 00:00 (regla Banxico).
+    // Save to tipo_cambio_diario (upsert).
+    // OJO: la fecha QUE IMPORTA es la que Banxico reporta (`dato.fecha`),
+    // NO la fecha en la que llamamos al endpoint. Si consultamos antes de
+    // 12 PM, Banxico devuelve el TC del dia habil anterior (publicado
+    // ayer y vigente HOY). Si consultamos despues, el de hoy (vigente
+    // mañana). Por eso la vigencia se calcula desde fechaBanxico, no
+    // desde fechaHoy.
+    const fechaBanxicoStr = (dato as { fecha?: string } | undefined)?.fecha
+    const fechaPublicacion = (fechaBanxicoStr && parseBanxicoFecha(fechaBanxicoStr)) || fechaHoy
     try {
       await supabase
         .schema('erp')
         .from('tipo_cambio_diario')
         .upsert(
-          { fecha: fechaHoy, valor, fuente: 'banxico', serie: config.serieFix, ...computeVigencia() },
+          {
+            fecha: fechaPublicacion,
+            valor,
+            fuente: 'banxico',
+            serie: config.serieFix,
+            ...computeVigenciaFromFecha(fechaPublicacion),
+          },
           { onConflict: 'fecha' }
         )
     } catch (dbError) {
@@ -351,11 +369,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Fallback: no effective rate yet (first time), return the just-fetched one
-    const vigencia = computeVigencia()
+    const vigencia = computeVigenciaFromFecha(fechaPublicacion)
     return NextResponse.json({
       ok: true,
       tipo_cambio: valor,
-      fecha: fechaHoy,
+      fecha: fechaPublicacion,
       fuente: 'banxico',
       cached: false,
       vigente_desde: vigencia.vigente_desde,
