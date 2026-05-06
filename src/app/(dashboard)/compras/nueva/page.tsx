@@ -89,7 +89,9 @@ function NuevaOrdenCompraContent() {
   const [loadingData, setLoadingData] = useState(true)
   const [creadoPorNombre, setCreadoPorNombre] = useState<string | null>(null)
   const [monedaSeleccionada, setMonedaSeleccionada] = useState<'USD' | 'MXN'>('USD')
-  const [tipoCambioLocal, setTipoCambioLocal] = useState<number>(tipoCambio)
+  const [tipoCambioLocal, setTipoCambioLocal] = useState<number>(0)
+  // Flag: el usuario edito manualmente el TC y no queremos sobrescribir su valor
+  const [tcEditadoManualmente, setTcEditadoManualmente] = useState(false)
   const [stockBajoCargado, setStockBajoCargado] = useState(false)
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<string | null>(null)
 
@@ -97,12 +99,15 @@ function NuevaOrdenCompraContent() {
     loadInitialData()
   }, [])
 
-  // Actualizar tipo de cambio local cuando se cargue del hook
+  // Sincronizar tipoCambioLocal con la fuente externa (Banxico via hook).
+  // Se actualiza siempre que llegue un nuevo TC del backend, EXCEPTO si el
+  // usuario ya lo edito manualmente (en cuyo caso respetamos su override).
   useEffect(() => {
-    if (tipoCambio && tipoCambioLocal === 0) {
+    if (!tipoCambio || tcEditadoManualmente) return
+    if (tipoCambio !== tipoCambioLocal) {
       setTipoCambioLocal(tipoCambio)
     }
-  }, [tipoCambio])
+  }, [tipoCambio, tcEditadoManualmente, tipoCambioLocal])
 
   // Cargar productos de stock bajo si viene de Dashboard.
   // Se re-ejecuta si cambia el proveedor para filtrar sugerencias por proveedor_principal_id.
@@ -641,6 +646,9 @@ function NuevaOrdenCompraContent() {
                           const nuevoTC = value || tipoCambio
                           const tcAnterior = tipoCambioLocal
                           setTipoCambioLocal(nuevoTC)
+                          // Marcar que el user lo edito para que el effect
+                          // no lo sobrescriba al refrescar Banxico.
+                          setTcEditadoManualmente(true)
 
                           // Recalcular precios de items existentes con el nuevo tipo de cambio
                           if (items.length > 0 && tcAnterior !== nuevoTC) {

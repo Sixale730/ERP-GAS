@@ -83,11 +83,18 @@ async function getConfiguracionRate(supabase: any): Promise<number | null> {
 
 async function getLastKnownRate(supabase: any): Promise<{ valor: number; fecha: string; vigente_desde: string | null; vigente_hasta: string | null } | null> {
   try {
+    // Solo retornar registros que YA estuvieron vigentes (vigente_desde <= NOW()).
+    // Si filtramos solo por fecha desc, podriamos retornar un TC del futuro
+    // (ej. publicado hoy con vigencia mañana) cuando hay un hueco entre
+    // vigencias. Eso confundiria al usuario mostrandole el TC de mañana
+    // como si fuera el de hoy.
+    const nowUtc = new Date().toISOString()
     const { data } = await supabase
       .schema('erp')
       .from('tipo_cambio_diario')
       .select('valor, fecha, vigente_desde, vigente_hasta')
-      .order('fecha', { ascending: false })
+      .lte('vigente_desde', nowUtc)
+      .order('vigente_desde', { ascending: false })
       .limit(1)
       .single()
     return data ? { valor: Number(data.valor), fecha: data.fecha, vigente_desde: data.vigente_desde, vigente_hasta: data.vigente_hasta } : null
