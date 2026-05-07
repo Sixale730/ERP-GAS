@@ -314,6 +314,30 @@ export function useDeleteGuiaEnvio() {
   })
 }
 
+/**
+ * Registra que la guía fue compartida con el cliente por un canal especifico.
+ * Actualiza enviado_a_cliente_por y fecha_enviado_cliente.
+ */
+export function useRegistrarEnvioCompartido() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ guiaId, canal }: { guiaId: string; canal: GuiaEnviadoPor }) => {
+      const supabase = getSupabaseClient()
+      const { error } = await supabase.schema('erp').from('guias_envio')
+        .update({
+          enviado_a_cliente_por: canal,
+          fecha_enviado_cliente: new Date().toISOString(),
+        })
+        .eq('id', guiaId)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: guiasEnvioKeys.detail(variables.guiaId) })
+      queryClient.invalidateQueries({ queryKey: guiasEnvioKeys.lists() })
+    },
+  })
+}
+
 /** URL publica de rastreo segun paqueteria + numero. */
 export function buildTrackingUrl(paqueteria: GuiaPaqueteria, numero: string | null): string | null {
   if (!numero) return null

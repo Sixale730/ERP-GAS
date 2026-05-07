@@ -6,7 +6,7 @@ import {
   Card, Table, Button, Space, Typography, Tag, Row, Col, Statistic, Spin
 } from 'antd'
 import {
-  ArrowLeftOutlined, FileExcelOutlined, TruckOutlined, DollarOutlined,
+  ArrowLeftOutlined, FileExcelOutlined, TruckOutlined, DollarOutlined, SendOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -58,7 +58,11 @@ export default function ReporteEnviosPage() {
     const margenPct = costoTotal > 0 ? (margenTotal / costoTotal) * 100 : 0
     const entregadas = guias.filter(g => g.status === 'entregado').length
     const incidencias = guias.filter(g => g.status === 'incidencia' || g.status === 'devuelto').length
-    return { total, costoTotal, cobradoTotal, margenTotal, margenPct, entregadas, incidencias }
+    const compartidas = guias.filter(g =>
+      g.enviado_a_cliente_por != null && g.enviado_a_cliente_por !== 'no_enviado'
+    ).length
+    const compartidasPct = total > 0 ? (compartidas / total) * 100 : 0
+    return { total, costoTotal, cobradoTotal, margenTotal, margenPct, entregadas, incidencias, compartidas, compartidasPct }
   }, [guias])
 
   const porPaqueteria = useMemo<AgregadoPaqueteria[]>(() => {
@@ -126,6 +130,14 @@ export default function ReporteEnviosPage() {
         return <Text style={{ color: m >= 0 ? '#1677ff' : '#cf1322' }}>{formatMoneyMXN(m)}</Text>
       },
     },
+    { title: 'Compartido', dataIndex: 'enviado_a_cliente_por', key: 'cmp', width: 110, align: 'center',
+      render: (v: GuiaEnvio['enviado_a_cliente_por']) => {
+        if (!v || v === 'no_enviado') return <Tag color="default">No</Tag>
+        if (v === 'whatsapp') return <Tag color="green">WhatsApp</Tag>
+        if (v === 'email') return <Tag color="orange">Email</Tag>
+        return <Tag>Manual</Tag>
+      },
+    },
   ]
 
   const handleExport = async () => {
@@ -143,6 +155,7 @@ export default function ReporteEnviosPage() {
         costo: g.costo_real ?? 0,
         cobrado: g.monto_cobrado ?? 0,
         margen: (Number(g.monto_cobrado ?? 0) - Number(g.costo_real ?? 0)),
+        compartido: g.enviado_a_cliente_por && g.enviado_a_cliente_por !== 'no_enviado' ? g.enviado_a_cliente_por : 'No',
       }))
       await exportarExcel({
         columnas: [
@@ -157,6 +170,7 @@ export default function ReporteEnviosPage() {
           { titulo: 'Costo', dataIndex: 'costo', formato: 'moneda' },
           { titulo: 'Cobrado', dataIndex: 'cobrado', formato: 'moneda' },
           { titulo: 'Margen', dataIndex: 'margen', formato: 'moneda' },
+          { titulo: 'Compartido', dataIndex: 'compartido' },
         ],
         datos,
         nombreArchivo: `envios-${dayjs().format('YYYY-MM-DD')}`,
@@ -172,6 +186,8 @@ export default function ReporteEnviosPage() {
           { etiqueta: 'Margen total', valor: stats.margenTotal, formato: 'moneda' },
           { etiqueta: 'Entregados', valor: stats.entregadas, formato: 'numero' },
           { etiqueta: 'Incidencias', valor: stats.incidencias, formato: 'numero' },
+          { etiqueta: 'Compartidas a cliente', valor: stats.compartidas, formato: 'numero' },
+          { etiqueta: '% compartidas', valor: stats.compartidasPct, formato: 'numero' },
         ],
       })
     } finally {
@@ -203,16 +219,16 @@ export default function ReporteEnviosPage() {
       </Card>
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={6}>
+        <Col xs={12} sm={8} lg={5}>
           <Card><Statistic title="Total envíos" value={stats.total} prefix={<TruckOutlined />} /></Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} sm={8} lg={5}>
           <Card><Statistic title="Costo total" value={stats.costoTotal} prefix="$" precision={2} valueStyle={{ color: '#cf1322' }} /></Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} sm={8} lg={5}>
           <Card><Statistic title="Cobrado al cliente" value={stats.cobradoTotal} prefix="$" precision={2} valueStyle={{ color: '#52c41a' }} /></Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} sm={8} lg={5}>
           <Card>
             <Statistic
               title={`Margen ${stats.margenPct >= 0 ? '+' : ''}${stats.margenPct.toFixed(1)}%`}
@@ -221,6 +237,20 @@ export default function ReporteEnviosPage() {
               precision={2}
               valueStyle={{ color: stats.margenTotal >= 0 ? '#1677ff' : '#cf1322' }}
             />
+          </Card>
+        </Col>
+        <Col xs={24} sm={24} lg={4}>
+          <Card>
+            <Statistic
+              title={<Space size={4}><SendOutlined /> % guías compartidas</Space>}
+              value={stats.compartidasPct}
+              suffix="%"
+              precision={1}
+              valueStyle={{ color: stats.compartidasPct >= 70 ? '#52c41a' : stats.compartidasPct >= 40 ? '#faad14' : '#cf1322' }}
+            />
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {stats.compartidas} de {stats.total} enviadas a cliente
+            </Text>
           </Card>
         </Col>
       </Row>
@@ -259,7 +289,7 @@ export default function ReporteEnviosPage() {
           columns={colsDetalle}
           loading={isLoading}
           pagination={{ pageSize: 25, showTotal: (t) => `${t} envíos` }}
-          scroll={{ x: 1100 }}
+          scroll={{ x: 1210 }}
           onRow={(r) => ({ onClick: () => router.push(`/envios/${r.id}`), style: { cursor: 'pointer' } })}
         />
       </Card>

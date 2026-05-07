@@ -119,7 +119,17 @@ export function ConfigEditor({ item }: Props) {
           <Input
             value={localValue as string}
             onChange={(e) => setLocalValue(e.target.value)}
-            style={{ width: 220 }}
+            style={{ width: 320 }}
+          />
+        )
+      case 'textarea':
+        return (
+          <Input.TextArea
+            value={localValue as string}
+            onChange={(e) => setLocalValue(e.target.value)}
+            rows={6}
+            style={{ width: 480, maxWidth: '100%', fontFamily: 'inherit' }}
+            autoSize={{ minRows: 4, maxRows: 14 }}
           />
         )
       case 'json':

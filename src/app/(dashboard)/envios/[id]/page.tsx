@@ -8,16 +8,17 @@ import {
 } from 'antd'
 import {
   ArrowLeftOutlined, EditOutlined, DeleteOutlined, LinkOutlined,
-  TruckOutlined, CheckCircleOutlined, FileTextOutlined,
+  TruckOutlined, CheckCircleOutlined, FileTextOutlined, SendOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
-  useGuiaEnvio, useDeleteGuiaEnvio, useUpsertGuiaEnvio,
+  useGuiaEnvio, useDeleteGuiaEnvio, useUpsertGuiaEnvio, useRegistrarEnvioCompartido,
   buildTrackingUrl, PAQUETERIA_LABELS, STATUS_LABELS, STATUS_COLORS,
-  type GuiaStatus,
+  type GuiaStatus, type GuiaEnviadoPor,
 } from '@/lib/hooks/queries/useGuiasEnvio'
 import { formatMoneyMXN, formatDate, formatDateTime } from '@/lib/utils/format'
 import GuiaEnvioForm from '@/components/envios/GuiaEnvioForm'
+import CompartirGuiaModal from '@/components/envios/CompartirGuiaModal'
 
 const { Title, Text } = Typography
 
@@ -39,8 +40,10 @@ export default function EnvioDetallePage() {
   const { data, isLoading } = useGuiaEnvio(id)
   const deleteMut = useDeleteGuiaEnvio()
   const upsertMut = useUpsertGuiaEnvio()
+  const registrarShare = useRegistrarEnvioCompartido()
 
   const [editMode, setEditMode] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   if (isLoading) {
     return <div style={{ textAlign: 'center', padding: 50 }}><Spin size="large" /></div>
@@ -146,6 +149,14 @@ export default function EnvioDetallePage() {
           </Tag>
         </Space>
         <Space wrap>
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={() => setShareOpen(true)}
+            style={{ background: '#25D366', borderColor: '#25D366' }}
+          >
+            Compartir con cliente
+          </Button>
           <Button icon={<EditOutlined />} onClick={() => setEditMode(true)}>Editar</Button>
           <Popconfirm title="¿Eliminar guía?" description="Esta acción no se puede deshacer." onConfirm={handleDelete}>
             <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
@@ -292,6 +303,15 @@ export default function EnvioDetallePage() {
           </Card>
         </Col>
       </Row>
+
+      <CompartirGuiaModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        guia={guia}
+        onRegisterShare={async (canal: GuiaEnviadoPor) => {
+          await registrarShare.mutateAsync({ guiaId: id, canal })
+        }}
+      />
     </div>
   )
 }

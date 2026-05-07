@@ -1,4 +1,4 @@
-export type ConfigTipo = 'boolean' | 'number' | 'string' | 'enum' | 'json'
+export type ConfigTipo = 'boolean' | 'number' | 'string' | 'textarea' | 'enum' | 'json'
 
 export type ConfigCategoria =
   | 'inventario'
@@ -8,6 +8,7 @@ export type ConfigCategoria =
   | 'insights'
   | 'performance'
   | 'ui'
+  | 'envios'
 
 export interface ConfigAplicadoEn {
   ruta: string
@@ -56,6 +57,7 @@ export const CONFIG_CATEGORIAS: { key: ConfigCategoria; label: string; icon?: st
   { key: 'cotizaciones', label: 'Cotizaciones y ventas' },
   { key: 'pos', label: 'POS' },
   { key: 'cfdi', label: 'CFDI / Facturación' },
+  { key: 'envios', label: 'Envíos' },
   { key: 'insights', label: 'Insights y alertas' },
   { key: 'performance', label: 'Rendimiento' },
   { key: 'ui', label: 'Apariencia / UI' },
