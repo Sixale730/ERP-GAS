@@ -44,7 +44,7 @@ export function useDashboardNotificacionesActivas() {
       const today = new Date().toISOString().split('T')[0]
 
       // 1) Notificaciones activas en fecha vigente
-      let q = supabase
+      const { data: rows, error } = await supabase
         .schema('erp')
         .from('dashboard_notificaciones')
         .select('id, titulo, descripcion, tipo, icono, cta_label, cta_ruta, fecha_inicio, fecha_fin, dirigido_a_roles, organizacion_id, activo, created_at')
@@ -52,8 +52,6 @@ export function useDashboardNotificacionesActivas() {
         .lte('fecha_inicio', today)
         .order('created_at', { ascending: false })
         .limit(20)
-
-      const { data: rows, error } = await q
       if (error) throw error
 
       // 2) Filtrar fecha_fin (en cliente — fecha_fin OR > today)
