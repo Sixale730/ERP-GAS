@@ -22,5 +22,6 @@ export const cfdiManifest = {
     vendedor: NONE,
     compras: NONE,
     contador: ALL,
+    logistica: NONE,
   },
 } satisfies ModuleManifestInput

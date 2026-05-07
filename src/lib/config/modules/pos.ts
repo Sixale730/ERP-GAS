@@ -20,5 +20,6 @@ export const posManifest = {
     vendedor: VCE,
     compras: NONE,
     contador: NONE,
+    logistica: NONE,
   },
 } satisfies ModuleManifestInput

@@ -27,5 +27,6 @@ export const configuracionManifest = {
     vendedor: NONE,
     compras: NONE,
     contador: NONE,
+    logistica: NONE,
   },
 } satisfies ModuleManifestInput

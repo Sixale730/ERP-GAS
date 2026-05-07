@@ -5,7 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Table, Button, Space, Typography, Tag, Descriptions, Divider, message, Modal, Spin, Row, Col, Collapse, Input
 } from 'antd'
-import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, HistoryOutlined, LinkOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, FileTextOutlined, CheckCircleOutlined, FilePdfOutlined, EditOutlined, CloseCircleOutlined, ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, EnvironmentOutlined, BankOutlined, CreditCardOutlined, HistoryOutlined, LinkOutlined, TruckOutlined } from '@ant-design/icons'
+import GuiasLigadasCard from '@/components/envios/GuiasLigadasCard'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyMXN, formatMoneyUSD, formatDate } from '@/lib/utils/format'
 import { getFormaPagoLabel, getMetodoPagoLabel, getRegimenFiscalLabel, getUsoCfdiLabel } from '@/lib/config/sat'
@@ -659,6 +660,13 @@ export default function CotizacionDetallePage() {
                 Editar
               </Button>
               <Button
+                icon={<TruckOutlined />}
+                onClick={() => router.push(`/envios/nueva?cotizacion_id=${id}`)}
+                size="large"
+              >
+                Crear guía
+              </Button>
+              <Button
                 type="primary"
                 icon={<FileTextOutlined />}
                 onClick={handleConvertirAFactura}
@@ -745,6 +753,14 @@ export default function CotizacionDetallePage() {
               </>
             )}
           </Card>
+
+          {/* Guías de envío ligadas a esta OV/cotización */}
+          {(cotizacion.status === 'orden_venta' || cotizacion.status === 'facturada') && (
+            <GuiasLigadasCard
+              cotizacionId={id as string}
+              permitirCrear={cotizacion.status === 'orden_venta' || cotizacion.status === 'facturada'}
+            />
+          )}
 
           {/* OVs generadas desde esta cotización */}
           {cotizacion.folio.startsWith('COT-') && ovsGeneradas.length > 0 && (

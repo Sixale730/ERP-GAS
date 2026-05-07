@@ -6,7 +6,7 @@ export interface PermisoCRUD {
   eliminar: boolean
 }
 
-export type UserRole = 'super_admin' | 'admin_cliente' | 'vendedor' | 'compras' | 'contador'
+export type UserRole = 'super_admin' | 'admin_cliente' | 'vendedor' | 'compras' | 'contador' | 'logistica'
 
 // Permission presets — reusable across manifests
 export const ALL: PermisoCRUD = { ver: true, crear: true, editar: true, eliminar: true }

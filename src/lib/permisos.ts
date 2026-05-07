@@ -3,7 +3,7 @@
  * Importar desde '@/lib/permisos' en ambos contextos
  */
 
-export type UserRole = 'super_admin' | 'admin_cliente' | 'vendedor' | 'compras' | 'contador'
+export type UserRole = 'super_admin' | 'admin_cliente' | 'vendedor' | 'compras' | 'contador' | 'logistica'
 
 export interface PermisoCRUD {
   ver: boolean

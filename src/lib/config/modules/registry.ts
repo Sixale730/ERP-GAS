@@ -7,6 +7,7 @@ import { facturasManifest } from './facturas'
 import { cfdiManifest } from './cfdi'
 import { posManifest } from './pos'
 import { comprasManifest } from './compras'
+import { enviosManifest } from './envios'
 import { reportesManifest } from './reportes'
 import { catalogosManifest } from './catalogos'
 import { configuracionManifest } from './configuracion'
@@ -25,6 +26,7 @@ const ALL_MANIFESTS = {
   pos: posManifest,
   cfdi: cfdiManifest,
   compras: comprasManifest,
+  envios: enviosManifest,
   insights: {
     id: 'insights',
     label: 'Insights',
@@ -40,6 +42,7 @@ const ALL_MANIFESTS = {
       vendedor: VIEW_ONLY,
       compras: VIEW_ONLY,
       contador: VIEW_ONLY,
+      logistica: VIEW_ONLY,
     },
   } satisfies ModuleManifestInput,
   reportes: reportesManifest,
@@ -88,7 +91,7 @@ export const MODULOS_LIST: { key: Modulo; label: string }[] = TODOS_LOS_MODULOS.
 
 export type PermisosUsuario = Record<string, PermisoCRUD>
 
-const ROLES: UserRole[] = ['super_admin', 'admin_cliente', 'vendedor', 'compras', 'contador']
+const ROLES: UserRole[] = ['super_admin', 'admin_cliente', 'vendedor', 'compras', 'contador', 'logistica']
 
 /** Default permissions per role, auto-derived from all manifests */
 export const PERMISOS_DEFAULT: Record<UserRole, PermisosUsuario> = Object.fromEntries(

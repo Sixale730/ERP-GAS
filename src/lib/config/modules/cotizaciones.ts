@@ -17,5 +17,6 @@ export const cotizacionesManifest = {
     vendedor: VCE,
     compras: VIEW_ONLY,
     contador: VIEW_ONLY,
+    logistica: VIEW_ONLY,
   },
 } satisfies ModuleManifestInput

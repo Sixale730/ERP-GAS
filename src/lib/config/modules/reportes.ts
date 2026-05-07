@@ -21,5 +21,6 @@ export const reportesManifest = {
     vendedor: VIEW_ONLY,
     compras: VIEW_ONLY,
     contador: ALL,
+    logistica: VIEW_ONLY,
   },
 } satisfies ModuleManifestInput
