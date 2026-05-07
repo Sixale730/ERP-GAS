@@ -5,6 +5,7 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/hooks/useAuth'
 
 export type DashboardNotificacionTipo = 'nuevo' | 'mejora' | 'fix' | 'aviso'
+export type DashboardNotificacionStatus = 'borrador' | 'publicada' | 'archivada'
 
 export interface DashboardNotificacion {
   id: string
@@ -19,6 +20,9 @@ export interface DashboardNotificacion {
   dirigido_a_roles: string[] | null
   organizacion_id: string | null
   activo: boolean
+  status: DashboardNotificacionStatus
+  published_at: string | null
+  published_by: string | null
   created_at: string
 }
 
@@ -43,14 +47,16 @@ export function useDashboardNotificacionesActivas() {
       const supabase = getSupabaseClient()
       const today = new Date().toISOString().split('T')[0]
 
-      // 1) Notificaciones activas en fecha vigente
+      // 1) Notificaciones publicadas, activas y en fecha vigente.
+      // Las que estan en status='borrador' NO se muestran (esperan aprobacion del super_admin).
       const { data: rows, error } = await supabase
         .schema('erp')
         .from('dashboard_notificaciones')
-        .select('id, titulo, descripcion, tipo, icono, cta_label, cta_ruta, fecha_inicio, fecha_fin, dirigido_a_roles, organizacion_id, activo, created_at')
+        .select('id, titulo, descripcion, tipo, icono, cta_label, cta_ruta, fecha_inicio, fecha_fin, dirigido_a_roles, organizacion_id, activo, status, published_at, published_by, created_at')
+        .eq('status', 'publicada')
         .eq('activo', true)
         .lte('fecha_inicio', today)
-        .order('created_at', { ascending: false })
+        .order('published_at', { ascending: false })
         .limit(20)
       if (error) throw error
 
@@ -111,13 +117,61 @@ export function useDashboardNotificacionesAdmin() {
       const { data, error } = await supabase
         .schema('erp')
         .from('dashboard_notificaciones')
-        .select('id, titulo, descripcion, tipo, icono, cta_label, cta_ruta, fecha_inicio, fecha_fin, dirigido_a_roles, organizacion_id, activo, created_at')
+        .select('id, titulo, descripcion, tipo, icono, cta_label, cta_ruta, fecha_inicio, fecha_fin, dirigido_a_roles, organizacion_id, activo, status, published_at, published_by, created_at')
         .order('created_at', { ascending: false })
         .limit(200)
       if (error) throw error
       return data ?? []
     },
     staleTime: 1000 * 30,
+  })
+}
+
+/** Publicar un borrador — set status='publicada' y registrar quien lo aprobo. */
+export function usePublishDashboardNotificacion() {
+  const queryClient = useQueryClient()
+  const { erpUser } = useAuth()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const supabase = getSupabaseClient()
+      const today = new Date().toISOString().split('T')[0]
+      const { error } = await supabase
+        .schema('erp')
+        .from('dashboard_notificaciones')
+        .update({
+          status: 'publicada',
+          published_at: new Date().toISOString(),
+          published_by: erpUser?.id ?? null,
+          activo: true,
+          // Si fecha_inicio era a futuro y ya estamos publicando, la adelantamos a hoy
+          // para que se vea de inmediato.
+          fecha_inicio: today,
+        })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dashboardNotificacionesKeys.all })
+    },
+  })
+}
+
+/** Archivar una publicada — la saca del banner pero queda como historico. */
+export function useArchiveDashboardNotificacion() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const supabase = getSupabaseClient()
+      const { error } = await supabase
+        .schema('erp')
+        .from('dashboard_notificaciones')
+        .update({ status: 'archivada', activo: false })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dashboardNotificacionesKeys.all })
+    },
   })
 }
 
@@ -134,6 +188,7 @@ interface UpsertNotificacionInput {
   dirigido_a_roles?: string[] | null
   organizacion_id?: string | null
   activo: boolean
+  status?: DashboardNotificacionStatus
 }
 
 export function useUpsertDashboardNotificacion() {
@@ -152,6 +207,9 @@ export function useUpsertDashboardNotificacion() {
         fecha_fin: input.fecha_fin ?? null,
         dirigido_a_roles: input.dirigido_a_roles ?? null,
         organizacion_id: input.organizacion_id ?? null,
+        // Default a borrador si no se especifica explicitamente.
+        // El super_admin puede pasar 'publicada' para crear directo activa.
+        status: input.status ?? 'borrador',
         created_by: erpUser?.id ?? null,
       }
 

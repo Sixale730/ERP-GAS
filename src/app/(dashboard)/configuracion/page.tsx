@@ -354,23 +354,26 @@ export default function ConfiguracionPage() {
             </Link>
           </Card>
 
-          <Card style={{ marginBottom: 16, borderLeft: '4px solid #52c41a' }} hoverable>
-            <Link href="/configuracion/notificaciones-dashboard" style={{ display: 'block' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                <Space>
-                  <BellOutlined style={{ fontSize: 24, color: '#52c41a' }} />
-                  <div>
-                    <Text strong style={{ fontSize: 16, display: 'block' }}>Notificaciones del Dashboard</Text>
-                    <Text type="secondary" style={{ fontSize: 13 }}>
-                      Anuncia nuevas funciones, mejoras o avisos al equipo via banner en el Dashboard. Cada usuario puede cerrarlas.
-                    </Text>
-                  </div>
-                </Space>
-                <RightOutlined />
-              </div>
-            </Link>
-          </Card>
         </>
+      )}
+
+      {role === 'super_admin' && (
+        <Card style={{ marginBottom: 16, borderLeft: '4px solid #52c41a' }} hoverable>
+          <Link href="/configuracion/notificaciones-dashboard" style={{ display: 'block' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <Space>
+                <BellOutlined style={{ fontSize: 24, color: '#52c41a' }} />
+                <div>
+                  <Text strong style={{ fontSize: 16, display: 'block' }}>Notificaciones del Dashboard</Text>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    Aprueba o descarta borradores que Claude deja al hacer cambios importantes, o crea anuncios manuales para el equipo. Solo super_admin.
+                  </Text>
+                </div>
+              </Space>
+              <RightOutlined />
+            </div>
+          </Link>
+        </Card>
       )}
 
       <Row gutter={[16, 16]}>

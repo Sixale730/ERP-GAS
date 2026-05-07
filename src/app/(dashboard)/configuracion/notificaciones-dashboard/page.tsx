@@ -4,12 +4,12 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Card, Table, Button, Space, Typography, Tag, Modal, Form, Input, Select,
-  DatePicker, Switch, message, Popconfirm, Alert
+  DatePicker, Switch, message, Popconfirm, Alert, Tabs, Badge
 } from 'antd'
 import {
   ArrowLeftOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
   RocketOutlined, ThunderboltOutlined, ToolOutlined, InfoCircleOutlined,
-  EyeOutlined, BellOutlined,
+  EyeOutlined, BellOutlined, CheckCircleOutlined, InboxOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -18,10 +18,12 @@ import {
   useDashboardNotificacionesAdmin,
   useUpsertDashboardNotificacion,
   useDeleteDashboardNotificacion,
+  usePublishDashboardNotificacion,
+  useArchiveDashboardNotificacion,
   type DashboardNotificacion,
   type DashboardNotificacionTipo,
+  type DashboardNotificacionStatus,
 } from '@/lib/hooks/queries/useDashboardNotificaciones'
-import DashboardNotificacionesBanner from '@/components/dashboard/DashboardNotificacionesBanner'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -45,16 +47,29 @@ export default function NotificacionesDashboardPage() {
   const router = useRouter()
   const { role, orgId } = useAuth()
   const isSuperAdmin = role === 'super_admin'
-  const isAdmin = role === 'admin_cliente' || role === 'super_admin'
 
   const { data: lista = [], isLoading } = useDashboardNotificacionesAdmin()
   const upsertMutation = useUpsertDashboardNotificacion()
   const deleteMutation = useDeleteDashboardNotificacion()
+  const publishMutation = usePublishDashboardNotificacion()
+  const archiveMutation = useArchiveDashboardNotificacion()
 
+  const [activeTab, setActiveTab] = useState<DashboardNotificacionStatus>('borrador')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<DashboardNotificacion | null>(null)
   const [form] = Form.useForm()
   const [previewValues, setPreviewValues] = useState<DashboardNotificacion | null>(null)
+
+  const counts = useMemo(() => ({
+    borrador: lista.filter(n => n.status === 'borrador').length,
+    publicada: lista.filter(n => n.status === 'publicada').length,
+    archivada: lista.filter(n => n.status === 'archivada').length,
+  }), [lista])
+
+  const filtered = useMemo(
+    () => lista.filter(n => n.status === activeTab),
+    [lista, activeTab]
+  )
 
   const handleNuevo = () => {
     setEditing(null)
@@ -63,7 +78,8 @@ export default function NotificacionesDashboardPage() {
       tipo: 'nuevo',
       activo: true,
       fecha_inicio: dayjs(),
-      organizacion_id: isSuperAdmin ? null : orgId,
+      organizacion_id: null,
+      status: 'borrador',
     })
     setPreviewValues(null)
     setModalOpen(true)
@@ -82,6 +98,7 @@ export default function NotificacionesDashboardPage() {
       dirigido_a_roles: record.dirigido_a_roles,
       organizacion_id: record.organizacion_id,
       activo: record.activo,
+      status: record.status,
     })
     setPreviewValues(record)
     setModalOpen(true)
@@ -91,8 +108,30 @@ export default function NotificacionesDashboardPage() {
     try {
       await deleteMutation.mutateAsync(id)
       message.success('Notificacion eliminada')
-    } catch (err: any) {
-      message.error(err.message || 'Error al eliminar')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al eliminar'
+      message.error(msg)
+    }
+  }
+
+  const handlePublicar = async (id: string) => {
+    try {
+      await publishMutation.mutateAsync(id)
+      message.success('Notificacion publicada — ya es visible en el dashboard')
+      setActiveTab('publicada')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al publicar'
+      message.error(msg)
+    }
+  }
+
+  const handleArchivar = async (id: string) => {
+    try {
+      await archiveMutation.mutateAsync(id)
+      message.success('Notificacion archivada')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al archivar'
+      message.error(msg)
     }
   }
 
@@ -111,37 +150,44 @@ export default function NotificacionesDashboardPage() {
         dirigido_a_roles: values.dirigido_a_roles?.length ? values.dirigido_a_roles : null,
         organizacion_id: values.organizacion_id || null,
         activo: values.activo,
+        status: values.status,
       })
-      message.success(editing ? 'Notificacion actualizada' : 'Notificacion creada')
+      message.success(editing ? 'Notificacion actualizada' : 'Notificacion creada (borrador)')
       setModalOpen(false)
       setEditing(null)
       form.resetFields()
-    } catch (err: any) {
-      if (err.errorFields) return // validation errors
-      message.error(err.message || 'Error al guardar')
+    } catch (err: unknown) {
+      const errAny = err as { errorFields?: unknown; message?: string }
+      if (errAny.errorFields) return
+      message.error(errAny.message || 'Error al guardar')
     }
   }
 
-  const handleValuesChange = (_: any, all: any) => {
+  const handleValuesChange = (_: unknown, all: Record<string, unknown>) => {
     if (!all.titulo) return setPreviewValues(null)
+    const fechaInicio = all.fecha_inicio as dayjs.Dayjs | undefined
+    const fechaFin = all.fecha_fin as dayjs.Dayjs | undefined
     setPreviewValues({
       id: 'preview',
-      titulo: all.titulo,
-      descripcion: all.descripcion ?? null,
-      tipo: all.tipo,
+      titulo: String(all.titulo),
+      descripcion: (all.descripcion as string | null) ?? null,
+      tipo: all.tipo as DashboardNotificacionTipo,
       icono: null,
-      cta_label: all.cta_label ?? null,
-      cta_ruta: all.cta_ruta ?? null,
-      fecha_inicio: all.fecha_inicio?.format('YYYY-MM-DD') ?? '',
-      fecha_fin: all.fecha_fin ? all.fecha_fin.format('YYYY-MM-DD') : null,
-      dirigido_a_roles: all.dirigido_a_roles ?? null,
-      organizacion_id: all.organizacion_id ?? null,
-      activo: all.activo,
+      cta_label: (all.cta_label as string | null) ?? null,
+      cta_ruta: (all.cta_ruta as string | null) ?? null,
+      fecha_inicio: fechaInicio?.format('YYYY-MM-DD') ?? '',
+      fecha_fin: fechaFin ? fechaFin.format('YYYY-MM-DD') : null,
+      dirigido_a_roles: (all.dirigido_a_roles as string[] | null) ?? null,
+      organizacion_id: (all.organizacion_id as string | null) ?? null,
+      activo: Boolean(all.activo),
+      status: (all.status as DashboardNotificacionStatus) ?? 'borrador',
+      published_at: null,
+      published_by: null,
       created_at: '',
     })
   }
 
-  const columns: ColumnsType<DashboardNotificacion> = useMemo(() => [
+  const baseCols: ColumnsType<DashboardNotificacion> = [
     {
       title: 'Tipo', dataIndex: 'tipo', key: 'tipo', width: 100,
       render: (t: DashboardNotificacionTipo) => {
@@ -150,7 +196,7 @@ export default function NotificacionesDashboardPage() {
       },
     },
     {
-      title: 'Titulo', dataIndex: 'titulo', key: 'titulo', ellipsis: true, width: 240,
+      title: 'Titulo', dataIndex: 'titulo', key: 'titulo', ellipsis: true, width: 280,
       render: (v: string) => <Text strong>{v}</Text>,
     },
     {
@@ -176,32 +222,83 @@ export default function NotificacionesDashboardPage() {
         id ? <Tag color="blue" style={{ fontSize: 10 }}>Especifica</Tag>
            : <Tag style={{ fontSize: 10 }}>Global</Tag>,
     },
+  ]
+
+  const colsBorrador: ColumnsType<DashboardNotificacion> = [
+    ...baseCols,
     {
-      title: 'Estado', dataIndex: 'activo', key: 'activo', width: 90, align: 'center',
-      render: (a: boolean) => a ? <Tag color="green">Activo</Tag> : <Tag>Pausado</Tag>,
-    },
-    {
-      title: 'CTA', dataIndex: 'cta_ruta', key: 'cta', width: 140, ellipsis: true,
-      render: (ruta: string | null, r) => ruta ? (
-        <Text style={{ fontSize: 11 }} code>{ruta}</Text>
-      ) : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
-    },
-    {
-      title: 'Acciones', key: 'acciones', width: 130, align: 'center',
+      title: 'Acciones', key: 'acciones', width: 260, align: 'center',
       render: (_, r) => (
-        <Space size={4}>
+        <Space size={4} wrap>
           <Button size="small" icon={<EditOutlined />} onClick={() => handleEditar(r)}>Editar</Button>
-          <Popconfirm title="¿Eliminar notificacion?" onConfirm={() => handleEliminar(r.id)}>
+          <Popconfirm
+            title="¿Publicar al dashboard?"
+            description="Sera visible para los usuarios que cumplan los filtros."
+            onConfirm={() => handlePublicar(r.id)}
+            okText="Publicar"
+          >
+            <Button size="small" type="primary" icon={<CheckCircleOutlined />}>Publicar</Button>
+          </Popconfirm>
+          <Popconfirm title="¿Eliminar borrador?" onConfirm={() => handleEliminar(r.id)}>
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
     },
-  ], [])
+  ]
 
-  if (!isAdmin) {
+  const colsPublicada: ColumnsType<DashboardNotificacion> = [
+    ...baseCols,
+    {
+      title: 'Visible', dataIndex: 'activo', key: 'activo', width: 90, align: 'center',
+      render: (a: boolean) => a ? <Tag color="green">Activa</Tag> : <Tag>Pausada</Tag>,
+    },
+    {
+      title: 'Acciones', key: 'acciones', width: 220, align: 'center',
+      render: (_, r) => (
+        <Space size={4}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEditar(r)}>Editar</Button>
+          <Popconfirm title="¿Archivar?" description="Deja de aparecer en el dashboard." onConfirm={() => handleArchivar(r.id)}>
+            <Button size="small" icon={<InboxOutlined />}>Archivar</Button>
+          </Popconfirm>
+          <Popconfirm title="¿Eliminar?" onConfirm={() => handleEliminar(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  const colsArchivada: ColumnsType<DashboardNotificacion> = [
+    ...baseCols,
+    {
+      title: 'Acciones', key: 'acciones', width: 200, align: 'center',
+      render: (_, r) => (
+        <Space size={4}>
+          <Popconfirm title="¿Re-publicar?" onConfirm={() => handlePublicar(r.id)}>
+            <Button size="small" type="primary" icon={<CheckCircleOutlined />}>Re-publicar</Button>
+          </Popconfirm>
+          <Popconfirm title="¿Eliminar permanentemente?" onConfirm={() => handleEliminar(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  if (!isSuperAdmin) {
     return (
-      <Alert type="error" message="Solo administradores pueden gestionar notificaciones del dashboard." />
+      <div>
+        <Space style={{ marginBottom: 16 }}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/configuracion')}>Volver</Button>
+        </Space>
+        <Alert
+          type="error"
+          showIcon
+          message="Acceso restringido"
+          description="Solo el super_admin puede gestionar las notificaciones del dashboard. Si necesitas anunciar algo, pidele al super_admin que apruebe el borrador."
+        />
+      </div>
     )
   }
 
@@ -220,30 +317,78 @@ export default function NotificacionesDashboardPage() {
       <Alert
         type="info"
         showIcon
-        message="Las notificaciones aparecen como banner en el Dashboard arriba a la derecha. Cada usuario puede cerrarlas individualmente."
+        message="Workflow de aprobacion"
+        description={
+          <span>
+            Las notificaciones nacen como <Tag>BORRADOR</Tag> (no visibles). Solo se muestran en el dashboard cuando tu las publicas.
+            Cuando Claude haga un cambio importante, dejara un borrador aqui para que lo revises antes de mostrarlo al equipo.
+          </span>
+        }
         style={{ marginBottom: 16 }}
       />
 
       <Card>
-        <Table
-          rowKey="id"
-          dataSource={lista}
-          columns={columns}
-          loading={isLoading}
-          pagination={{ pageSize: 20 }}
-          locale={{ emptyText: 'Aun no hay notificaciones. Crea la primera con el boton de arriba.' }}
-          scroll={{ x: 1100 }}
+        <Tabs
+          activeKey={activeTab}
+          onChange={k => setActiveTab(k as DashboardNotificacionStatus)}
+          items={[
+            {
+              key: 'borrador',
+              label: <span>Borradores {counts.borrador > 0 && <Badge count={counts.borrador} style={{ backgroundColor: '#faad14' }} />}</span>,
+              children: (
+                <Table
+                  rowKey="id"
+                  dataSource={filtered}
+                  columns={colsBorrador}
+                  loading={isLoading}
+                  pagination={{ pageSize: 20 }}
+                  locale={{ emptyText: 'Sin borradores pendientes de aprobacion.' }}
+                  scroll={{ x: 1100 }}
+                />
+              ),
+            },
+            {
+              key: 'publicada',
+              label: <span>Publicadas {counts.publicada > 0 && <Badge count={counts.publicada} style={{ backgroundColor: '#52c41a' }} />}</span>,
+              children: (
+                <Table
+                  rowKey="id"
+                  dataSource={filtered}
+                  columns={colsPublicada}
+                  loading={isLoading}
+                  pagination={{ pageSize: 20 }}
+                  locale={{ emptyText: 'Sin notificaciones publicadas.' }}
+                  scroll={{ x: 1100 }}
+                />
+              ),
+            },
+            {
+              key: 'archivada',
+              label: <span>Archivadas {counts.archivada > 0 && <Badge count={counts.archivada} style={{ backgroundColor: '#8c8c8c' }} />}</span>,
+              children: (
+                <Table
+                  rowKey="id"
+                  dataSource={filtered}
+                  columns={colsArchivada}
+                  loading={isLoading}
+                  pagination={{ pageSize: 20 }}
+                  locale={{ emptyText: 'Sin archivados.' }}
+                  scroll={{ x: 1100 }}
+                />
+              ),
+            },
+          ]}
         />
       </Card>
 
       <Modal
         open={modalOpen}
-        title={editing ? `Editar: ${editing.titulo}` : 'Nueva notificacion'}
+        title={editing ? `Editar: ${editing.titulo}` : 'Nueva notificacion (borrador)'}
         onCancel={() => { setModalOpen(false); setEditing(null); form.resetFields(); setPreviewValues(null) }}
         onOk={handleGuardar}
-        okText={editing ? 'Guardar cambios' : 'Crear'}
+        okText={editing ? 'Guardar cambios' : 'Crear borrador'}
         confirmLoading={upsertMutation.isPending}
-        width={700}
+        width={760}
         destroyOnClose
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 16 }}>
@@ -276,14 +421,23 @@ export default function NotificacionesDashboardPage() {
             <Form.Item name="dirigido_a_roles" label="Dirigido a roles (vacio = todos)">
               <Select mode="multiple" allowClear options={ROLES_OPCIONES} />
             </Form.Item>
-            {isSuperAdmin && (
-              <Form.Item name="organizacion_id" label="Organizacion (vacio = todas las orgs)">
-                <Input placeholder="UUID o vacio para global" />
-              </Form.Item>
-            )}
-            <Form.Item name="activo" label="Activo" valuePropName="checked">
-              <Switch checkedChildren="Activo" unCheckedChildren="Pausado" />
+            <Form.Item name="organizacion_id" label="Organizacion (vacio = todas las orgs)">
+              <Input placeholder="UUID o vacio para global" />
             </Form.Item>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Form.Item name="activo" label="Visible" valuePropName="checked">
+                <Switch checkedChildren="Activa" unCheckedChildren="Pausada" />
+              </Form.Item>
+              <Form.Item name="status" label="Estado">
+                <Select
+                  options={[
+                    { value: 'borrador', label: 'Borrador (pendiente aprobacion)' },
+                    { value: 'publicada', label: 'Publicada (visible)' },
+                    { value: 'archivada', label: 'Archivada (historico)' },
+                  ]}
+                />
+              </Form.Item>
+            </div>
           </Form>
 
           <div>
@@ -302,6 +456,9 @@ export default function NotificacionesDashboardPage() {
           </div>
         </div>
       </Modal>
+
+      {/* orgId expuesto pero no usado en este momento */}
+      {orgId && null}
     </div>
   )
 }
