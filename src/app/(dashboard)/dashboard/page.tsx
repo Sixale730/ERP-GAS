@@ -23,6 +23,7 @@ import { DashboardSkeleton } from '@/components/common/Skeletons'
 import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
 import DashboardPOS from '@/components/dashboard/DashboardPOS'
 import InsightsPanel from '@/components/insights/InsightsPanel'
+import DashboardNotificacionesBanner from '@/components/dashboard/DashboardNotificacionesBanner'
 
 const { Title } = Typography
 
@@ -167,8 +168,9 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <Title level={2} style={{ margin: 0 }}>Dashboard</Title>
+        <DashboardNotificacionesBanner />
       </div>
 
       <Row gutter={[16, 16]}>

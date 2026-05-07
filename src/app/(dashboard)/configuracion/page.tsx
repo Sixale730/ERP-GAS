@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin, Table, Input, Switch, List, Tag, Dropdown, Modal } from 'antd'
-import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined, AppstoreOutlined, ThunderboltOutlined, SyncOutlined, DownOutlined, SettingOutlined, RightOutlined } from '@ant-design/icons'
+import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined, AppstoreOutlined, ThunderboltOutlined, SyncOutlined, DownOutlined, SettingOutlined, RightOutlined, BellOutlined } from '@ant-design/icons'
 import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ColumnsType } from 'antd/es/table'
@@ -336,22 +336,41 @@ export default function ConfiguracionPage() {
       </div>
 
       {(role === 'super_admin' || role === 'admin_cliente') && (
-        <Card style={{ marginBottom: 16, borderLeft: '4px solid #1890ff' }} hoverable>
-          <Link href="/configuracion/sistema" style={{ display: 'block' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-              <Space>
-                <SettingOutlined style={{ fontSize: 24, color: '#1890ff' }} />
-                <div>
-                  <Text strong style={{ fontSize: 16, display: 'block' }}>Parametros del Sistema</Text>
-                  <Text type="secondary" style={{ fontSize: 13 }}>
-                    Inventario, cotizaciones, POS, CFDI, insights, rendimiento y UI. Con auditoria de cambios.
-                  </Text>
-                </div>
-              </Space>
-              <RightOutlined />
-            </div>
-          </Link>
-        </Card>
+        <>
+          <Card style={{ marginBottom: 16, borderLeft: '4px solid #1890ff' }} hoverable>
+            <Link href="/configuracion/sistema" style={{ display: 'block' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <Space>
+                  <SettingOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+                  <div>
+                    <Text strong style={{ fontSize: 16, display: 'block' }}>Parametros del Sistema</Text>
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      Inventario, cotizaciones, POS, CFDI, insights, rendimiento y UI. Con auditoria de cambios.
+                    </Text>
+                  </div>
+                </Space>
+                <RightOutlined />
+              </div>
+            </Link>
+          </Card>
+
+          <Card style={{ marginBottom: 16, borderLeft: '4px solid #52c41a' }} hoverable>
+            <Link href="/configuracion/notificaciones-dashboard" style={{ display: 'block' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <Space>
+                  <BellOutlined style={{ fontSize: 24, color: '#52c41a' }} />
+                  <div>
+                    <Text strong style={{ fontSize: 16, display: 'block' }}>Notificaciones del Dashboard</Text>
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      Anuncia nuevas funciones, mejoras o avisos al equipo via banner en el Dashboard. Cada usuario puede cerrarlas.
+                    </Text>
+                  </div>
+                </Space>
+                <RightOutlined />
+              </div>
+            </Link>
+          </Card>
+        </>
       )}
 
       <Row gutter={[16, 16]}>
