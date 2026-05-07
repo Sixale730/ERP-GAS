@@ -20,6 +20,10 @@ import {
   UserSwitchOutlined,
   BarChartOutlined,
   BulbOutlined,
+  TruckOutlined,
+  CarOutlined,
+  SendOutlined,
+  RocketOutlined,
 } from '@ant-design/icons'
 import { MODULE_REGISTRY } from './registry'
 import type { Modulo } from './registry'
@@ -60,6 +64,10 @@ const ICON_MAP: Record<string, React.ComponentType> = {
   UserSwitchOutlined,
   BarChartOutlined,
   BulbOutlined,
+  TruckOutlined,
+  CarOutlined,
+  SendOutlined,
+  RocketOutlined,
 }
 
 function getIcon(name: string): React.ReactNode {
