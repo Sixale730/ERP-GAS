@@ -373,12 +373,8 @@ export default function CotizacionDetallePage() {
         <div>
           <p>Se creará una nueva Orden de Venta a partir de <strong>{cotizacion?.folio}</strong>.</p>
           <p style={{ marginTop: 8 }}>
-            <strong>Automáticamente se:</strong>
+            La OV reservará el inventario disponible. El físico se descontará al facturar.
           </p>
-          <ul style={{ marginTop: 4 }}>
-            <li>Creará una nueva OV con los mismos productos</li>
-            <li>Descontará el inventario del almacén</li>
-          </ul>
           <p style={{ marginTop: 8 }}>
             La cotización original permanecerá sin cambios.
           </p>
@@ -418,8 +414,8 @@ export default function CotizacionDetallePage() {
       content: (
         <div>
           <p>Esta acción cancelará la orden <strong>{cotizacion?.folio}</strong>.</p>
-          <p style={{ marginTop: 8, color: '#52c41a' }}>
-            <strong>El inventario será restaurado automáticamente.</strong>
+          <p style={{ marginTop: 8 }}>
+            La reserva sobre el inventario quedará liberada.
           </p>
         </div>
       ),
@@ -437,7 +433,7 @@ export default function CotizacionDetallePage() {
 
           if (error) throw error
 
-          message.success('Orden cancelada, inventario restaurado')
+          message.success('Orden cancelada')
           loadCotizacion()
         } catch (error: any) {
           console.error('Error canceling order:', error)
@@ -999,7 +995,7 @@ export default function CotizacionDetallePage() {
                     Convertir a Orden de Venta
                   </Button>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Al convertir, se descontará el inventario automáticamente.
+                    Al convertir, el inventario quedará reservado. El físico se descontará al facturar.
                   </Text>
                 </>
               )}

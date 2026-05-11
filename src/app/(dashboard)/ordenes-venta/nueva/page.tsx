@@ -426,12 +426,8 @@ export default function NuevaOrdenVentaPage() {
 
       if (itemsError) throw itemsError
 
-      // 4. Descontar inventario de la OV creada directamente
-      const { error: ovError } = await supabase
-        .schema('erp')
-        .rpc('descontar_inventario_ov', { p_ov_id: cotizacion.id })
-
-      if (ovError) throw ovError
+      // El inventario fisico se descontara al facturar (cotizacion_a_factura).
+      // La OV solo "reserva" (calculo dinamico en v_inventario_detalle).
 
       // Registrar en historial
       await registrarHistorial({

@@ -1282,10 +1282,6 @@ export type Database = {
         Args: { p_cotizacion_id: string }
         Returns: string
       }
-      descontar_inventario_ov: {
-        Args: { p_ov_id: string }
-        Returns: void
-      }
       recalcular_totales_cotizacion: {
         Args: { p_cotizacion_id: string }
         Returns: void

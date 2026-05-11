@@ -82,7 +82,6 @@ export default function EditarCotizacionPage() {
 
   // Datos de la cotizacion original
   const [cotizacion, setCotizacion] = useState<CotizacionData | null>(null)
-  const [itemsOriginales, setItemsOriginales] = useState<CotizacionItem[]>([])
 
   // Configuracion global
   const { tipoCambio: tcGlobal, loading: loadingConfig } = useConfiguracion()
@@ -285,7 +284,6 @@ export default function EditarCotizacionPage() {
         })
 
         setItems(loadedItems)
-        setItemsOriginales(loadedItems.map(i => ({ ...i })))
       }
     } catch (error) {
       console.error('Error loading cotizacion:', error)
@@ -470,47 +468,6 @@ export default function EditarCotizacionPage() {
     }, 15000)
 
     try {
-      const esOrdenVenta = cotizacion.status === 'orden_venta'
-
-      // Si es orden_venta, manejar cambios de inventario
-      if (esOrdenVenta) {
-        // Restaurar inventario de items originales
-        for (const itemViejo of itemsOriginales) {
-          // Obtener cantidad actual y actualizar
-          const { data: invData } = await supabase
-            .schema('erp')
-            .from('inventario')
-            .select('cantidad')
-            .eq('producto_id', itemViejo.producto_id)
-            .eq('almacen_id', almacenId)
-            .single()
-
-          if (invData) {
-            await supabase
-              .schema('erp')
-              .from('inventario')
-              .update({ cantidad: Number(invData.cantidad) + itemViejo.cantidad })
-              .eq('producto_id', itemViejo.producto_id)
-              .eq('almacen_id', almacenId)
-          }
-
-          // Registrar movimiento de entrada (restauración)
-          await supabase
-            .schema('erp')
-            .from('movimientos_inventario')
-            .insert({
-              producto_id: itemViejo.producto_id,
-              almacen_destino_id: almacenId,
-              tipo: 'entrada',
-              cantidad: itemViejo.cantidad,
-              referencia_tipo: 'cotizacion',
-              referencia_id: cotizacionId,
-              notas: `Restauración por edición OV ${cotizacion.folio}`,
-              organizacion_id: orgId,
-            })
-        }
-      }
-
       // Actualizar cotización
       const formValues = form.getFieldsValue()
       const { error: cotError } = await supabase
@@ -581,43 +538,6 @@ export default function EditarCotizacionPage() {
         .insert(itemsToInsert)
 
       if (itemsError) throw itemsError
-
-      // Si es orden_venta, descontar nuevo inventario
-      if (esOrdenVenta) {
-        for (const item of items) {
-          const { data: invData } = await supabase
-            .schema('erp')
-            .from('inventario')
-            .select('cantidad')
-            .eq('producto_id', item.producto_id)
-            .eq('almacen_id', almacenId)
-            .single()
-
-          if (invData) {
-            await supabase
-              .schema('erp')
-              .from('inventario')
-              .update({ cantidad: Number(invData.cantidad) - item.cantidad })
-              .eq('producto_id', item.producto_id)
-              .eq('almacen_id', almacenId)
-          }
-
-          // Registrar movimiento de salida
-          await supabase
-            .schema('erp')
-            .from('movimientos_inventario')
-            .insert({
-              producto_id: item.producto_id,
-              almacen_origen_id: almacenId,
-              tipo: 'salida',
-              cantidad: item.cantidad,
-              referencia_tipo: 'cotizacion',
-              referencia_id: cotizacionId,
-              notas: `Orden de Venta ${cotizacion.folio} (editada)`,
-              organizacion_id: orgId,
-            })
-        }
-      }
 
       // Registrar en historial
       await registrarHistorial({
@@ -818,7 +738,7 @@ export default function EditarCotizacionPage() {
         </Button>
         <Title level={2} style={{ margin: 0 }}>Editar Cotización {cotizacion?.folio}</Title>
         {cotizacion?.status === 'orden_venta' && (
-          <Text type="warning" strong>(Orden de Venta - El inventario será recalculado)</Text>
+          <Text type="warning" strong>(Orden de Venta)</Text>
         )}
       </Space>
 
@@ -1242,8 +1162,8 @@ export default function EditarCotizacionPage() {
               {cotizacion?.status === 'orden_venta' && (
                 <>
                   <Divider style={{ margin: '12px 0' }} />
-                  <Text type="warning" style={{ fontSize: 12 }}>
-                    Esta cotización está en Orden de Venta. Al guardar, el inventario será restaurado y vuelto a descontar con las nuevas cantidades.
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Esta cotización está en Orden de Venta. El inventario físico se descontará al facturar.
                   </Text>
                 </>
               )}

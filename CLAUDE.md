@@ -474,6 +474,12 @@ Cuatro conceptos unificados en toda la UI (columnas, alertas, reportes, búsqued
 - **`erp.v_inventario_detalle`** — una fila por `(producto, almacen)`. Expone `cantidad`, `cantidad_reservada`, `en_transito`, nivel_stock, etc. Usa LATERAL joins para reservado y tránsito.
 - **`erp.v_productos_stock`** — una fila por producto (agregado cross-almacen). Expone `stock_total`, `reservado_total`, `disponible_total`, `en_transito_total`.
 
+### Cuándo se descuenta el físico
+El **físico** (`erp.inventario.cantidad`) baja **únicamente al facturar** (`cotizacion_a_factura`) o al hacer venta POS. Una **OV no toca el físico**, sólo agrega al reservado dinámico vía `cotizacion_items.status='orden_venta'`. Cancelar OV solo libera la reserva (no requiere movimientos de inventario en OVs nuevas; las legacy con saldo neto > 0 sí restauran).
+- Migration que estableció esto: `20260511_001_inventario_descuento_en_factura.sql`. Antes, `cotizacion_a_orden_venta` y el editor de OV descontaban el físico, lo que dejaba `cantidad < 0` cuando una OV no se facturaba (caso real: producto GP-RN-TP llegó a −7 en Almacén Central).
+- `cotizacion_a_factura` es **idempotente**: si detecta movimiento previo `tipo='salida'` con `referencia_tipo='cotizacion'` para esa OV (legacy pre-migración), NO descuenta de nuevo. Las nuevas OVs sí descuentan al facturar y registran movimiento `referencia_tipo='factura'`.
+- Protección a nivel BD: `CHECK (cantidad >= 0) NOT VALID` en `erp.inventario` (constraint `inventario_cantidad_no_negativa`). NOT VALID porque hay registros legacy negativos pendientes de ajuste manual desde `/inventario`. Cualquier UPDATE futuro sí valida.
+
 ### Alertas de sobre-venta
 En cotizaciones/OVs nuevas o editadas (`/cotizaciones/nueva`, `/cotizaciones/[id]`, `/cotizaciones/[id]/editar`, `/ordenes-venta/nueva`) el `inventarioMap` carga la vista `v_inventario_detalle` y guarda **disponible (cantidad − cantidad_reservada)**, no solo físico. Previene sobre-venta cuando ya hay piezas comprometidas en otras OVs.
 
