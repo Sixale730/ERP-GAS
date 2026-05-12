@@ -275,6 +275,8 @@ Reportes: `useReportesVentas`, `useReportesInventario`, `useReportesFinanzas`, `
 | `/configuracion/cfdi` | Config Finkok, CSD, certificados |
 | `/configuracion/admin` | Admin global (solo super_admin) |
 | `/admin/leads` | Panel de leads de landing (solo super_admin) |
+| `/admin/reportes-errores` | Bandeja de reportes de error de usuarios (super_admin: todas las orgs · admin_cliente: su org). Lista filtrable + detalle en `[id]` con cambiar status (`nuevo`/`en_revision`/`resuelto`/`descartado`), nota interna, prioridad, reabrir |
+| `/mis-reportes` | Historial de reportes que el propio usuario envió (visible solo a super_admin / admin_cliente). Muestra status, fecha de resolución y nota del equipo. Marca como visto automáticamente al entrar |
 | `/modulos` | Selector de modulos post-login (super_admin) |
 
 ### Reportes (`/reportes/*`)
@@ -311,6 +313,8 @@ Reportes: `useReportesVentas`, `useReportesInventario`, `useReportesFinanzas`, `
 | `leads/demo` | Captura de leads (publico) |
 | `pagos` | Registro/conciliacion de pagos (POST registra · GET lista por factura) |
 | `pagos/[id]` (PATCH) | Edita pago existente. Gate `super_admin`/`admin_cliente`. Llama RPC `editar_pago` que ajusta saldos en cascada |
+| `reportes-errores` (POST/GET) | POST crea reporte via RPC `reportar_error` (cualquier autenticado) · GET lista filtrando por RLS (super_admin todas, admin_cliente su org, usuarios solo los suyos con `?scope=mine`) |
+| `reportes-errores/[id]` (PATCH) | Cambia status/nota/prioridad via RPC `actualizar_status_reporte_error` o marca como visto con `{action:'marcar_visto'}` via RPC `marcar_reporte_visto` |
 | `admin/reiniciar-sistema` | Reset del sistema (solo super_admin) |
 
 ## CFDI 4.0 via Finkok

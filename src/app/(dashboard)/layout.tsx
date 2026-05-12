@@ -1,5 +1,7 @@
 import AppLayout from '@/components/layout/AppLayout'
 import AuthProviderWrapper from '@/lib/providers/AuthProviderWrapper'
+import ErrorReporter from '@/components/common/ErrorReporter'
+import GlobalErrorBoundary from '@/components/common/GlobalErrorBoundary'
 
 export default function DashboardLayout({
   children,
@@ -8,9 +10,13 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthProviderWrapper>
-      <AppLayout>
-        {children}
-      </AppLayout>
+      <ErrorReporter>
+        <AppLayout>
+          <GlobalErrorBoundary>
+            {children}
+          </GlobalErrorBoundary>
+        </AppLayout>
+      </ErrorReporter>
     </AuthProviderWrapper>
   )
 }

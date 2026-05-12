@@ -7,6 +7,10 @@ import { UserRole, PermisosUsuario } from '@/lib/hooks/useAuth'
 import { getPermisosEfectivos, Modulo } from '@/lib/hooks/usePermisos'
 import { buildMenuItems, type MenuItemWithRoles } from '@/lib/config/modules'
 import { useInsights } from '@/lib/hooks/queries/useInsights'
+import {
+  useReportesPendientesCount,
+  useMisReportesResueltosSinLeerCount,
+} from '@/lib/hooks/queries/useReportesErrores'
 
 type MenuItem = Required<MenuProps>['items'][number]
 
@@ -85,18 +89,37 @@ function SidebarInner({ onNavigate, userRole, userPermisos, modulosActivos }: Si
   const { data: insightsData } = useInsights()
   const insightsCount = insightsData?.length || 0
 
+  // Badges de reportes de error (solo para admin/super_admin)
+  const esAdmin = userRole === 'super_admin' || userRole === 'admin_cliente'
+  const { data: reportesPendientes = 0 } = useReportesPendientesCount(esAdmin)
+  const { data: misReportesSinLeer = 0 } = useMisReportesResueltosSinLeerCount(esAdmin)
+
   const menuItems = useMemo(() => {
-    if (!insightsCount) return baseMenuItems
+    if (!insightsCount && !reportesPendientes && !misReportesSinLeer) return baseMenuItems
     return baseMenuItems.map((item) => {
-      if (item && 'key' in item && item.key === '/insights') {
-        return {
-          ...item,
-          label: <Badge count={insightsCount} size="small" offset={[6, 0]}>{(item as any).label}</Badge>,
+      if (item && 'key' in item) {
+        if (item.key === '/insights' && insightsCount) {
+          return {
+            ...item,
+            label: <Badge count={insightsCount} size="small" offset={[6, 0]}>{(item as any).label}</Badge>,
+          }
+        }
+        if (item.key === '/admin/reportes-errores' && reportesPendientes) {
+          return {
+            ...item,
+            label: <Badge count={reportesPendientes} size="small" offset={[6, 0]}>{(item as any).label}</Badge>,
+          }
+        }
+        if (item.key === '/mis-reportes' && misReportesSinLeer) {
+          return {
+            ...item,
+            label: <Badge count={misReportesSinLeer} size="small" offset={[6, 0]} color="green">{(item as any).label}</Badge>,
+          }
         }
       }
       return item
     })
-  }, [baseMenuItems, insightsCount])
+  }, [baseMenuItems, insightsCount, reportesPendientes, misReportesSinLeer])
 
   // Prefetch rutas visibles del menú para navegación instantánea
   useEffect(() => {

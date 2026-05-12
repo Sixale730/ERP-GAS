@@ -25,6 +25,7 @@ import {
   SendOutlined,
   RocketOutlined,
   CloudDownloadOutlined,
+  BugOutlined,
 } from '@ant-design/icons'
 import { MODULE_REGISTRY } from './registry'
 import type { Modulo } from './registry'
@@ -70,6 +71,7 @@ const ICON_MAP: Record<string, React.ComponentType> = {
   SendOutlined,
   RocketOutlined,
   CloudDownloadOutlined,
+  BugOutlined,
 }
 
 function getIcon(name: string): React.ReactNode {
