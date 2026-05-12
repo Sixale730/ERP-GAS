@@ -1299,6 +1299,19 @@ export type Database = {
         }
         Returns: string
       }
+      recalcular_totales_oc: {
+        Args: { p_orden_id: string }
+        Returns: void
+      }
+      corregir_precio_oc_item: {
+        Args: {
+          p_item_id: string
+          p_nuevo_precio: number
+          p_nuevo_descuento?: number | null
+          p_motivo?: string | null
+        }
+        Returns: string
+      }
       get_configuracion_sistema: {
         Args: {
           p_categoria: string
