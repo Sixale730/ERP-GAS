@@ -120,6 +120,7 @@ export default function ComprasPage() {
         { data: todoProductos },
         { data: inventarioData },
         { data: ordenesEnTransitoData },
+        { data: ovsActivasData },
         { data: preciosData },
       ] = await Promise.all([
         // Productos con sus proveedores
@@ -162,6 +163,16 @@ export default function ComprasPage() {
           `)
           .eq('almacen_destino_id', almacenId)
           .in('status', ['enviada', 'parcialmente_recibida']),
+        // OVs activas (status='orden_venta', NO facturadas) - para restar reservado
+        supabase
+          .schema('erp')
+          .from('cotizaciones')
+          .select(`
+            id,
+            cotizacion_items(producto_id, cantidad)
+          `)
+          .eq('almacen_id', almacenId)
+          .eq('status', 'orden_venta'),
         // Precios de la lista "Público General"
         supabase
           .schema('erp')
@@ -193,6 +204,25 @@ export default function ComprasPage() {
         })
       }
 
+      // Reservado por OVs activas (no facturadas). Necesario para no sub-comprar
+      // cuando hay muchas piezas comprometidas en OVs pendientes.
+      const reservadoMap = new Map<string, number>()
+      if (ovsActivasData) {
+        ovsActivasData.forEach((ov) => {
+          const items = ov.cotizacion_items as Array<{
+            producto_id: string
+            cantidad: number
+          }> | null
+          items?.forEach((item) => {
+            const cant = Number(item.cantidad) || 0
+            if (cant > 0) {
+              const actual = reservadoMap.get(item.producto_id) ?? 0
+              reservadoMap.set(item.producto_id, actual + cant)
+            }
+          })
+        })
+      }
+
       const nuevoPreciosMap = new Map(
         preciosData?.map((p) => [p.producto_id, Number(p.precio)]) || []
       )
@@ -205,10 +235,12 @@ export default function ComprasPage() {
         .map((p) => {
           const cantidadActual = inventarioMap.get(p.id) ?? 0
           const cantidadEnTransito = cantidadesPendientesMap.get(p.id) ?? 0
-          // Stock efectivo = actual + lo que ya viene en camino
-          const stockEfectivo = cantidadActual + cantidadEnTransito
+          const cantidadReservada = reservadoMap.get(p.id) ?? 0
+          // Stock efectivo NETO = actual + en camino - reservado por OVs activas.
+          // Las OVs ya NO descuentan del fisico hasta que se facturan (mig 20260511_001),
+          // por eso hay que restarlas explicitamente aqui para no sub-comprar.
+          const stockEfectivo = cantidadActual + cantidadEnTransito - cantidadReservada
           // Sugerir: lo necesario para llegar a stock_maximo
-          // (demanda OV ya está reflejada en inventario negativo, no contar doble)
           const cantidadSugerida = Math.max(p.stock_maximo - stockEfectivo, 0)
           const proveedorData = p.proveedores as unknown
           const proveedor = (Array.isArray(proveedorData) ? proveedorData[0] : proveedorData) as { id: string; razon_social: string } | null
@@ -242,10 +274,14 @@ export default function ComprasPage() {
           }
         })
         .filter((p) => {
+          // P5: nunca generar OC automatica para SKUs sin proveedor asignado
+          if (!p.proveedor_id) return false
           // Mostrar si hay algo que pedir Y:
-          // - Stock efectivo está bajo mínimo, O
+          // - Stock efectivo NETO está bajo mínimo, O
           // - Inventario actual es negativo (urgente, aunque haya pedidos en tránsito)
-          const stockEfectivo = p.cantidad_actual + (cantidadesPendientesMap.get(p.producto_id) ?? 0)
+          const stockEfectivo = p.cantidad_actual
+            + (cantidadesPendientesMap.get(p.producto_id) ?? 0)
+            - (reservadoMap.get(p.producto_id) ?? 0)
           return p.cantidad_sugerida > 0 && (stockEfectivo < p.stock_minimo || p.cantidad_actual < 0)
         })
 

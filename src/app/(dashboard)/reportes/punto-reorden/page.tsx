@@ -12,7 +12,7 @@ import { formatNumber } from '@/lib/utils/format'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 export default function ReportePuntoReordenPage() {
   const router = useRouter()
@@ -33,6 +33,9 @@ export default function ReportePuntoReordenPage() {
     { title: 'Producto', dataIndex: 'nombre', key: 'nombre', ellipsis: true, sorter: (a, b) => a.nombre.localeCompare(b.nombre) },
     { title: 'Almacen', dataIndex: 'almacen_nombre', key: 'almacen_nombre', width: 130, sorter: (a, b) => a.almacen_nombre.localeCompare(b.almacen_nombre) },
     { title: 'Stock Actual', dataIndex: 'stock_actual', key: 'stock_actual', width: 110, align: 'center', render: (v: number) => formatNumber(v), sorter: (a, b) => a.stock_actual - b.stock_actual },
+    { title: 'Reservado', dataIndex: 'reservado', key: 'reservado', width: 100, align: 'center', render: (v: number) => v > 0 ? <Tag color="orange">{formatNumber(v)}</Tag> : '-', sorter: (a, b) => a.reservado - b.reservado },
+    { title: 'En transito', dataIndex: 'en_transito', key: 'en_transito', width: 110, align: 'center', render: (v: number) => v > 0 ? <Tag color="cyan">{formatNumber(v)}</Tag> : '-', sorter: (a, b) => a.en_transito - b.en_transito },
+    { title: 'Disponible neto', dataIndex: 'disponible_neto', key: 'disponible_neto', width: 130, align: 'center', render: (v: number) => <Text strong style={{ color: v < 0 ? '#cf1322' : v === 0 ? '#fa8c16' : '#3f8600' }}>{formatNumber(v)}</Text>, sorter: (a, b) => a.disponible_neto - b.disponible_neto },
     { title: 'Minimo', dataIndex: 'stock_minimo', key: 'stock_minimo', width: 90, align: 'center', sorter: (a, b) => a.stock_minimo - b.stock_minimo },
     { title: 'Maximo', dataIndex: 'stock_maximo', key: 'stock_maximo', width: 90, align: 'center', sorter: (a, b) => a.stock_maximo - b.stock_maximo },
     { title: 'Sugerido', dataIndex: 'cantidad_sugerida', key: 'cantidad_sugerida', width: 100, align: 'center', render: (v: number) => <Tag color="blue">{formatNumber(v)}</Tag>, sorter: (a, b) => a.cantidad_sugerida - b.cantidad_sugerida, defaultSortOrder: 'descend' },
@@ -46,6 +49,9 @@ export default function ReportePuntoReordenPage() {
         columnas: [
           { titulo: 'SKU', dataIndex: 'sku' }, { titulo: 'Producto', dataIndex: 'nombre' },
           { titulo: 'Almacen', dataIndex: 'almacen_nombre' }, { titulo: 'Stock Actual', dataIndex: 'stock_actual', formato: 'numero' },
+          { titulo: 'Reservado', dataIndex: 'reservado', formato: 'numero' },
+          { titulo: 'En transito', dataIndex: 'en_transito', formato: 'numero' },
+          { titulo: 'Disponible neto', dataIndex: 'disponible_neto', formato: 'numero' },
           { titulo: 'Minimo', dataIndex: 'stock_minimo', formato: 'numero' }, { titulo: 'Maximo', dataIndex: 'stock_maximo', formato: 'numero' },
           { titulo: 'Cantidad Sugerida', dataIndex: 'cantidad_sugerida', formato: 'numero' }, { titulo: 'Nivel', dataIndex: 'nivel' },
         ],

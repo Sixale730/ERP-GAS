@@ -415,6 +415,17 @@ export const REPORTES_REGISTRY: ReporteDefinition[] = [
     implementado: true,
   },
   {
+    key: 'skus-movimiento',
+    titulo: 'SKUs con Movimiento (30d)',
+    descripcion: 'Diagnostico para configurar min/max/proveedor: solo SKUs con venta, OC o reserva en los ultimos 30 dias',
+    icono: 'BarChartOutlined',
+    iconColor: '#1677ff',
+    ruta: '/reportes/skus-movimiento',
+    categoria: 'inventario',
+    requiereModulo: 'inventario',
+    implementado: true,
+  },
+  {
     key: 'conciliacion-inventario',
     titulo: 'Conciliacion Fisica',
     descripcion: 'Comparar conteo fisico vs sistema para detectar diferencias',

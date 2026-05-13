@@ -21,6 +21,8 @@ import {
   Statistic,
   Popconfirm,
   Alert,
+  Tag,
+  Tooltip,
 } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined, SendOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -94,6 +96,13 @@ function NuevaOrdenCompraContent() {
   const [tcEditadoManualmente, setTcEditadoManualmente] = useState(false)
   const [stockBajoCargado, setStockBajoCargado] = useState(false)
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<string | null>(null)
+  // Mapa producto_id -> info de OCs activas (para advertir OC duplicada antes de crear otra).
+  // Se carga junto con productos/proveedores en loadInitialData.
+  const [ocsActivasMap, setOcsActivasMap] = useState<Map<string, {
+    folios: string[]
+    pendiente: number
+    proveedoresIds: string[]
+  }>>(new Map())
 
   useEffect(() => {
     loadInitialData()
@@ -133,9 +142,13 @@ function NuevaOrdenCompraContent() {
           .map(p => {
             const fisico = Number(p.stock_total || 0)
             const transito = Number(p.en_transito_total || 0)
+            const reservado = Number(p.reservado_total || 0)
             const maximo = Number(p.stock_maximo || 0)
             const objetivo = maximo > 0 ? maximo : objetivoStockDefault
-            const proyectado = fisico + transito
+            // Proyectado NETO: lo que realmente quedara disponible despues
+            // de cumplir las OVs pendientes (reservado). Sin restar reservado,
+            // un SKU con muchas OVs reservadas se comprara de menos.
+            const proyectado = fisico + transito - reservado
             const faltante = objetivo - proyectado
             return { p, faltante, proyectado, objetivo }
           })
@@ -146,10 +159,15 @@ function NuevaOrdenCompraContent() {
             return proyectado < (Number(p.stock_maximo) > 0 ? Number(p.stock_maximo) : objetivoStockDefault)
           })
           .filter(({ faltante }) => faltante > 0)
+          // P5: NUNCA generar OC automatica para SKUs sin proveedor principal asignado.
+          // Si el SKU no tiene proveedor, queda fuera del generador (debe asignarse desde productos).
+          .filter(({ p }) => {
+            const prod = productos.find(pr => pr.id === p.id)
+            return !!prod?.proveedor_principal_id
+          })
           // Filtro por proveedor principal cuando el usuario ya selecciono uno en el form
           .filter(({ p }) => {
             if (!proveedorIdFiltro) return true
-            // Buscar el producto completo para leer proveedor_principal_id
             const prod = productos.find(pr => pr.id === p.id)
             return prod?.proveedor_principal_id === proveedorIdFiltro
           })
@@ -192,7 +210,7 @@ function NuevaOrdenCompraContent() {
     setLoadingData(true)
 
     try {
-      const [proveedoresRes, almacenesRes, productosRes] = await Promise.all([
+      const [proveedoresRes, almacenesRes, productosRes, ocsActivasRes] = await Promise.all([
         supabase
           .schema('erp')
           .from('proveedores')
@@ -214,11 +232,40 @@ function NuevaOrdenCompraContent() {
           .eq('is_active', true)
           .eq('organizacion_id', orgId!)
           .order('nombre'),
+        // OCs activas: para detectar duplicados al armar nueva OC
+        supabase
+          .schema('erp')
+          .from('ordenes_compra')
+          .select(`
+            id, folio, proveedor_id,
+            orden_compra_items(producto_id, cantidad_solicitada, cantidad_recibida)
+          `)
+          .in('status', ['enviada', 'parcialmente_recibida'])
+          .eq('is_active', true)
+          .eq('organizacion_id', orgId!),
       ])
 
       setProveedores(proveedoresRes.data || [])
       setAlmacenes(almacenesRes.data || [])
       setProductos(productosRes.data || [])
+
+      // Construir mapa de OCs activas por producto
+      const mapa = new Map<string, { folios: string[]; pendiente: number; proveedoresIds: string[] }>()
+      ocsActivasRes.data?.forEach((oc: any) => {
+        const items = (oc.orden_compra_items || []) as Array<{
+          producto_id: string; cantidad_solicitada: number; cantidad_recibida: number
+        }>
+        items.forEach((item) => {
+          const pendiente = (Number(item.cantidad_solicitada) || 0) - (Number(item.cantidad_recibida) || 0)
+          if (pendiente <= 0) return
+          const existing = mapa.get(item.producto_id) ?? { folios: [], pendiente: 0, proveedoresIds: [] }
+          if (!existing.folios.includes(oc.folio)) existing.folios.push(oc.folio)
+          if (oc.proveedor_id && !existing.proveedoresIds.includes(oc.proveedor_id)) existing.proveedoresIds.push(oc.proveedor_id)
+          existing.pendiente += pendiente
+          mapa.set(item.producto_id, existing)
+        })
+      })
+      setOcsActivasMap(mapa)
 
       // Cargar precios de la lista "Público General"
       const { data: preciosData } = await supabase
@@ -243,6 +290,8 @@ function NuevaOrdenCompraContent() {
       return
     }
 
+    const proveedorOC = form.getFieldValue('proveedor_id') as string | undefined
+
     const filtered = productos
       .filter(
         (p) =>
@@ -250,11 +299,23 @@ function NuevaOrdenCompraContent() {
           p.nombre.toLowerCase().includes(value.toLowerCase())
       )
       .slice(0, 10)
-      .map((p) => ({
-        value: p.id,
-        label: `${p.sku} - ${p.nombre}`,
-        producto: p,
-      }))
+      .map((p) => {
+        // Avisos en linea para que el operador los vea ANTES de seleccionar
+        const ocInfo = ocsActivasMap.get(p.id)
+        const tieneOC = !!ocInfo && ocInfo.pendiente > 0
+        const provDistinto = !!p.proveedor_principal_id && !!proveedorOC && p.proveedor_principal_id !== proveedorOC
+        const sinProv = !p.proveedor_principal_id
+        const avisos: string[] = []
+        if (tieneOC) avisos.push(`⚠ OC ${ocInfo!.folios.join(',')} (${ocInfo!.pendiente} pzs pend)`)
+        if (provDistinto) avisos.push('⚠ Otro proveedor')
+        if (sinProv) avisos.push('⚠ Sin proveedor asignado')
+        const labelText = `${p.sku} - ${p.nombre}${avisos.length > 0 ? ' · ' + avisos.join(' · ') : ''}`
+        return {
+          value: p.id,
+          label: labelText,
+          producto: p,
+        }
+      })
 
     setProductosOptions(filtered)
   }
@@ -415,14 +476,47 @@ function NuevaOrdenCompraContent() {
       title: 'SKU',
       dataIndex: 'sku',
       key: 'sku',
-      width: 100,
-      render: (sku: string, record: any) => record.producto_id ? (
-        <a href={`/productos/${record.producto_id}`} target="_blank" rel="noopener noreferrer"
-          style={{ color: '#1677ff', textDecoration: 'none', fontFamily: 'monospace', fontSize: 'inherit' }}
-          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-        >{sku}</a>
-      ) : <span style={{ fontFamily: 'monospace' }}>{sku}</span>,
+      width: 180,
+      render: (sku: string, record: any) => {
+        const ocInfo = record.producto_id ? ocsActivasMap.get(record.producto_id) : null
+        const productoCompleto = record.producto_id ? productos.find(pr => pr.id === record.producto_id) : null
+        const proveedorOC = form.getFieldValue('proveedor_id') as string | undefined
+        // P2: SKU ya tiene OC activa pendiente
+        const tieneOCActiva = !!ocInfo && ocInfo.pendiente > 0
+        const ocDelMismoProveedor = tieneOCActiva && proveedorOC && ocInfo!.proveedoresIds.includes(proveedorOC)
+        // P7: proveedor del producto != proveedor de la OC actual
+        const provPrincipalProducto = productoCompleto?.proveedor_principal_id
+        const proveedorDistinto = !!provPrincipalProducto && !!proveedorOC && provPrincipalProducto !== proveedorOC
+        const provPrincipalNombre = provPrincipalProducto
+          ? proveedores.find(p => p.id === provPrincipalProducto)?.razon_social || 'otro proveedor'
+          : null
+
+        return (
+          <Space size={4} wrap style={{ alignItems: 'center' }}>
+            {record.producto_id ? (
+              <a href={`/productos/${record.producto_id}`} target="_blank" rel="noopener noreferrer"
+                style={{ color: '#1677ff', textDecoration: 'none', fontFamily: 'monospace', fontSize: 'inherit' }}
+                onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+              >{sku}</a>
+            ) : <span style={{ fontFamily: 'monospace' }}>{sku}</span>}
+            {tieneOCActiva && (
+              <Tooltip title={`Ya existe ${ocInfo!.folios.join(', ')} con ${ocInfo!.pendiente} pzs pendientes de este SKU${ocDelMismoProveedor ? ' del mismo proveedor' : ''}.`}>
+                <Tag color={ocDelMismoProveedor ? 'red' : 'orange'} style={{ margin: 0, fontSize: 10 }}>
+                  ⚠ OC activa
+                </Tag>
+              </Tooltip>
+            )}
+            {proveedorDistinto && (
+              <Tooltip title={`Este producto tiene asignado otro proveedor principal: ${provPrincipalNombre}. La OC se generara igual, pero verifica si es lo correcto.`}>
+                <Tag color="gold" style={{ margin: 0, fontSize: 10 }}>
+                  ⚠ Otro prov.
+                </Tag>
+              </Tooltip>
+            )}
+          </Space>
+        )
+      },
     },
     {
       title: 'Producto',
@@ -502,7 +596,7 @@ function NuevaOrdenCompraContent() {
         />
       ),
     },
-  ], [handleItemChange, handleRemoveItem, monedaSeleccionada])
+  ], [handleItemChange, handleRemoveItem, monedaSeleccionada, ocsActivasMap, productos, proveedores, form])
 
   return (
     <div>

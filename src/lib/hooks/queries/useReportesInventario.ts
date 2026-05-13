@@ -249,6 +249,9 @@ export interface PuntoReordenRow {
   nombre: string
   almacen_nombre: string
   stock_actual: number
+  reservado: number
+  en_transito: number
+  disponible_neto: number
   stock_minimo: number
   stock_maximo: number
   cantidad_sugerida: number
@@ -260,8 +263,9 @@ export function usePuntoReorden(orgId: string | undefined) {
     queryKey: ['reporte-punto-reorden', orgId],
     queryFn: async () => {
       const supabase = getSupabaseClient()
+      // v_inventario_detalle ya expone cantidad_reservada y en_transito calculados dinamicos.
       const { data, error } = await supabase.schema('erp').from('v_inventario_detalle')
-        .select('producto_id, sku, producto_nombre, almacen_nombre, cantidad, stock_minimo, stock_maximo, nivel_stock')
+        .select('producto_id, sku, producto_nombre, almacen_nombre, cantidad, cantidad_reservada, en_transito, stock_minimo, stock_maximo, nivel_stock')
         .eq('organizacion_id', orgId!)
         .in('nivel_stock', ['bajo', 'sin_stock'])
 
@@ -269,15 +273,23 @@ export function usePuntoReorden(orgId: string | undefined) {
 
       return (data || []).map((r): PuntoReordenRow => {
         const actual = Number(r.cantidad || 0)
+        const reservado = Number(r.cantidad_reservada || 0)
+        const transito = Number(r.en_transito || 0)
         const maximo = Number(r.stock_maximo || 0)
+        // Disponible neto: lo que realmente quedara despues de cubrir OVs y recibir OCs en transito.
+        const disponibleNeto = actual + transito - reservado
         return {
           producto_id: r.producto_id, sku: r.sku, nombre: r.producto_nombre,
-          almacen_nombre: r.almacen_nombre, stock_actual: actual,
+          almacen_nombre: r.almacen_nombre,
+          stock_actual: actual,
+          reservado,
+          en_transito: transito,
+          disponible_neto: disponibleNeto,
           stock_minimo: Number(r.stock_minimo || 0), stock_maximo: maximo,
-          cantidad_sugerida: Math.max(0, maximo - actual),
+          cantidad_sugerida: Math.max(0, maximo - disponibleNeto),
           nivel: r.nivel_stock,
         }
-      }).sort((a, b) => a.stock_actual - b.stock_actual)
+      }).sort((a, b) => a.disponible_neto - b.disponible_neto)
     },
     enabled: !!orgId,
   })
@@ -312,6 +324,134 @@ export function useConciliacionInventario(almacenId: string | null, orgId: strin
         almacen_nombre: r.almacen_nombre, cantidad_sistema: Number(r.cantidad || 0),
         unidad_medida: r.unidad_medida,
       })).sort((a, b) => a.sku.localeCompare(b.sku))
+    },
+    enabled: !!orgId,
+  })
+}
+
+// ─── R26: SKUs con Movimiento (P3) ────────────────────────────────────────────
+// Diagnostico para SOLAC: lista solo SKUs que se movieron en los ultimos 30 dias
+// (vendidos vía OV/factura, comprados vía OC, o reservados por OV activa).
+
+export type SemaforoSku = 'critico' | 'vigilar' | 'estable'
+
+export interface SkuMovimientoRow {
+  producto_id: string
+  sku: string
+  nombre: string
+  unidad_medida: string | null
+  stock_fisico: number
+  stock_minimo: number
+  stock_maximo: number
+  reservado: number
+  en_transito: number
+  disponible_neto: number
+  vendidas_30d: number
+  tiene_min_max: boolean
+  tiene_proveedor: boolean
+  proveedor_nombre: string | null
+  requiere_proveedor: boolean
+  semaforo: SemaforoSku
+}
+
+export function useSkusConMovimiento(orgId: string | undefined) {
+  return useQuery({
+    queryKey: ['reporte-skus-movimiento', orgId],
+    queryFn: async () => {
+      const supabase = getSupabaseClient()
+      const desde = new Date()
+      desde.setDate(desde.getDate() - 30)
+      const desdeIso = desde.toISOString()
+
+      // Snapshot de productos con stocks/reservado/transito desde la vista agregada
+      const { data: productos, error: errProd } = await supabase.schema('erp')
+        .from('v_productos_stock')
+        .select('id, sku, nombre, unidad_medida, stock_minimo, stock_maximo, stock_total, reservado_total, en_transito_total, proveedor_principal_id, proveedor_nombre, es_servicio')
+        .eq('organizacion_id', orgId!)
+        .eq('es_servicio', false)
+
+      if (errProd) throw errProd
+
+      // Movimientos de salida (factura) ultimos 30 dias por producto
+      const { data: ventas } = await supabase.schema('erp')
+        .from('movimientos_inventario')
+        .select('producto_id, cantidad')
+        .eq('organizacion_id', orgId!)
+        .eq('tipo', 'salida')
+        .in('referencia_tipo', ['factura', 'cotizacion'])
+        .gte('created_at', desdeIso)
+
+      const ventasMap = new Map<string, number>()
+      ventas?.forEach((m) => {
+        const prev = ventasMap.get(m.producto_id) ?? 0
+        ventasMap.set(m.producto_id, prev + Number(m.cantidad || 0))
+      })
+
+      // OCs creadas en los ultimos 30 dias (cualquier item de OC dispara "movimiento")
+      const { data: ocsRecientes } = await supabase.schema('erp')
+        .from('ordenes_compra')
+        .select('id, orden_compra_items(producto_id)')
+        .eq('organizacion_id', orgId!)
+        .eq('is_active', true)
+        .gte('created_at', desdeIso)
+
+      const skusConOC = new Set<string>()
+      ocsRecientes?.forEach((oc: any) => {
+        (oc.orden_compra_items || []).forEach((it: any) => {
+          if (it.producto_id) skusConOC.add(it.producto_id)
+        })
+      })
+
+      const filas: SkuMovimientoRow[] = (productos || [])
+        .map((p) => {
+          const fisico = Number(p.stock_total || 0)
+          const reservado = Number(p.reservado_total || 0)
+          const transito = Number(p.en_transito_total || 0)
+          const vendidas = ventasMap.get(p.id) ?? 0
+          const tieneMovimiento = vendidas > 0 || skusConOC.has(p.id) || reservado > 0
+          if (!tieneMovimiento) return null
+          const disponibleNeto = fisico + transito - reservado
+          const minimo = Number(p.stock_minimo || 0)
+          const maximo = Number(p.stock_maximo || 0)
+          const tieneMinMax = minimo > 0 || maximo > 0
+          const tieneProveedor = !!p.proveedor_principal_id
+          // Semaforo
+          let semaforo: SemaforoSku = 'estable'
+          if (disponibleNeto <= 0) semaforo = 'critico'
+          else if (tieneMinMax && minimo > 0 && disponibleNeto <= minimo) semaforo = 'critico'
+          else if (tieneMinMax && maximo > 0 && disponibleNeto <= maximo * 0.3) semaforo = 'vigilar'
+          else if (!tieneMinMax && vendidas > 0 && disponibleNeto < vendidas) semaforo = 'vigilar'
+          return {
+            producto_id: p.id,
+            sku: p.sku,
+            nombre: p.nombre,
+            unidad_medida: p.unidad_medida,
+            stock_fisico: fisico,
+            stock_minimo: minimo,
+            stock_maximo: maximo,
+            reservado,
+            en_transito: transito,
+            disponible_neto: disponibleNeto,
+            vendidas_30d: vendidas,
+            tiene_min_max: tieneMinMax,
+            tiene_proveedor: tieneProveedor,
+            proveedor_nombre: p.proveedor_nombre,
+            // P5: SKU con movimiento real pero sin proveedor → bandera para SOLAC
+            requiere_proveedor: !tieneProveedor,
+            semaforo,
+          } as SkuMovimientoRow
+        })
+        .filter((r): r is SkuMovimientoRow => r !== null)
+        .sort((a, b) => {
+          // Prioriza criticos → vigilar → estable, luego por mayor venta
+          const ordenSemaforo = { critico: 0, vigilar: 1, estable: 2 }
+          if (ordenSemaforo[a.semaforo] !== ordenSemaforo[b.semaforo]) {
+            return ordenSemaforo[a.semaforo] - ordenSemaforo[b.semaforo]
+          }
+          return b.vendidas_30d - a.vendidas_30d
+        })
+
+      return filas
     },
     enabled: !!orgId,
   })
