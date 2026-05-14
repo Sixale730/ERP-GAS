@@ -651,3 +651,25 @@ Pipeline de importacion de datos "mascotienda" (tienda de mascotas) para demo:
 - [ ] **Causa raíz del slowdown tras horas de uso**: parcialmente mitigado vía `performance.auto_clear_cache_minutes` configurable en `/configuracion/sistema` (setInterval en AppLayout que limpia cache cuando no hay mutaciones). Pendiente atacar raíz: (1) bajar `gcTime` de 30 min a 10 min en `src/lib/react-query/provider.tsx`; (2) auditar componentes pesados (reportes, modales) para asegurar cleanup correcto de refs y closures; (3) considerar warning pasiva cuando `performance.memory.usedJSHeapSize` supere un umbral (solo Chrome)
 - [ ] Migrar las 14 reglas de insights restantes para emitir `regla_key` + `parametros_snapshot` + `explicacion` (solo `cartera-vencida` lo hace hoy)
 - [ ] Ampliar consumidores de `useConfigValue` a más hardcodes del código (POS tolerancia caja, CFDI auto-timbrar, etc.)
+
+---
+
+## Documentación Comercial / Mercado / Prospección
+
+Este CLAUDE.md cubre el contexto **técnico del ERP**. Para temas de **venta, marketing, prospección, estacionalidad del Gas LP, normativa del sector y estrategia comercial**, la documentación vive en una carpeta separada:
+
+📁 [`docs/comercial/`](./docs/comercial/) — empezar por [`docs/comercial/README.md`](./docs/comercial/README.md)
+
+| Archivo | Contenido |
+|---------|-----------|
+| `01_negocio_solac.md` | Qué vende SOLAC, líneas de producto, clientes, márgenes |
+| `02_estacionalidad_gaslp.md` | Calendario anual, ciclos cruzados, KPIs externos, efectos del clima |
+| `03_palancas_normativas_2026.md` | Anexo 30, NOM-259, ASEA RENAGAS — el guion de venta 2026 |
+| `04_diagnostico_cartera_mayo_2026.md` | Top clientes, dormidas, cartera vencida (perecedero, fechado) |
+| `05_canales_prospeccion.md` | Qué canales sí funcionan, cuáles descartados con evidencia |
+| `06_fuentes_publicas_prospeccion.md` | CNE, PROFECO, DOF, ASEA, AMEXGAS — URLs y métodos |
+| `07_plan_inbound_arranque.md` | Plan inbound presupuesto bajo (<$5K MXN/mes) |
+
+**Cuándo consultar**: cualquier tema que no sea técnico del ERP (no es código, no es BD, no es UI). Ej.: prospección, mensajes a clientes, estrategia trimestral, calendario de ventas, normativa del sector, presupuesto de marketing.
+
+**Estilo de respuesta para temas comerciales**: directa primero (1-3 líneas) → "Por qué" → "Qué hacer" → "Qué evitar". Mencionar siempre mes/temporada cuando aplique. Conciso por defecto. NO inventar datos numéricos (precios, %, participaciones de mercado). NO recomendar acciones que violen SAT/CNE/ASEA/PROFECO. NO asumir presupuesto ilimitado.
