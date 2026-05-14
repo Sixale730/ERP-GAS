@@ -288,7 +288,80 @@ export default function CotizacionDetallePage() {
     }
   }, [cotizacion?.almacen_id])
 
-  const handleConvertirAFactura = () => {
+  const handleConvertirAFactura = async () => {
+    if (!cotizacion?.almacen_id) {
+      message.error('La cotizacion no tiene almacen asignado')
+      return
+    }
+
+    // Pre-validacion de stock: el RPC cotizacion_a_factura descuenta el fisico
+    // y el trigger trg_inventario_no_negativa lo bloquea con error de Postgres
+    // si quedaria negativo. Aqui hacemos la verificacion ANTES para dar un
+    // mensaje claro y accionable en lugar de un error tecnico de BD.
+    const itemsInventariables = items.filter(i => !i.es_servicio && i.producto_id)
+    if (itemsInventariables.length > 0) {
+      const supabase = getSupabaseClient()
+      const productoIds = itemsInventariables.map(i => i.producto_id)
+      const { data: inventarioData, error: invError } = await supabase
+        .schema('erp')
+        .from('inventario')
+        .select('producto_id, cantidad')
+        .eq('almacen_id', cotizacion.almacen_id)
+        .in('producto_id', productoIds)
+
+      if (invError) {
+        message.error('No se pudo verificar el inventario antes de facturar')
+        return
+      }
+
+      const stockMap = new Map(inventarioData?.map(r => [r.producto_id, Number(r.cantidad || 0)]) || [])
+      const faltantes = itemsInventariables
+        .map(i => {
+          const disponible = stockMap.get(i.producto_id) ?? 0
+          const necesita = Number(i.cantidad)
+          const faltante = necesita - disponible
+          return { sku: i.sku, descripcion: i.descripcion, necesita, disponible, faltante }
+        })
+        .filter(r => r.faltante > 0)
+
+      if (faltantes.length > 0) {
+        Modal.error({
+          title: 'No se puede facturar: stock insuficiente',
+          width: 640,
+          content: (
+            <div>
+              <p style={{ marginBottom: 12 }}>
+                Para facturar <strong>{cotizacion?.folio}</strong> el sistema descuenta el inventario fisico,
+                pero los siguientes productos no tienen stock suficiente en el almacen de la OV:
+              </p>
+              <Table
+                size="small"
+                pagination={false}
+                rowKey={(r) => r.sku ?? ''}
+                dataSource={faltantes}
+                columns={[
+                  { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 130 },
+                  { title: 'Producto', dataIndex: 'descripcion', key: 'descripcion', ellipsis: true },
+                  { title: 'Necesita', dataIndex: 'necesita', key: 'necesita', width: 80, align: 'right' },
+                  { title: 'Disponible', dataIndex: 'disponible', key: 'disponible', width: 90, align: 'right',
+                    render: (v: number) => <span style={{ color: v < 0 ? '#cf1322' : '#fa8c16' }}>{v}</span> },
+                  { title: 'Falta', dataIndex: 'faltante', key: 'faltante', width: 70, align: 'right',
+                    render: (v: number) => <strong style={{ color: '#cf1322' }}>{v}</strong> },
+                ]}
+              />
+              <p style={{ marginTop: 12, marginBottom: 0, color: '#595959' }}>
+                <strong>Acciones posibles:</strong> recibe primero las OCs en transito de estos SKUs, ajusta
+                inventario manualmente desde <Text code>/inventario</Text> si tienes el material fisico,
+                o reduce las cantidades de la OV.
+              </p>
+            </div>
+          ),
+          okText: 'Entendido',
+        })
+        return
+      }
+    }
+
     Modal.confirm({
       title: '¿Convertir a Factura?',
       content: (
@@ -332,7 +405,15 @@ export default function CotizacionDetallePage() {
           router.push(`/facturas/${facturaId}`)
         } catch (error: any) {
           console.error('Error converting to factura:', error)
-          message.error(error.message || 'Error al convertir a factura')
+          // Si llego aqui es probablemente race condition (cambio de stock entre
+          // la pre-validacion y el RPC) o un error inesperado. Detectar el caso
+          // del trigger por si pasa.
+          const msg = String(error?.message || '')
+          if (msg.includes('inventario_cantidad_no_negativa') || msg.includes('Stock insuficiente')) {
+            message.error('Stock insuficiente. El inventario cambio entre la verificacion y la facturacion. Vuelve a intentar.')
+          } else {
+            message.error(error.message || 'Error al convertir a factura')
+          }
           setConverting(false)
         }
       },
