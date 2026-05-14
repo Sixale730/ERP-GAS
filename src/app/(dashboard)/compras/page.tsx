@@ -123,7 +123,7 @@ export default function ComprasPage() {
         { data: ovsActivasData },
         { data: preciosData },
       ] = await Promise.all([
-        // Productos con sus proveedores
+        // Productos con sus proveedores. Excluir servicios (no se compran a proveedor).
         supabase
           .schema('erp')
           .from('productos')
@@ -141,7 +141,8 @@ export default function ComprasPage() {
               razon_social
             )
           `)
-          .eq('is_active', true),
+          .eq('is_active', true)
+          .eq('es_servicio', false),
         // Inventario del almacén
         supabase
           .schema('erp')
