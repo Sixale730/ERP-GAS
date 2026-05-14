@@ -260,7 +260,7 @@ export default function EnvioDetallePage() {
                       <Text strong>{cot.folio}</Text>
                       <Tag>{cot.status}</Tag>
                     </Space>
-                    <Text>{formatMoneyMXN(cot.total)}</Text>
+                    <Text><Text type="secondary" style={{ fontSize: 11 }}>Total c/IVA: </Text>{formatMoneyMXN(cot.total)}</Text>
                   </Space>
                 </Card.Grid>
               ))

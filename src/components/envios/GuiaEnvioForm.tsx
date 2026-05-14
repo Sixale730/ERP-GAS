@@ -62,25 +62,36 @@ export default function GuiaEnvioForm({
       : (prefilledCotizacionId ? [prefilledCotizacionId] : [])
   )
 
-  // Cargar OVs (cotizaciones con status='orden_venta') + clientes
+  // Cargar OVs ya facturadas + clientes.
+  // Solo se ligan nuevas guias a OVs facturadas. Pero si una guia existente
+  // ya estaba ligada a OVs en otro estado, las traemos tambien para que el
+  // SELECT las muestre como seleccionadas (no perder referencia historica).
   useEffect(() => {
     if (!orgId) return
     const supabase = getSupabaseClient()
+    const idsHistoricas = initialCotizacionesIds.length > 0 ? initialCotizacionesIds : []
+    const queryFacturadas = supabase.schema('erp').from('cotizaciones')
+      .select('id, folio, status, total, cliente_id, clientes:cliente_id (nombre_comercial)')
+      .eq('organizacion_id', orgId)
+      .eq('status', 'facturada')
+      .order('created_at', { ascending: false })
+      .limit(200)
+    const queryHistoricas = idsHistoricas.length > 0
+      ? supabase.schema('erp').from('cotizaciones')
+          .select('id, folio, status, total, cliente_id, clientes:cliente_id (nombre_comercial)')
+          .in('id', idsHistoricas)
+      : Promise.resolve({ data: [] as unknown[] })
     Promise.all([
-      supabase.schema('erp').from('cotizaciones')
-        .select('id, folio, status, total, cliente_id, clientes:cliente_id (nombre_comercial)')
-        .eq('organizacion_id', orgId)
-        .in('status', ['orden_venta', 'facturada', 'propuesta'])
-        .order('created_at', { ascending: false })
-        .limit(200),
+      queryFacturadas,
+      queryHistoricas,
       supabase.schema('erp').from('clientes')
         .select('id, nombre_comercial')
         .eq('organizacion_id', orgId)
         .eq('is_active', true)
         .order('nombre_comercial')
         .limit(500),
-    ]).then(([ovRes, clRes]) => {
-      const ovList: OvOption[] = (ovRes.data ?? []).map((r: unknown) => {
+    ]).then(([ovRes, ovHistRes, clRes]) => {
+      const mapearOv = (r: unknown): OvOption => {
         const row = r as { id: string; folio: string; status: string; total: number; cliente_id: string | null; clientes: { nombre_comercial: string | null } | null }
         return {
           id: row.id,
@@ -90,11 +101,20 @@ export default function GuiaEnvioForm({
           cliente_id: row.cliente_id,
           cliente_nombre: row.clientes?.nombre_comercial ?? null,
         }
-      })
+      }
+      const facturadas = (ovRes.data ?? []).map(mapearOv)
+      const historicas = (ovHistRes.data ?? []).map(mapearOv)
+      // Mergear sin duplicar (las historicas ya facturadas pueden venir en ambas)
+      const idsFacturadas = new Set(facturadas.map(o => o.id))
+      const ovList: OvOption[] = [
+        ...facturadas,
+        ...historicas.filter(o => !idsFacturadas.has(o.id)),
+      ]
       setOvs(ovList)
       setClientes(clRes.data ?? [])
       setLoadingData(false)
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId])
 
   // Auto-rellenar campos al cambiar OV seleccionada (o cliente)
@@ -222,20 +242,20 @@ export default function GuiaEnvioForm({
       {/* Vinculacion con OVs */}
       <Card title="Órdenes de venta vinculadas" style={{ marginBottom: 16 }}>
         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-          Selecciona una o varias OVs cuyo material se envía en esta guía. Si son varias del mismo cliente, se consolidan.
+          Selecciona una o varias OVs <strong>ya facturadas</strong> cuyo material se envía en esta guía. Si son varias del mismo cliente, se consolidan. Los montos mostrados son el total con IVA.
         </Text>
         <Select
           mode="multiple"
           loading={loadingData}
           value={selectedCotIds}
           onChange={setSelectedCotIds}
-          placeholder="Selecciona OV(s)…"
+          placeholder="Selecciona OV(s) facturada(s)…"
           style={{ width: '100%' }}
           showSearch
           optionFilterProp="label"
           options={ovs.map(o => ({
             value: o.id,
-            label: `${o.folio} — ${o.cliente_nombre || 'Sin cliente'} ($${o.total.toFixed(2)}) [${o.status}]`,
+            label: `${o.folio} — ${o.cliente_nombre || 'Sin cliente'} — Total c/IVA $${o.total.toFixed(2)} [${o.status}]`,
           }))}
         />
       </Card>
