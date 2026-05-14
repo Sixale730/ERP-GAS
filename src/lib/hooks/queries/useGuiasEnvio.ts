@@ -344,13 +344,25 @@ export function buildTrackingUrl(paqueteria: GuiaPaqueteria, numero: string | nu
   const n = encodeURIComponent(numero.trim())
   switch (paqueteria) {
     case 'paquetexpress': return `https://www.paquetexpress.com.mx/rastreo?guia=${n}`
-    case 'estafeta':      return `https://www.estafeta.com/Rastreo/Guia?guia=${n}`
+    // Estafeta no soporta rastreo directo por URL en su sitio publico (su widget
+    // exige captura manual del numero). Se devuelve la URL generica de su pagina
+    // de rastreo y el ERP muestra el numero como copyable. Vease isTrackingManual().
+    case 'estafeta':      return `https://www.estafeta.com/rastrear-envio?rastreo=true`
     case 'tres_guerras':  return `https://www.tresguerras.com.mx/?menu=rastreo&guia=${n}`
     case 'dhl':           return `https://www.dhl.com/mx-es/home/tracking.html?tracking-id=${n}`
     case 'fedex':         return `https://www.fedex.com/fedextrack/?tracknumbers=${n}`
     case 'castores':      return `https://www.castores.com.mx/rastreoguia.aspx?guia=${n}`
     default: return null
   }
+}
+
+/**
+ * Indica si la paqueteria NO soporta rastreo automatico por URL (la pagina del
+ * courier no acepta el numero como query string). En ese caso el ERP debe
+ * mostrar el numero como copyable y avisar al usuario.
+ */
+export function isTrackingManual(paqueteria: GuiaPaqueteria): boolean {
+  return paqueteria === 'estafeta'
 }
 
 export const PAQUETERIA_LABELS: Record<GuiaPaqueteria, string> = {

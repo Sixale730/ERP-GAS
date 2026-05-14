@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/hooks/useAuth'
 import {
-  useUpsertGuiaEnvio, buildTrackingUrl,
+  useUpsertGuiaEnvio, buildTrackingUrl, isTrackingManual,
   PAQUETERIA_LABELS, STATUS_LABELS,
   type GuiaEnvio, type GuiaPaqueteria, type GuiaStatus,
   type GuiaTipoEntrega, type GuiaFormaPago, type UpsertGuiaInput,
@@ -299,11 +299,16 @@ export default function GuiaEnvioForm({
                 </Form.Item>
               </Col>
             </Row>
-            {trackingUrl && (
+            {trackingUrl && paqueteria && (
               <div style={{ marginBottom: 12 }}>
                 <a href={trackingUrl} target="_blank" rel="noopener noreferrer">
                   <LinkOutlined /> Rastrear este número en el courier
                 </a>
+                {isTrackingManual(paqueteria) && (
+                  <Text type="warning" style={{ display: 'block', fontSize: 11, marginTop: 4 }}>
+                    ⚠ {PAQUETERIA_LABELS[paqueteria]} no permite rastreo automático por URL. El link abre la página de rastreo del courier; copia el número manualmente desde el detalle del envío.
+                  </Text>
+                )}
               </div>
             )}
             <Form.Item name="referencia_externa" label="Referencia externa (opcional)">

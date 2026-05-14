@@ -4,16 +4,17 @@ import { useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Card, Button, Space, Typography, Tag, Descriptions, Spin, Divider, Row, Col,
-  Statistic, message, Popconfirm, Empty, Alert
+  Statistic, message, Popconfirm, Empty, Alert, Tooltip
 } from 'antd'
 import {
   ArrowLeftOutlined, EditOutlined, DeleteOutlined, LinkOutlined,
   TruckOutlined, CheckCircleOutlined, FileTextOutlined, SendOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   useGuiaEnvio, useDeleteGuiaEnvio, useUpsertGuiaEnvio, useRegistrarEnvioCompartido,
-  buildTrackingUrl, PAQUETERIA_LABELS, STATUS_LABELS, STATUS_COLORS,
+  buildTrackingUrl, isTrackingManual, PAQUETERIA_LABELS, STATUS_LABELS, STATUS_COLORS,
   type GuiaStatus, type GuiaEnviadoPor,
 } from '@/lib/hooks/queries/useGuiasEnvio'
 import { formatMoneyMXN, formatDate, formatDateTime } from '@/lib/utils/format'
@@ -200,11 +201,24 @@ export default function EnvioDetallePage() {
               <Descriptions.Item label="Paquetería">{PAQUETERIA_LABELS[guia.paqueteria]}</Descriptions.Item>
               <Descriptions.Item label="Núm. guía">
                 {guia.numero_guia ? (
-                  trackingUrl ? (
-                    <a href={trackingUrl} target="_blank" rel="noopener noreferrer">
-                      <Text code>{guia.numero_guia}</Text> <LinkOutlined />
-                    </a>
-                  ) : <Text code>{guia.numero_guia}</Text>
+                  <Space size={4} wrap>
+                    <Text code copyable={{ text: guia.numero_guia }}>
+                      {guia.numero_guia}
+                    </Text>
+                    {trackingUrl && (
+                      isTrackingManual(guia.paqueteria) ? (
+                        <Tooltip title="Estafeta no permite rastreo directo por URL. Click abre la página de Estafeta — copia el número con el icono de copiar y pégalo en el widget de rastreo.">
+                          <a href={trackingUrl} target="_blank" rel="noopener noreferrer">
+                            <LinkOutlined /> Rastrear <InfoCircleOutlined style={{ color: '#fa8c16' }} />
+                          </a>
+                        </Tooltip>
+                      ) : (
+                        <a href={trackingUrl} target="_blank" rel="noopener noreferrer">
+                          <LinkOutlined /> Rastrear
+                        </a>
+                      )
+                    )}
+                  </Space>
                 ) : '—'}
               </Descriptions.Item>
               <Descriptions.Item label="Tipo de entrega"><Tag>{TIPO_ENTREGA_LABELS[guia.tipo_entrega]}</Tag></Descriptions.Item>
