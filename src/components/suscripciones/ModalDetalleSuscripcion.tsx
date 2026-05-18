@@ -118,8 +118,8 @@ export default function ModalDetalleSuscripcion({ open, estado, onClose }: Props
           showIcon
           icon={<InfoCircleOutlined />}
           style={{ marginTop: 12 }}
-          message="Este pago NO incluye el modulo de timbrado CFDI"
-          description="El timbrado de facturas se contrata por separado con el PAC (Finkok u otro) y se cobra aparte segun el volumen de timbres consumidos."
+          message="Este pago no incluye el modulo de timbrado de CFDI"
+          description="Los primeros 100 timbres mensuales estan incluidos. A partir del folio 101 se cobra una tarifa adicional por cada timbre emitido."
         />
 
         <Divider orientation="left">Forma de pago</Divider>
