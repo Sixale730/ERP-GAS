@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Button, Input, Space, Tag, Card, Typography, message, Select } from 'antd'
 import { useRouter } from 'next/navigation'
 import { SearchOutlined, EyeOutlined, FilePdfOutlined, LoadingOutlined, GlobalOutlined } from '@ant-design/icons'
@@ -14,6 +14,7 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatMoneyCurrency, formatDate } from '@/lib/utils/format'
 import { generarPDFFactura, prepararDatosFacturaPDF } from '@/lib/utils/pdf'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { usePersistedListState } from '@/lib/hooks/usePersistedListState'
 import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 import dayjs from 'dayjs'
 
@@ -37,18 +38,41 @@ export default function FacturasPage() {
   const router = useRouter()
   const { organizacion } = useAuth()
   const esPOS = organizacion?.codigo === 'MASCOTIENDA'
-  const [searchText, setSearchText] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  // Filtros y paginacion persistidos en memoria (uiStore) entre navegaciones.
+  // Si entras a una factura y regresas, conservan el filtro de status, search
+  // y pageSize que tenias. Se resetean al refrescar la pagina.
+  const [filtros, setFiltro] = usePersistedListState('facturas', {
+    searchText: '',
+    statusFilter: null as string | null,
+    page: 1,
+    pageSize: 10,
+  })
+  const { searchText, statusFilter, page, pageSize } = filtros
+  const setSearchText = (v: string) => setFiltro('searchText', v)
+  const setStatusFilter = (v: string | null) => setFiltro('statusFilter', v)
+  const setPagination = (next: { page: number; pageSize: number }) => {
+    setFiltro('page', next.page)
+    setFiltro('pageSize', next.pageSize)
+  }
+  const pagination = useMemo(() => ({ page, pageSize }), [page, pageSize])
+
+  const [debouncedSearch, setDebouncedSearch] = useState(searchText)
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
+  // Skip del primer render para no resetear a page=1 cuando el usuario regresa
+  // con un searchText persistido (el effect dispararia y mandaria a page 1).
+  const primerRender = useRef(true)
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchText)
-      setPagination(prev => ({ ...prev, page: 1 }))
+      if (primerRender.current) {
+        primerRender.current = false
+        return
+      }
+      setFiltro('page', 1)
     }, 300)
     return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchText])
 
   // React Query hooks with server-side pagination and search
