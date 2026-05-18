@@ -24,6 +24,7 @@ import { formatMoneyMXN, formatMoneyUSD } from '@/lib/utils/format'
 import DashboardPOS from '@/components/dashboard/DashboardPOS'
 import InsightsPanel from '@/components/insights/InsightsPanel'
 import DashboardNotificacionesBanner from '@/components/dashboard/DashboardNotificacionesBanner'
+import BannerSuscripcion from '@/components/suscripciones/BannerSuscripcion'
 
 const { Title } = Typography
 
@@ -168,6 +169,7 @@ export default function DashboardPage() {
 
   return (
     <div>
+      <BannerSuscripcion />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <Title level={2} style={{ margin: 0 }}>Dashboard</Title>
         <DashboardNotificacionesBanner />
