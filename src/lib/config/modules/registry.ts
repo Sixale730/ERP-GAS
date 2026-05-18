@@ -12,6 +12,7 @@ import { reportesManifest } from './reportes'
 import { catalogosManifest } from './catalogos'
 import { configuracionManifest } from './configuracion'
 import { reportesErroresManifest } from './reportes-errores'
+import { suscripcionesManifest } from './suscripciones'
 import type { ModuleManifestInput, PermisoCRUD, UserRole } from './types'
 import { ALL, VIEW_ONLY } from './types'
 
@@ -50,6 +51,7 @@ const ALL_MANIFESTS = {
   catalogos: catalogosManifest,
   configuracion: configuracionManifest,
   reportes_errores: reportesErroresManifest,
+  suscripciones: suscripcionesManifest,
 }
 
 /** Auto-derived module ID union — extends automatically when a manifest is added */

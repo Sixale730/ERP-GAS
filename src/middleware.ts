@@ -146,6 +146,11 @@ export async function middleware(request: NextRequest) {
     if (request.nextUrl.pathname.startsWith('/admin/leads') && role !== 'super_admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
+
+    // Proteger suscripciones — solo super_admin
+    if (request.nextUrl.pathname.startsWith('/configuracion/suscripciones') && role !== 'super_admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
   }
 
   return response
