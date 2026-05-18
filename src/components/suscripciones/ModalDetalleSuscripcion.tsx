@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Modal, Typography, Row, Col, Card, Button, Divider, Tag, Space } from 'antd'
-import { WhatsAppOutlined, FileTextOutlined, CalendarOutlined, CreditCardOutlined } from '@ant-design/icons'
+import { Modal, Typography, Row, Col, Card, Button, Divider, Tag, Space, Alert } from 'antd'
+import { WhatsAppOutlined, FileTextOutlined, CalendarOutlined, CreditCardOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import type { EstadoSuscripcion } from '@/types/suscripciones'
 import {
   buildWhatsappLink,
@@ -112,6 +112,15 @@ export default function ModalDetalleSuscripcion({ open, estado, onClose }: Props
             </Card>
           </Col>
         </Row>
+
+        <Alert
+          type="info"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          style={{ marginTop: 12 }}
+          message="Este pago NO incluye el modulo de timbrado CFDI"
+          description="El timbrado de facturas se contrata por separado con el PAC (Finkok u otro) y se cobra aparte segun el volumen de timbres consumidos."
+        />
 
         <Divider orientation="left">Forma de pago</Divider>
         <Paragraph type="secondary" style={{ marginBottom: 0 }}>
