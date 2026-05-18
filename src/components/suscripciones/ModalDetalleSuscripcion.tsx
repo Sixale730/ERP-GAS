@@ -13,7 +13,7 @@ import {
 import { registrarEventoSuscripcion } from '@/lib/hooks/queries/useSuscripcion'
 import TerminosCondiciones from './TerminosCondiciones'
 
-const { Title, Text, Paragraph } = Typography
+const { Text, Paragraph } = Typography
 
 interface Props {
   open: boolean
