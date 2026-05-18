@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Card, Form, InputNumber, Button, Space, Typography, message, Divider, Statistic, Row, Col, Spin, Table, Input, Switch, List, Tag, Dropdown, Modal } from 'antd'
-import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined, AppstoreOutlined, ThunderboltOutlined, SyncOutlined, DownOutlined, SettingOutlined, RightOutlined, BellOutlined } from '@ant-design/icons'
+import { SaveOutlined, ReloadOutlined, DollarOutlined, PercentageOutlined, CloudDownloadOutlined, AppstoreOutlined, ThunderboltOutlined, SyncOutlined, DownOutlined, SettingOutlined, RightOutlined, BellOutlined, CreditCardOutlined } from '@ant-design/icons'
 import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ColumnsType } from 'antd/es/table'
@@ -355,6 +355,25 @@ export default function ConfiguracionPage() {
           </Card>
 
         </>
+      )}
+
+      {role === 'super_admin' && (
+        <Card style={{ marginBottom: 16, borderLeft: '4px solid #722ed1' }} hoverable>
+          <Link href="/configuracion/suscripciones" style={{ display: 'block' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <Space>
+                <CreditCardOutlined style={{ fontSize: 24, color: '#722ed1' }} />
+                <div>
+                  <Text strong style={{ fontSize: 16, display: 'block' }}>Suscripciones del Sistema</Text>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    Banner de cobro, plan y montos, registro de pagos, modo solo lectura y bitacora de actividad. Solo super_admin.
+                  </Text>
+                </div>
+              </Space>
+              <RightOutlined />
+            </div>
+          </Link>
+        </Card>
       )}
 
       {role === 'super_admin' && (
