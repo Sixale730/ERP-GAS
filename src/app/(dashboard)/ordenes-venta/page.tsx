@@ -32,7 +32,7 @@ export default function OrdenesVentaPage() {
   const router = useRouter()
   const [searchText, setSearchText] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [filtro, setFiltro] = useState<FiltroStatusOV>('todas')
+  const [filtro, setFiltro] = useState<FiltroStatusOV>('pendientes')
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
 
   useEffect(() => {
@@ -263,8 +263,8 @@ export default function OrdenesVentaPage() {
               value={filtro}
               onChange={(value) => setFiltro(value as FiltroStatusOV)}
               options={[
-                { value: 'todas', label: `Todas (${conteos.todas})` },
                 { value: 'pendientes', label: `Pendientes (${conteos.pendientes})` },
+                { value: 'todas', label: `Todas (${conteos.todas})` },
                 { value: 'facturadas', label: `Facturadas (${conteos.facturadas})` },
               ]}
             />
