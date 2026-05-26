@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Card, Form, Input, Select, InputNumber, Button, Space, Typography, message, Row, Col, Alert
 } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, ExperimentOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SaveOutlined, ExperimentOutlined, WarningOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import Link from 'next/link'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { REGIMENES_FISCALES_SAT, USOS_CFDI_SAT, FORMAS_PAGO_SAT, METODOS_PAGO_SAT } from '@/lib/config/sat'
@@ -16,6 +17,11 @@ import {
   getClientesPruebaAgrupados,
   type ClientePruebaSAT,
 } from '@/lib/config/clientes-prueba'
+import {
+  buscarMatchesPorNombre,
+  buscarMatchPorRFC,
+  type ClienteResumen,
+} from '@/lib/utils/clientes-duplicados'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -32,6 +38,22 @@ export default function NuevoClientePage() {
   const [saving, setSaving] = useState(false)
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
   const [isDemo, setIsDemo] = useState(false)
+  const [clientesExistentes, setClientesExistentes] = useState<ClienteResumen[]>([])
+
+  // Watch para deteccion de duplicados en tiempo real
+  const nombreWatched = Form.useWatch('nombre_comercial', form) as string | undefined
+  const razonSocialWatched = Form.useWatch('razon_social', form) as string | undefined
+  const rfcWatched = Form.useWatch('rfc', form) as string | undefined
+
+  const matchesPorNombre = useMemo(() => {
+    const nombre = nombreWatched || razonSocialWatched
+    return buscarMatchesPorNombre(nombre, clientesExistentes).slice(0, 5)
+  }, [nombreWatched, razonSocialWatched, clientesExistentes])
+
+  const matchRFC = useMemo(
+    () => buscarMatchPorRFC(rfcWatched, clientesExistentes),
+    [rfcWatched, clientesExistentes]
+  )
 
   // Verificar si estamos en ambiente demo
   useEffect(() => {
@@ -95,23 +117,34 @@ export default function NuevoClientePage() {
     const supabase = getSupabaseClient()
 
     try {
-      const { data, error } = await supabase
-        .schema('erp')
-        .from('listas_precios')
-        .select('id, nombre')
-        .eq('is_active', true)
-        .order('nombre')
+      const [listasRes, clientesRes] = await Promise.all([
+        supabase
+          .schema('erp')
+          .from('listas_precios')
+          .select('id, nombre')
+          .eq('is_active', true)
+          .order('nombre'),
+        supabase
+          .schema('erp')
+          .from('clientes')
+          .select('id, codigo, nombre_comercial, razon_social, rfc')
+          .eq('is_active', true)
+          .limit(2000),
+      ])
 
-      if (!error) {
-        setListasPrecios(data || [])
-        // Set default lista
-        const defaultLista = data?.find(l => (l as any).is_default)
+      if (!listasRes.error) {
+        setListasPrecios(listasRes.data || [])
+        const defaultLista = listasRes.data?.find((l) => (l as any).is_default)
         if (defaultLista) {
           form.setFieldValue('lista_precio_id', defaultLista.id)
         }
       }
+
+      if (!clientesRes.error && clientesRes.data) {
+        setClientesExistentes(clientesRes.data as ClienteResumen[])
+      }
     } catch (error) {
-      console.error('Error loading listas:', error)
+      console.error('Error loading data:', error)
     }
   }
 
@@ -194,7 +227,20 @@ export default function NuevoClientePage() {
       router.push('/clientes')
     } catch (error: any) {
       console.error('Error saving cliente:', error)
-      message.error(error.message || 'Error al guardar cliente')
+      // Manejo especifico del UNIQUE PARCIAL de RFC (uniq_clientes_rfc_activo_org)
+      const esDuplicadoRFC =
+        error?.code === '23505' &&
+        (String(error?.message ?? '') + String(error?.details ?? ''))
+          .toLowerCase()
+          .includes('uniq_clientes_rfc_activo_org')
+      if (esDuplicadoRFC) {
+        message.error(
+          'Ya existe un cliente activo con ese RFC. Busca el cliente en la lista o desactiva el existente antes de crear uno nuevo.',
+          6
+        )
+      } else {
+        message.error(error.message || 'Error al guardar cliente')
+      }
     } finally {
       clearTimeout(safetyTimeout)
       setSaving(false)
@@ -243,6 +289,56 @@ export default function NuevoClientePage() {
           onFinish={handleSave}
           style={{ maxWidth: 900 }}
         >
+          {matchesPorNombre.length > 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              icon={<WarningOutlined />}
+              style={{ marginBottom: 16 }}
+              message={`Posible duplicado por nombre (${matchesPorNombre.length})`}
+              description={
+                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <Text>Ya existen clientes con nombre parecido. Verifica antes de crear uno nuevo:</Text>
+                  <ul style={{ paddingLeft: 18, margin: 0 }}>
+                    {matchesPorNombre.map((c) => (
+                      <li key={c.id}>
+                        <Link href={`/clientes/${c.id}`} target="_blank">
+                          <Text strong>{c.codigo}</Text>
+                        </Link>{' '}
+                        — {c.razon_social || c.nombre_comercial}
+                        {c.rfc && <Text type="secondary"> · RFC {c.rfc}</Text>}
+                      </li>
+                    ))}
+                  </ul>
+                </Space>
+              }
+            />
+          )}
+
+          {matchRFC && (
+            <Alert
+              type="error"
+              showIcon
+              icon={<ExclamationCircleOutlined />}
+              style={{ marginBottom: 16 }}
+              message="RFC ya registrado en otro cliente activo"
+              description={
+                <Space direction="vertical" size={4}>
+                  <Text>
+                    El RFC <Text code>{matchRFC.rfc}</Text> ya esta registrado en:{' '}
+                    <Link href={`/clientes/${matchRFC.id}`} target="_blank">
+                      <Text strong>{matchRFC.codigo}</Text>
+                    </Link>{' '}
+                    — {matchRFC.razon_social || matchRFC.nombre_comercial}
+                  </Text>
+                  <Text type="secondary">
+                    No podras guardar este cliente con el mismo RFC. Edita el existente o usa uno diferente.
+                  </Text>
+                </Space>
+              }
+            />
+          )}
+
           <Title level={5}>Informacion General</Title>
           <Row gutter={16}>
             <Col xs={24} md={12}>
