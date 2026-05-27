@@ -40,11 +40,11 @@ const DESCARGAS: DescargaItem[] = [
     archivo: '/descargas/CUANTY-ERP.apk',
     titulo: 'CUANTY ERP — App Móvil',
     plataforma: 'Android',
-    version: '0.1.0',
-    tamanoMB: 4,
+    version: '1.0.0',
+    tamanoMB: 1.7,
     descripcion: 'Instalador APK para Android. Te permite usar el ERP desde tu celular como aplicación nativa, sin abrir el navegador. Se actualiza automáticamente.',
     icono: <AndroidOutlined style={{ fontSize: 32, color: '#3DDC84' }} />,
-    disponible: false, // Activar cuando se suba el APK firmado a /public/descargas/
+    disponible: true,
   },
 ]
 

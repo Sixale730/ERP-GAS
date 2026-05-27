@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "mx.cuanty.erp",
+      "package_name": "cloud.cuanty.www.twa",
       "sha256_cert_fingerprints": [
-        "REEMPLAZAR_CON_SHA256_DEL_KEYSTORE_DEL_APK_FIRMADO"
+        "AE:46:DC:F7:CD:5B:81:BB:E9:F0:80:5B:44:0F:EC:37:DE:E2:53:FA:9E:0E:52:43:0D:95:C7:20:68:FD:2F:46"
       ]
     }
   }
