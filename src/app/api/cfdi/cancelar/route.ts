@@ -13,6 +13,7 @@ import {
   MOTIVOS_CANCELACION,
 } from '@/lib/config/finkok'
 import { getEmpresaFromUser } from '@/lib/config/empresa-server'
+import { verificarModoLecturaServer } from '@/lib/suscripcion/verificar-modo-lectura-server'
 
 interface CancelarRequest {
   factura_id: string
@@ -84,6 +85,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'No autorizado' },
         { status: 401 }
+      )
+    }
+
+    // Verificar modo lectura por suscripcion (super_admin exento)
+    const modoLectura = await verificarModoLecturaServer(supabase, 'timbrar')
+    if (modoLectura.bloqueado) {
+      return NextResponse.json(
+        { success: false, error: modoLectura.mensaje },
+        { status: 403 }
       )
     }
 

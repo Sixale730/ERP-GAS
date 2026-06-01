@@ -14,6 +14,7 @@ import { CFDIEmisor, CFDIReceptor, DatosPagoCFDI, DocumentoRelacionadoPago } fro
 import { isFinkokConfigured, getFinkokConfigError } from '@/lib/config/finkok'
 import { getEmpresaFromUser } from '@/lib/config/empresa-server'
 import { parsearErrorCfdi } from '@/lib/cfdi/error-catalog'
+import { verificarModoLecturaServer } from '@/lib/suscripcion/verificar-modo-lectura-server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,6 +37,15 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
+    }
+
+    // Verificar modo lectura por suscripcion (super_admin exento)
+    const modoLectura = await verificarModoLecturaServer(supabase, 'timbrar')
+    if (modoLectura.bloqueado) {
+      return NextResponse.json(
+        { success: false, error: modoLectura.mensaje },
+        { status: 403 }
+      )
     }
 
     const { data: erpUser } = await supabase

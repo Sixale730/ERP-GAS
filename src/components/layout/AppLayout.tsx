@@ -18,6 +18,7 @@ import type { MenuProps } from 'antd'
 import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import GlobalSearch from './GlobalSearch'
+import BannerModoLectura from '@/components/suscripciones/BannerModoLectura'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useInactivityLogout } from '@/lib/hooks/useInactivityLogout'
 import { useModulos } from '@/lib/hooks/useModulos'
@@ -405,6 +406,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             borderRadius: borderRadiusLG,
           }}
         >
+          <BannerModoLectura />
           {children}
         </Content>
       </Layout>
