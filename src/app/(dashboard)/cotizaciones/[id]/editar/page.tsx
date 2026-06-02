@@ -447,9 +447,17 @@ export default function EditarCotizacionPage() {
     if (savingRef.current) return
     savingRef.current = true
 
-    if (!clienteId || !almacenId || items.length === 0) {
+    // Validacion especifica para evitar el bug que dejo OV-00099 sin items.
+    // Antes el mensaje generico ocultaba la causa real cuando los items se
+    // perdian del state por algun re-render.
+    if (items.length === 0) {
       savingRef.current = false
-      message.error('Completa todos los campos requeridos')
+      message.error('No se puede guardar sin productos. Agrega al menos un producto antes de guardar.')
+      return
+    }
+    if (!clienteId || !almacenId) {
+      savingRef.current = false
+      message.error('Completa el cliente y el almacen antes de guardar.')
       return
     }
 

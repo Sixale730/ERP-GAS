@@ -102,29 +102,18 @@ async function fetchOrdenVenta(id: string) {
   }
 }
 
-// Delete orden de venta
+// Delete orden de venta — usa RPC transaccional erp.eliminar_orden_venta
+// para que items + cabecera se borren atomicamente. Si la RPC falla
+// (modo lectura, factura asociada, status invalido), nada queda borrado.
 async function deleteOrdenVenta(orden: OrdenVentaRow) {
   if (orden.status !== 'orden_venta') {
     throw new Error('Solo se pueden eliminar ordenes de venta pendientes')
   }
 
   const supabase = getSupabaseClient()
-
-  const { error: itemsError } = await supabase
-    .schema('erp')
-    .from('cotizacion_items')
-    .delete()
-    .eq('cotizacion_id', orden.id)
-
-  if (itemsError) throw itemsError
-
-  const { error: ovError } = await supabase
-    .schema('erp')
-    .from('cotizaciones')
-    .delete()
-    .eq('id', orden.id)
-
-  if (ovError) throw ovError
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.rpc as any)('eliminar_orden_venta', { p_id: orden.id })
+  if (error) throw error
 
   return orden.id
 }
