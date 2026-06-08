@@ -90,3 +90,56 @@ Productos sin `proveedor_principal_id` que quedan fuera del generador:
 ### Calibrar stock_maximo de los 5 SKUs críticos
 
 Ver tabla del Pendiente A para valores sugeridos.
+
+---
+
+## Tareas operativas pendientes — Conversiones y guía (snapshot 03-jun-2026)
+
+### Conversión COT-06229 → OV → Factura
+
+- **Cliente**: SUPER DE GDL
+- **Total**: $5,693.59 (1 item)
+- **Item**: 1× GP-MX-CF-PLUS (Interconexión Plus)
+- **Stock check**: físico 3 → queda 2 ✓ se puede facturar sin problema
+- **Acción**: ejecutar `cotizacion_a_orden_venta(uuid)` → luego `cotizacion_a_factura(uuid)`
+
+### OV-00100 → Factura
+
+- **Cliente**: DGN (Distribuidora de Gas Noel)
+- **Total**: $1,856.07 (2 items: 1× GP-MVAAT + 1× SER-ENV)
+- **Stock check**: físico 1 → queda 0 ✓ se puede facturar
+- **Acción**: ejecutar `cotizacion_a_factura(uuid)`
+
+### OV-00101 → Factura — ⚠️ BLOQUEADA POR STOCK
+
+- **Cliente**: DGN
+- **Total**: $13,339.86 (2 items: 2× GP-MT-EG-QE + 1× SER-ENV)
+- **Stock check**: GP-MT-EG-QE pedido 2, físico 1 → al facturar quedaría -1
+- **Bloqueo**: el trigger `trg_inventario_no_negativa` rechazará el descuento porque profundiza el negativo
+- **Opciones para resolver antes de facturar**:
+  1. Reducir cantidad de Encoder QE en la OV de 2 a 1 (facturar parcial)
+  2. Esperar recepción de OC con Encoder QE (revisar OC-00111 / OC-00112 que están en tránsito)
+  3. Cancelar OV-00101 y crear nueva con la cantidad real disponible
+
+### Guía conjunta OV-00100 + OV-00101
+
+- Crear una sola guía en `/envios` que asocie las 2 facturas resultantes
+- El usuario va a armarla manualmente desde el ERP cuando facture
+- No se hace por SQL — usar la UI
+
+---
+
+## Diagnóstico OCs al 03-jun-2026 (referencia, no acción)
+
+**Sin inconsistencias detectadas**: ninguna OC con `pendiente=0` quedó con status incorrecto. Todas las recibidas físicamente están marcadas correctamente.
+
+**En tránsito** (61 + 18 piezas SICOM por llegar):
+- OC-00111 (15-may): 1 item, 18 piezas, $160K — totalmente pendiente
+- OC-00112 (19-may): 12 items, 61 piezas, $196K — totalmente pendiente
+
+**Parcialmente recibidas**:
+- OC-00109 (06-may): falta 3 piezas (casi cierra)
+- OC-00110 (14-may): falta 38 piezas
+- OC-00113 (21-may): falta 1 pieza
+
+Verificar manualmente si alguna de estas (especialmente OC-00112) trae Encoder QE para destrabar OV-00101.
