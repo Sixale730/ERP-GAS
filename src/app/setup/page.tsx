@@ -60,6 +60,8 @@ export default function SetupPage() {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/setup`,
+        // Forzar selector de cuenta de Google (consistente con login normal).
+        queryParams: { prompt: 'select_account' },
       },
     })
   }

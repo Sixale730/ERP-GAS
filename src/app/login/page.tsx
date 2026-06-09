@@ -22,6 +22,11 @@ export default function LoginPage() {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          // Forzar selector de cuenta de Google. Sin esto, el webview de Tauri
+          // (y los navegadores con sesion activa) reutilizan la ultima cuenta
+          // de Google sin permitir elegir otra. Aplica tanto en escritorio
+          // como en web.
+          queryParams: { prompt: 'select_account' },
         },
       })
 

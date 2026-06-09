@@ -65,6 +65,9 @@ export default function InvitacionPage() {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        // Forzar selector de cuenta para que el invitado pueda elegir la cuenta
+        // correcta aunque ya tenga otra sesion activa de Google.
+        queryParams: { prompt: 'select_account' },
       },
     })
   }
