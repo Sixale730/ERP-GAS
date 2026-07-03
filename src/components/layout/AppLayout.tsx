@@ -19,6 +19,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import GlobalSearch from './GlobalSearch'
 import BannerModoLectura from '@/components/suscripciones/BannerModoLectura'
+import BannerBypassInventario from '@/components/inventario/BannerBypassInventario'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useInactivityLogout } from '@/lib/hooks/useInactivityLogout'
 import { useModulos } from '@/lib/hooks/useModulos'
@@ -407,6 +408,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           }}
         >
           <BannerModoLectura />
+          <BannerBypassInventario />
           {children}
         </Content>
       </Layout>

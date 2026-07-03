@@ -7,6 +7,7 @@ export const CONFIG_KEYS = {
     OBJETIVO_STOCK_DEFAULT: 'objetivo_stock_default',
     DIAS_SIN_MOVIMIENTO_ALERTA: 'dias_sin_movimiento_alerta',
     PERMITIR_SOBRE_VENTA: 'permitir_sobre_venta',
+    BYPASS_INVENTARIO_NEGATIVO: 'bypass_inventario_negativo',
   },
   COTIZACIONES: {
     VIGENCIA_DIAS_DEFAULT: 'vigencia_dias_default',
@@ -39,6 +40,7 @@ export const CONFIG_CATEGORIA_DE_CLAVE: Record<string, string> = {
   [CONFIG_KEYS.INVENTARIO.OBJETIVO_STOCK_DEFAULT]: 'inventario',
   [CONFIG_KEYS.INVENTARIO.DIAS_SIN_MOVIMIENTO_ALERTA]: 'inventario',
   [CONFIG_KEYS.INVENTARIO.PERMITIR_SOBRE_VENTA]: 'inventario',
+  [CONFIG_KEYS.INVENTARIO.BYPASS_INVENTARIO_NEGATIVO]: 'inventario',
   [CONFIG_KEYS.COTIZACIONES.VIGENCIA_DIAS_DEFAULT]: 'cotizaciones',
   [CONFIG_KEYS.COTIZACIONES.PERMITIR_EDITAR_APROBADAS]: 'cotizaciones',
   [CONFIG_KEYS.POS.REQUIERE_CORTE_CIEGO]: 'pos',

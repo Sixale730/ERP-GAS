@@ -15,6 +15,8 @@ import { generarPDFCotizacion, type OpcionesMoneda } from '@/lib/utils/pdf'
 import HistorialTimeline from '@/components/common/HistorialTimeline'
 import AlertaStockInsuficiente from '@/components/cotizaciones/AlertaStockInsuficiente'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useConfigValue } from '@/lib/hooks/queries/useConfiguracionSistema'
+import { CONFIG_KEYS } from '@/lib/config/keys'
 import type { CodigoMoneda } from '@/lib/config/moneda'
 
 const { Title, Text } = Typography
@@ -108,6 +110,12 @@ export default function CotizacionDetallePage() {
   const params = useParams()
   const id = params.id as string
   const { orgId } = useAuth()
+  // Bypass del inventario: cuando esta ON, no bloquear facturacion por stock.
+  const bypassInventarioNegativo = useConfigValue<boolean>(
+    'inventario',
+    CONFIG_KEYS.INVENTARIO.BYPASS_INVENTARIO_NEGATIVO,
+    false
+  )
 
   const [loading, setLoading] = useState(true)
   const [converting, setConverting] = useState(false)
@@ -298,8 +306,11 @@ export default function CotizacionDetallePage() {
     // y el trigger trg_inventario_no_negativa lo bloquea con error de Postgres
     // si quedaria negativo. Aqui hacemos la verificacion ANTES para dar un
     // mensaje claro y accionable en lugar de un error tecnico de BD.
+    //
+    // Si el bypass esta ON, el trigger deja pasar y no tiene sentido bloquear
+    // aqui. Se salta la pre-validacion.
     const itemsInventariables = items.filter(i => !i.es_servicio && i.producto_id)
-    if (itemsInventariables.length > 0) {
+    if (!bypassInventarioNegativo && itemsInventariables.length > 0) {
       const supabase = getSupabaseClient()
       const productoIds = itemsInventariables.map(i => i.producto_id)
       const { data: inventarioData, error: invError } = await supabase
