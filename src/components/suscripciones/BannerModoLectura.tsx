@@ -22,7 +22,9 @@ export default function BannerModoLectura() {
   const { data: estado } = useSuscripcion()
 
   if (!estado?.modo_lectura_activo) return null
-  if (role === 'super_admin') return null
+  // super_admin exento: no mostrar banner. Tambien ocultar mientras role no ha cargado
+  // para evitar flash del banner en el primer render.
+  if (!role || role === 'super_admin') return null
 
   const handleContacto = () => {
     if (typeof window === 'undefined') return
