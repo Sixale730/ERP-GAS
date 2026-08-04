@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Button, Input, Space, Tag, Card, Typography, message, Select, Popconfirm } from 'antd'
 import { useRouter } from 'next/navigation'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, ClockCircleOutlined, DeleteOutlined, ShoppingCartOutlined, LoadingOutlined, StarOutlined } from '@ant-design/icons'
@@ -15,6 +15,7 @@ import { MobileFilters } from '@/components/common/MobileFilters'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { formatDate, formatDateTime, formatMoneyMXN } from '@/lib/utils/format'
 import { generarPDFCotizacion, prepararDatosCotizacionPDF } from '@/lib/utils/pdf'
+import { usePersistedListState } from '@/lib/hooks/usePersistedListState'
 import dayjs from 'dayjs'
 import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 
@@ -32,19 +33,43 @@ const statusLabels: Record<string, string> = {
 
 export default function CotizacionesPage() {
   const router = useRouter()
-  const [searchText, setSearchText] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string | null>(null)
-  const [vigenciaFilter, setVigenciaFilter] = useState<'todas' | 'vigentes' | 'vencidas'>('todas')
+  // Filtros y paginacion persistidos en memoria (uiStore) entre navegaciones.
+  // Al entrar a una cotizacion y regresar, conservan search/status/vigencia/pageSize.
+  // Se resetean al refrescar la pagina (F5).
+  const [filtros, setFiltro] = usePersistedListState('cotizaciones', {
+    searchText: '',
+    statusFilter: null as string | null,
+    vigenciaFilter: 'todas' as 'todas' | 'vigentes' | 'vencidas',
+    page: 1,
+    pageSize: 10,
+  })
+  const { searchText, statusFilter, vigenciaFilter, page, pageSize } = filtros
+  const setSearchText = (v: string) => setFiltro('searchText', v)
+  const setStatusFilter = (v: string | null) => setFiltro('statusFilter', v)
+  const setVigenciaFilter = (v: 'todas' | 'vigentes' | 'vencidas') => setFiltro('vigenciaFilter', v)
+  const setPagination = (next: { page: number; pageSize: number }) => {
+    setFiltro('page', next.page)
+    setFiltro('pageSize', next.pageSize)
+  }
+  const pagination = useMemo(() => ({ page, pageSize }), [page, pageSize])
+
+  const [debouncedSearch, setDebouncedSearch] = useState(searchText)
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null)
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
+  // Skip del primer render para no resetear a page=1 cuando el usuario regresa
+  // con un searchText persistido.
+  const primerRender = useRef(true)
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchText)
-      setPagination(prev => ({ ...prev, page: 1 }))
+      if (primerRender.current) {
+        primerRender.current = false
+        return
+      }
+      setFiltro('page', 1)
     }, 300)
     return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchText])
 
   // React Query hooks with server-side pagination and search
@@ -235,7 +260,7 @@ export default function CotizacionesPage() {
               type="link"
               icon={<EyeOutlined />}
               title="Ver detalle"
-              href={`/cotizaciones/${record.id}`}
+              onClick={() => router.push(`/cotizaciones/${record.id}`)}
             />
           <Button
             type="link"
@@ -315,7 +340,7 @@ export default function CotizacionesPage() {
                 }))
               }}
             />
-            <Button type="primary" icon={<PlusOutlined />} href="/cotizaciones/nueva">
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => router.push('/cotizaciones/nueva')}>
               Nueva Cotizacion
             </Button>
           </>

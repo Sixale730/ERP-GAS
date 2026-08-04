@@ -98,6 +98,55 @@ export function useFacturas(statusFilter?: string | null, pagination?: Paginatio
   })
 }
 
+export interface FacturasResumen {
+  porCobrarUSD: number
+  porCobrarMXN: number
+  vencidas: number
+}
+
+// Agrega saldos y facturas vencidas sobre TODAS las facturas que cumplen el
+// filtro (status + búsqueda), independiente de la paginación. El encabezado
+// del listado no debe sumar solo la página visible.
+async function fetchFacturasResumen(statusFilter?: string | null, search?: string): Promise<FacturasResumen> {
+  const supabase = getSupabaseClient()
+  let query = supabase
+    .schema('erp')
+    .from('v_facturas')
+    .select('saldo, moneda, dias_vencida, status')
+
+  if (statusFilter) {
+    query = query.eq('status', statusFilter)
+  }
+
+  if (search) {
+    const s = sanitizeSearchInput(search)
+    query = query.or(`folio.ilike.%${s}%,cliente_nombre.ilike.%${s}%`)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+
+  let porCobrarUSD = 0
+  let porCobrarMXN = 0
+  let vencidas = 0
+  for (const f of (data || []) as Array<{ saldo: number; moneda: 'USD' | 'MXN'; dias_vencida: number; status: string }>) {
+    if (f.status !== 'cancelada') {
+      if (f.moneda === 'MXN') porCobrarMXN += f.saldo
+      else porCobrarUSD += f.saldo
+    }
+    if (f.dias_vencida > 0 && f.status !== 'pagada') vencidas++
+  }
+  return { porCobrarUSD, porCobrarMXN, vencidas }
+}
+
+// Hook: Resumen (por cobrar + vencidas) sobre todas las facturas del filtro
+export function useFacturasResumen(statusFilter?: string | null, search?: string) {
+  return useQuery({
+    queryKey: [...facturasKeys.lists(), 'resumen', { status: statusFilter ?? null, search: search ?? '' }],
+    queryFn: () => fetchFacturasResumen(statusFilter, search),
+  })
+}
+
 // Hook: Detalle de factura
 export function useFactura(id: string) {
   return useQuery({

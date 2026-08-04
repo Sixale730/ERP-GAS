@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Button, Input, Space, Tag, Card, Typography, message, Segmented } from 'antd'
 import { useRouter } from 'next/navigation'
 import { PlusOutlined, SearchOutlined, EyeOutlined, FilePdfOutlined, FileTextOutlined, LinkOutlined } from '@ant-design/icons'
@@ -13,6 +13,7 @@ import BotonExportar from '@/components/common/BotonExportar'
 import { PageHeaderActions } from '@/components/common/PageHeaderActions'
 import { ResponsiveListTable } from '@/components/common/ResponsiveListTable'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { usePersistedListState } from '@/lib/hooks/usePersistedListState'
 import dayjs from 'dayjs'
 import { sanitizeSearchInput } from '@/lib/utils/sanitize'
 
@@ -30,21 +31,44 @@ const statusLabels: Record<string, string> = {
 
 export default function OrdenesVentaPage() {
   const router = useRouter()
-  const [searchText, setSearchText] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [filtro, setFiltro] = useState<FiltroStatusOV>('pendientes')
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 10 })
+  // Filtros y paginacion persistidos en memoria (uiStore) entre navegaciones.
+  // Al entrar a una OV y regresar, conservan search/filtro/pageSize.
+  // Se resetean al refrescar la pagina (F5).
+  const [filtros, setFiltro] = usePersistedListState('ordenes-venta', {
+    searchText: '',
+    filtroStatus: 'pendientes' as FiltroStatusOV,
+    page: 1,
+    pageSize: 10,
+  })
+  const { searchText, filtroStatus, page, pageSize } = filtros
+  const setSearchText = (v: string) => setFiltro('searchText', v)
+  const setFiltroStatus = (v: FiltroStatusOV) => setFiltro('filtroStatus', v)
+  const setPagination = (next: { page: number; pageSize: number }) => {
+    setFiltro('page', next.page)
+    setFiltro('pageSize', next.pageSize)
+  }
+  const pagination = useMemo(() => ({ page, pageSize }), [page, pageSize])
+
+  const [debouncedSearch, setDebouncedSearch] = useState(searchText)
+  // Skip del primer render para no resetear a page=1 cuando el usuario regresa
+  // con un searchText persistido.
+  const primerRender = useRef(true)
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchText)
-      setPagination(prev => ({ ...prev, page: 1 }))
+      if (primerRender.current) {
+        primerRender.current = false
+        return
+      }
+      setFiltro('page', 1)
     }, 300)
     return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchText])
 
   // React Query - datos cacheados automáticamente with server-side pagination and search
-  const { data: ordenesResult, isLoading, isError } = useOrdenesVenta(filtro, pagination, debouncedSearch)
+  const { data: ordenesResult, isLoading, isError } = useOrdenesVenta(filtroStatus, pagination, debouncedSearch)
   const ordenes = ordenesResult?.data ?? []
   const { data: conteosGlobales } = useConteosOV()
 
@@ -123,7 +147,7 @@ export default function OrdenesVentaPage() {
       key: 'cotizacion_origen_folio',
       width: 120,
       render: (folio: string | null, record: OrdenVentaRow) => folio ? (
-        <Button type="link" size="small" style={{ padding: 0 }} icon={<LinkOutlined />} href={`/cotizaciones/${record.cotizacion_origen_id}`}>
+        <Button type="link" size="small" style={{ padding: 0 }} icon={<LinkOutlined />} onClick={() => router.push(`/cotizaciones/${record.cotizacion_origen_id}`)}>
             {folio}
         </Button>
       ) : <span style={{ color: '#999' }}>-</span>,
@@ -181,7 +205,7 @@ export default function OrdenesVentaPage() {
               type="link"
               icon={<EyeOutlined />}
               title="Ver detalle"
-              href={`/cotizaciones/${record.id}`}
+              onClick={() => router.push(`/cotizaciones/${record.id}`)}
             />
           <Button
             type="link"
@@ -195,7 +219,7 @@ export default function OrdenesVentaPage() {
                 type="link"
                 icon={<FileTextOutlined />}
                 title="Ver Factura"
-                href={`/facturas/${record.factura_id}`}
+                onClick={() => router.push(`/facturas/${record.factura_id}`)}
               />
           )}
         </Space>
@@ -233,8 +257,8 @@ export default function OrdenesVentaPage() {
                   .select('folio, cliente_nombre, fecha, total, moneda, status')
                   .like('folio', 'OV-%')
                   .order('created_at', { ascending: false })
-                if (filtro === 'pendientes') query = query.eq('status', 'orden_venta')
-                else if (filtro === 'facturadas') query = query.eq('status', 'facturada')
+                if (filtroStatus === 'pendientes') query = query.eq('status', 'orden_venta')
+                else if (filtroStatus === 'facturadas') query = query.eq('status', 'facturada')
                 else query = query.in('status', ['orden_venta', 'facturada'])
                 if (debouncedSearch) { const s = sanitizeSearchInput(debouncedSearch); query = query.or(`folio.ilike.%${s}%,cliente_nombre.ilike.%${s}%`) }
                 const { data, error: err } = await query
@@ -249,7 +273,7 @@ export default function OrdenesVentaPage() {
                 }))
               }}
             />
-            <Button type="primary" icon={<PlusOutlined />} href="/ordenes-venta/nueva">
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => router.push('/ordenes-venta/nueva')}>
               Nueva Orden de Venta
             </Button>
           </>
@@ -260,8 +284,8 @@ export default function OrdenesVentaPage() {
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <Segmented
-              value={filtro}
-              onChange={(value) => setFiltro(value as FiltroStatusOV)}
+              value={filtroStatus}
+              onChange={(value) => setFiltroStatus(value as FiltroStatusOV)}
               options={[
                 { value: 'pendientes', label: `Pendientes (${conteos.pendientes})` },
                 { value: 'todas', label: `Todas (${conteos.todas})` },

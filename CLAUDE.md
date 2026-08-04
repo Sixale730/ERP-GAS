@@ -654,6 +654,59 @@ Pipeline de importacion de datos "mascotienda" (tienda de mascotas) para demo:
 
 ---
 
+## Bitácora de Ajustes de Cobranza
+
+### Ajuste de cobranza — 03/08/2026 (conciliación vs documento `COBRANZA_ACT.xlsx - NOEL`)
+
+Conciliación de cuentas por cobrar de **DGN (Distribuidora de Gas Noel)** y **Super de GDL** contra el reporte externo de cobranza. Cruce por **nombre de cliente + monto** (los folios del documento `6xxx` son de otro sistema, no corresponden a los folios `FAC-000xx` del ERP).
+
+**1. Datos fiscales completados en clientes** (estaban en `NULL`, tomados del documento):
+- DGN → `razon_social='DISTRIBUIDORA DE GAS NOEL'`, `rfc='DGN811026BU6'`
+- Super de GDL → `razon_social='SUPER DE GDL'`, `rfc='SGD101111JP1'`
+- Pendiente aún: `regimen_fiscal`, `uso_cfdi`, `codigo_postal_fiscal` (el documento no los trae; requeridos para timbrar CFDI).
+
+**2. Pagos registrados** (el documento los marcaba cobrados, el ERP los tenía pendientes) — método asumido `'03'` Transferencia (el documento no especifica), 8 pagos por **$165,651.72**:
+
+| Factura | Monto | Fecha pago | Referencia doc |
+|---|---|---|---|
+| FAC-00045 | $46,262.60 | 11/06/2026 | Transf 11/06 |
+| FAC-00049 | $31,893.62 | 15/06/2026 | Transf 15/06 |
+| FAC-00067 | $25,837.00 | 22/06/2026 | Pago 2206 (grupo $39,244.61) |
+| FAC-00021 | $22,301.00 | 28/05/2026 | Transf 28/05 |
+| FAC-00071 | $20,256.30 | 15/07/2026 | Pago 1507 |
+| FAC-00065 | $11,551.54 | 22/06/2026 | Pago 2206 (grupo $39,244.61) |
+| FAC-00101 | $5,693.59 | 29/07/2026 | Transf 29/07 (Super de GDL) |
+| FAC-00085 | $1,856.07 | 22/06/2026 | Pago 2206 (grupo $39,244.61) |
+
+> El "Pago 2206" del documento ($39,244.61) es un solo pago que cubría 3 facturas (FAC-00067 + FAC-00065 + FAC-00085); se registró desglosado por factura con la misma fecha/referencia.
+
+Efecto en saldos: **DGN 384,799.84 → 224,841.71** (−159,958.13) · **Super de GDL 11,011.02 → 5,317.43** (−5,693.59).
+
+**3. Fechas de factura alineadas al documento** (para que los días de atraso coincidan; `fecha_vencimiento = fecha + 30`):
+- FAC-00086 → 25/06/2026 · FAC-00084 → 03/06/2026 · FAC-00082 → 02/07/2026 · FAC-00090 → 21/07/2026 · FAC-00083 → 02/07/2026 · FAC-00100 → 02/07/2026 · FAC-00101 → 04/06/2026 (necesario para que su pago del 29/07 fuera posterior a la emisión).
+- FAC-00079 y FAC-00072 ya coincidían (sin cambio).
+
+**Notas / pendientes de este ajuste:**
+- **Factura 6218 ($25,151.09, DGN)**: en el documento pero NO existe en el ERP. Queda pendiente de capturar (el documento la marca PENDIENTE, sin pago).
+- **Vigente/Vencida**: el ERP calcula la vigencia en vivo contra la fecha de hoy, mientras el documento es una foto en el tiempo. Con crédito a 30 días, FAC-00082/00083/00100 (doc "Vigente") y FAC-00072 (doc "Vigente") ya aparecen vencidas por 2–49 días. Diferencia inherente, no error de captura.
+- **Método de pago `'03'`** es un supuesto; ajustar por factura si el pago real fue otro medio (efectivo/cheque). Ninguno de estos pagos tiene complemento CFDI emitido, así que son editables.
+
+### Ajuste de cobranza — 03/08/2026 (marcado masivo de facturas de otros clientes)
+
+Se marcaron como **pagadas** todas las facturas pendientes de los clientes que **NO** aparecían en el documento `COBRANZA_ACT NOEL` (es decir, todos menos DGN, Super de GDL y Super Gas de los Altos). Confirmado por el usuario: alcance = **todos los 16 clientes** (incluye Grupo Ana María López y POTOGAS), fecha de pago = **fecha de vencimiento de cada factura**, método `'03'` Transferencia.
+
+- **58 pagos registrados = $1,895,843.04**. Todos con `referencia='Ajuste de cobranza 03/08/2026'` y nota `reconciliacion, sin documento de pago`.
+- Clientes afectados y saldo liquidado: GAS SILZA ($536,466.09) · GASES RODRIGUEZ DEL NORESTE ($373,389.96) · HIDRO GAS DE AGUA PRIETA ($372,145.57) · GAS EL SOBRANTE ($173,556.25) · DAMIGAS ($89,599.89) · GENERADORES DE ENERGIA DEL NOROESTE ($87,268.78) · VENDOGAS ($62,390.83) · TABAGAS ($58,357.14) · GAS TOMZA DE SINALOA ($48,462.67) · HOLBOX GAS ($23,379.08) · VENDO GAS DE L PACIFICO ($17,933.76) · POTOGAS ($17,576.62) · GAS DE OJUELOS ($13,179.39) · GAS CHAPULTEPEC ($8,488.97) · GAS IDEAL DE REYNOSA ($6,829.24) · ELSA GAS ($6,818.80). Todos quedaron en saldo $0.
+- GAS VULCANO ya estaba 100% pagado (no requirió ajuste).
+
+**Notas de este ajuste:**
+- **Sin respaldo documental de pagos** (a diferencia del ajuste de DGN, que sí tenía el documento de cobranza). Es una reconciliación para dejar el saldo en cero; las fechas son la fecha de vencimiento de cada factura, no fechas de pago reales.
+- **TABAGAS, DAMIGAS, VENDOGAS y VENDO GAS DE L PACIFICO** son del **Grupo Ana María López** (cuentas de otro vendedor). Se incluyeron por decisión explícita del usuario.
+- **POTOGAS** ($17,576.62) es la "Distribuidora Potosina" del folio 6176 del documento (venía PAGADA 08/07); quedó marcada pagada, consistente con el documento.
+- Reversible: ninguno de estos pagos tiene complemento CFDI emitido; se pueden borrar/editar. Para revertir en bloque hay que eliminar los pagos con `referencia='Ajuste de cobranza 03/08/2026'` (nota `reconciliacion`) y recomputar saldos manualmente (el trigger no revierte al borrar).
+
+---
+
 ## Documentación Comercial / Mercado / Prospección
 
 Este CLAUDE.md cubre el contexto **técnico del ERP**. Para temas de **venta, marketing, prospección, estacionalidad del Gas LP, normativa del sector y estrategia comercial**, la documentación vive en una carpeta separada:

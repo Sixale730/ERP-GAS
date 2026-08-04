@@ -5,7 +5,7 @@ import { Button, Input, Space, Tag, Card, Typography, message, Select } from 'an
 import { useRouter } from 'next/navigation'
 import { SearchOutlined, EyeOutlined, FilePdfOutlined, LoadingOutlined, GlobalOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useFacturas, type FacturaRow } from '@/lib/hooks/queries/useFacturas'
+import { useFacturas, useFacturasResumen, type FacturaRow } from '@/lib/hooks/queries/useFacturas'
 import { TableSkeleton } from '@/components/common/Skeletons'
 import BotonExportar from '@/components/common/BotonExportar'
 import { PageHeaderActions } from '@/components/common/PageHeaderActions'
@@ -204,7 +204,7 @@ export default function FacturasPage() {
               type="link"
               icon={<EyeOutlined />}
               title="Ver detalle"
-              href={`/facturas/${record.id}`}
+              onClick={() => router.push(`/facturas/${record.id}`)}
             />
           <Button
             type="link"
@@ -218,27 +218,13 @@ export default function FacturasPage() {
     },
   ], [downloadingPdf])
 
-  // Summary stats - memoized para evitar recalculos en cada render
-  const { totalPorCobrarUSD, totalPorCobrarMXN, facturasVencidas } = useMemo(() => {
-    let porCobrarUSD = 0
-    let porCobrarMXN = 0
-    let vencidas = 0
-
-    for (const f of facturas) {
-      if (f.status !== 'cancelada') {
-        if (f.moneda === 'MXN') {
-          porCobrarMXN += f.saldo
-        } else {
-          porCobrarUSD += f.saldo
-        }
-      }
-      if (f.dias_vencida > 0 && f.status !== 'pagada') {
-        vencidas++
-      }
-    }
-
-    return { totalPorCobrarUSD: porCobrarUSD, totalPorCobrarMXN: porCobrarMXN, facturasVencidas: vencidas }
-  }, [facturas])
+  // Resumen (por cobrar + vencidas) sobre TODAS las facturas del filtro actual,
+  // no solo la página visible. Antes se sumaba `facturas` (la página) y el total
+  // del encabezado quedaba corto cuando había más de una página.
+  const { data: resumen } = useFacturasResumen(statusFilter, debouncedSearch)
+  const totalPorCobrarUSD = resumen?.porCobrarUSD ?? 0
+  const totalPorCobrarMXN = resumen?.porCobrarMXN ?? 0
+  const facturasVencidas = resumen?.vencidas ?? 0
 
   // Log error completo en consola y dispara toast UNA sola vez por error
   // (no en cada render — el patron anterior spam-eaba el toast).
@@ -258,7 +244,7 @@ export default function FacturasPage() {
         actions={
           <>
             {esPOS && (
-              <Button icon={<GlobalOutlined />} href="/facturas/global">
+              <Button icon={<GlobalOutlined />} onClick={() => router.push('/facturas/global')}>
                 Factura Global
               </Button>
             )}

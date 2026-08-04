@@ -95,6 +95,12 @@ export function formatMoneySimple(amount: number | null | undefined): string {
  */
 export function formatDate(date: string | Date | null | undefined, format: string = 'DD/MM/YYYY'): string {
   if (!date) return '-'
+  // Las columnas tipo DATE llegan como 'YYYY-MM-DD' y representan un día
+  // calendario, no un instante UTC. Convertirlas por zona horaria las recorre
+  // un día hacia atrás (America/Mexico_City = UTC-6). Se formatean tal cual.
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return dayjs(date).format(format)
+  }
   return dayjs.utc(date).tz().format(format)
 }
 
