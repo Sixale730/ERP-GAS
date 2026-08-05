@@ -52,7 +52,7 @@ export default function VendedorSelect({
         .from('usuarios')
         .select('id, nombre, email')
         .eq('is_active', true)
-        .in('rol', ['vendedor', 'admin_cliente'])
+        .in('rol', ['vendedor', 'admin_cliente', 'super_admin'])
         .order('nombre', { ascending: true })
 
       if (error) throw error
