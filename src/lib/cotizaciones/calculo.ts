@@ -25,9 +25,20 @@ export interface ItemCalculado {
   subtotal: number
 }
 
-/** Redondeo a centavos. */
+/**
+ * Redondeo a centavos, media unidad hacia arriba.
+ *
+ * Se usa la notacion exponencial en vez de `Math.round(n * 100) / 100` porque
+ * multiplicar por 100 arrastra el error de la coma flotante: 4520.775 * 100 da
+ * 452077.49999... y redondearia a 4520.77, mientras que Postgres (que es quien
+ * finalmente guarda el numero) redondea a 4520.78. Con el exponente los dos
+ * coinciden.
+ */
 export function redondear(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100
+  if (!Number.isFinite(n)) return n
+  const signo = n < 0 ? -1 : 1
+  const abs = Math.abs(n)
+  return signo * Number(`${Math.round(Number(`${abs}e2`))}e-2`)
 }
 
 /**
