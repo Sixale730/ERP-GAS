@@ -12,6 +12,7 @@ import EstadoCiudadSelect from '@/components/common/EstadoCiudadSelect'
 import DireccionEnvioSelect from '@/components/common/DireccionEnvioSelect'
 import AlertaStockInsuficiente from '@/components/cotizaciones/AlertaStockInsuficiente'
 import { formatMoneyMXN, formatMoneyUSD, calcularTotal } from '@/lib/utils/format'
+import { calcularPrecioFinal as calcularPrecioFinalCompartido } from '@/lib/cotizaciones/calculo'
 import { registrarHistorial } from '@/lib/utils/historial'
 import { useConfiguracion } from '@/lib/hooks/useConfiguracion'
 import { useConfigValue } from '@/lib/hooks/queries/useConfiguracionSistema'
@@ -323,13 +324,11 @@ function NuevaCotizacionContent() {
     }
   }
 
-  // Calcular precio final segun moneda de origen y destino
-  const calcularPrecioFinal = (precioBase: number, monedaOrigen: CodigoMoneda, margenPct: number, monedaDestino: CodigoMoneda = moneda) => {
-    const precioConMargen = precioBase * (1 + margenPct / 100)
-    if (monedaOrigen === monedaDestino) return precioConMargen
-    if (monedaOrigen === 'USD') return precioConMargen * tipoCambio  // USD→MXN
-    return precioConMargen / tipoCambio  // MXN→USD
-  }
+  // Calcular precio final segun moneda de origen y destino.
+  // La formula vive en src/lib/cotizaciones/calculo.ts para que la web y la API
+  // del asistente (/api/bot/cotizaciones) no puedan calcular precios distintos.
+  const calcularPrecioFinal = (precioBase: number, monedaOrigen: CodigoMoneda, margenPct: number, monedaDestino: CodigoMoneda = moneda) =>
+    calcularPrecioFinalCompartido(precioBase, monedaOrigen, monedaDestino, tipoCambio, margenPct)
 
   // Formatear dinero segun moneda seleccionada
   const formatMoney = useCallback((amount: number) => {
