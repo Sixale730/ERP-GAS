@@ -11,6 +11,7 @@ import {
   armarNotas,
   calcularPrecioFinal,
   calcularTotales,
+  redondear,
   type ItemCalculado,
 } from './calculo'
 
@@ -179,7 +180,8 @@ export async function crearCotizacion(
       precioUnitario = calcularPrecioFinal(precioLista, monedaPrecio, moneda, tipoCambio, margen)
     }
 
-    const redondeado = Math.round(precioUnitario * 100) / 100
+    // calcularPrecioFinal ya redondea; esto cubre el caso del precio manual.
+    const redondeado = redondear(precioUnitario)
     calculados.push({
       producto_id: prod.id,
       descripcion: it.descripcion?.trim() || prod.nombre,

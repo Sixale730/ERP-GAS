@@ -25,11 +25,22 @@ export interface ItemCalculado {
   subtotal: number
 }
 
+/** Redondeo a centavos. */
+export function redondear(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100
+}
+
 /**
  * Precio unitario en la moneda destino, aplicando margen y tipo de cambio.
  *
- * Misma semantica que la pagina /cotizaciones/nueva: el margen se aplica ANTES
- * de convertir, y la conversion solo ocurre si las monedas difieren.
+ * El margen se aplica ANTES de convertir, y la conversion solo ocurre si las
+ * monedas difieren.
+ *
+ * El resultado va REDONDEADO A CENTAVOS a proposito: es el precio que se
+ * imprime en la cotizacion, y el subtotal se calcula sobre el mismo numero que
+ * ve el cliente. Si no se redondeara aqui, un renglon de "3 x $5,395.78" podria
+ * arrojar un subtotal de $16,187.33 en vez de $16,187.34 y la suma no cuadraria
+ * a ojos del cliente.
  */
 export function calcularPrecioFinal(
   precioBase: number,
@@ -39,9 +50,9 @@ export function calcularPrecioFinal(
   margenPct = 0,
 ): number {
   const precioConMargen = precioBase * (1 + margenPct / 100)
-  if (monedaOrigen === monedaDestino) return precioConMargen
-  if (monedaOrigen === 'USD') return precioConMargen * tipoCambio // USD -> MXN
-  return precioConMargen / tipoCambio // MXN -> USD
+  if (monedaOrigen === monedaDestino) return redondear(precioConMargen)
+  if (monedaOrigen === 'USD') return redondear(precioConMargen * tipoCambio) // USD -> MXN
+  return redondear(precioConMargen / tipoCambio) // MXN -> USD
 }
 
 /** Totales de la cotizacion: subtotal, descuento, IVA y total. */
