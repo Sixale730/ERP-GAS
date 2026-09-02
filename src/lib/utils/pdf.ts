@@ -356,14 +356,18 @@ function generarDatosBancarios(doc: jsPDF, y: number): number {
 }
 
 /**
- * Genera PDF de cotización
+ * Arma el documento de la cotización, sin guardarlo.
+ *
+ * Separado de generarPDFCotizacion para que el mismo PDF se pueda entregar de
+ * dos maneras: descarga en el navegador (la web) o bytes (la API del asistente,
+ * que lo manda por Telegram o lo adjunta a un correo).
  */
-export async function generarPDFCotizacion(
+async function construirPDFCotizacion(
   cotizacion: CotizacionPDF,
   items: ItemPDF[],
   opciones?: OpcionesMoneda,
   empresa?: EmpresaData
-): Promise<void> {
+): Promise<jsPDF> {
   const { default: jsPDFLib } = await import('jspdf')
   const { default: autoTable } = await import('jspdf-autotable')
   // Si no se pasan opciones, usar la moneda de la cotización o MXN por defecto
@@ -386,7 +390,34 @@ export async function generarPDFCotizacion(
   doc.setTextColor(...COLOR_GRIS)
   doc.text('Gracias por su preferencia', doc.internal.pageSize.getWidth() / 2, pageHeight - 10, { align: 'center' })
 
+  return doc
+}
+
+/**
+ * Genera PDF de cotización y lo descarga (navegador).
+ */
+export async function generarPDFCotizacion(
+  cotizacion: CotizacionPDF,
+  items: ItemPDF[],
+  opciones?: OpcionesMoneda,
+  empresa?: EmpresaData
+): Promise<void> {
+  const doc = await construirPDFCotizacion(cotizacion, items, opciones, empresa)
   doc.save(`${cotizacion.folio}.pdf`)
+}
+
+/**
+ * Genera el PDF de cotización y devuelve los bytes, sin escribir a disco.
+ * Para usarse del lado del servidor.
+ */
+export async function generarPDFCotizacionBytes(
+  cotizacion: CotizacionPDF,
+  items: ItemPDF[],
+  opciones?: OpcionesMoneda,
+  empresa?: EmpresaData
+): Promise<Uint8Array> {
+  const doc = await construirPDFCotizacion(cotizacion, items, opciones, empresa)
+  return new Uint8Array(doc.output('arraybuffer') as ArrayBuffer)
 }
 
 /**
