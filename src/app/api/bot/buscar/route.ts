@@ -143,19 +143,8 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      const stockDe = new Map<string, { fisico: number; disponible: number; en_transito: number }>()
-      const { data: stock } = await erp
-        .from('v_productos_stock')
-        .select('id, stock_total, disponible_total, en_transito_total')
-        .in('id', ids)
-      for (const s of stock ?? []) {
-        stockDe.set(s.id, {
-          fisico: Number(s.stock_total ?? 0),
-          disponible: Number(s.disponible_total ?? 0),
-          en_transito: Number(s.en_transito_total ?? 0),
-        })
-      }
-
+      // No se devuelve stock a proposito. El asistente cotiza; el inventario se
+      // consulta en el ERP. Al no tener el dato, no puede reportarlo mal.
       return NextResponse.json({
         success: true,
         tipo: 'producto',
@@ -163,7 +152,6 @@ export async function GET(request: NextRequest) {
         truncado: lista.length === LIMITE,
         resultados: lista.map((p) => {
           const pr = precioDe.get(p.id)
-          const st = stockDe.get(p.id)
           return {
             id: p.id,
             sku: p.sku,
@@ -173,9 +161,6 @@ export async function GET(request: NextRequest) {
             precio: pr?.precio ?? null,
             moneda: pr?.moneda ?? null,
             sin_precio: !pr,
-            stock_fisico: p.es_servicio ? null : st?.fisico ?? 0,
-            disponible: p.es_servicio ? null : st?.disponible ?? 0,
-            en_transito: p.es_servicio ? null : st?.en_transito ?? 0,
           }
         }),
       })

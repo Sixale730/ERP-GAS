@@ -39,11 +39,21 @@ export interface EntradaCotizacion {
   vigencia_dias?: number
   almacen_id?: string
   status?: string
+  /**
+   * true = calcula todo y devuelve el resultado SIN guardar ni consumir folio.
+   * Sirve para que el asistente le muestre a Jose los numeros exactos que se
+   * van a guardar, en vez de describirlos de memoria.
+   */
+  dry_run?: boolean
 }
 
 export interface ResultadoCotizacion {
-  id: string
-  folio: string
+  /** null en dry_run: todavia no se guardo. */
+  id: string | null
+  /** null en dry_run: el folio se pide al guardar, no antes. */
+  folio: string | null
+  guardada: boolean
+  vigencia_dias: number
   subtotal: number
   descuento_monto: number
   iva: number
@@ -205,6 +215,34 @@ export async function crearCotizacion(
     extras: entrada.notas_extra,
   })
 
+  const vigenciaDias = entrada.vigencia_dias ?? VIGENCIA_DIAS_COTIZACION
+
+  const detalle = calculados.map((i) => ({
+    sku: porId.get(i.producto_id)!.sku,
+    descripcion: i.descripcion,
+    cantidad: i.cantidad,
+    precio_unitario: i.precio_unitario,
+    subtotal: i.subtotal,
+  }))
+
+  // --- Ensayo: se calcula todo pero no se guarda ni se consume folio -------
+  if (entrada.dry_run) {
+    return {
+      id: null,
+      folio: null,
+      guardada: false,
+      vigencia_dias: vigenciaDias,
+      subtotal,
+      descuento_monto: descuentoMonto,
+      iva,
+      total,
+      moneda,
+      tipo_cambio: moneda === 'MXN' ? tipoCambio || null : null,
+      notas,
+      items: detalle,
+    }
+  }
+
   // --- Folio y guardado ---------------------------------------------------
   const { data: folioData, error: errFolio } = await erp.rpc('generar_folio', { tipo: 'cotizacion' })
   if (errFolio) throw new ErrorCotizacion('No se pudo generar el folio: ' + errFolio.message, 500)
@@ -225,7 +263,7 @@ export async function crearCotizacion(
       total,
       moneda,
       tipo_cambio: moneda === 'MXN' ? tipoCambio || null : null,
-      vigencia_dias: entrada.vigencia_dias ?? VIGENCIA_DIAS_COTIZACION,
+      vigencia_dias: vigenciaDias,
       notas,
       condiciones_pago: 'CONTADO',
       vendedor_id: vendedor.id,
@@ -257,6 +295,8 @@ export async function crearCotizacion(
   return {
     id: cot.id,
     folio: cot.folio,
+    guardada: true,
+    vigencia_dias: vigenciaDias,
     subtotal,
     descuento_monto: descuentoMonto,
     iva,
@@ -264,12 +304,6 @@ export async function crearCotizacion(
     moneda,
     tipo_cambio: moneda === 'MXN' ? tipoCambio || null : null,
     notas,
-    items: calculados.map((i) => ({
-      sku: porId.get(i.producto_id)!.sku,
-      descripcion: i.descripcion,
-      cantidad: i.cantidad,
-      precio_unitario: i.precio_unitario,
-      subtotal: i.subtotal,
-    })),
+    items: detalle,
   }
 }
