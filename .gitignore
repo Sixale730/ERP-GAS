@@ -28,6 +28,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# MCP config con Personal Access Token de Supabase (NO commitear — secreto)
+.mcp.json
+
 # vercel
 .vercel
 
