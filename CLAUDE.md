@@ -639,6 +639,8 @@ Pipeline de importacion de datos "mascotienda" (tienda de mascotas) para demo:
 - [x] **Catálogo SOLAC 2026** (PDF 8 páginas: Portada · Contenido · Misión/Visión · Línea de Productos · Distribuidor Autorizado · Catálogo de Equipos · Impresoras · Contacto) descargable desde `/catalogos/documentos` para org SOLAC. Servido estático desde `public/documentos/Catalogo_SOLAC_2026.pdf` (1.49 MB raster). Pipeline local de generación HTML+CSS+Playwright en `/catalogo-solac-v2/` (gitignored, 170 MB de imágenes intermedias). Click en la tarjeta usa anchor `<a download>` programático (NO `window.open` — bloqueado en Tauri/desktop)
 - [x] **Insights regla `sobre-stock`** corregida: referenciaba `v_movimientos.fecha` que no existe (la vista solo tiene `created_at`); rompía silenciosamente vía `Promise.allSettled` del engine pero ensuciaba logs y dejaba la regla sin emitir
 
+- [x] **Asistente de Telegram** (@GasConexionBot) corriendo en WSL2 sobre la PC de José: cotiza con folio real, manda el PDF, redacta y envía cobranza, lee el estado de cuenta desde Drive. API en `/api/bot/*` con auth Bearer (JWT, nunca `service_role`). Lógica de cotización compartida con la web en `src/lib/cotizaciones/` para que no puedan divergir. Ver la sección "Asistente de Telegram" al final
+
 ### Pendiente / mejoras
 - [ ] RLS endurecido end-to-end para multi-tenant
 - [ ] Tests automatizados (unit / e2e)
@@ -726,3 +728,110 @@ Este CLAUDE.md cubre el contexto **técnico del ERP**. Para temas de **venta, ma
 **Cuándo consultar**: cualquier tema que no sea técnico del ERP (no es código, no es BD, no es UI). Ej.: prospección, mensajes a clientes, estrategia trimestral, calendario de ventas, normativa del sector, presupuesto de marketing.
 
 **Estilo de respuesta para temas comerciales**: directa primero (1-3 líneas) → "Por qué" → "Qué hacer" → "Qué evitar". Mencionar siempre mes/temporada cuando aplique. Conciso por defecto. NO inventar datos numéricos (precios, %, participaciones de mercado). NO recomendar acciones que violen SAT/CNE/ASEA/PROFECO. NO asumir presupuesto ilimitado.
+
+---
+
+## Asistente de Telegram (@GasConexionBot)
+
+Asistente personal de José Martínez que corre **en la PC de él**, no en Vercel. Cotiza en el ERP, manda correos de cobranza y prospección, y lee el estado de cuenta desde Google Drive. Hablas con él por Telegram desde el celular.
+
+> **Documentación viva**: la personalidad y las reglas del bot viven en `~/.openclaw/workspace/` dentro de WSL (`USER.md`, `MEMORY.md`), versionadas con git ahí mismo. Esta sección documenta la **arquitectura**; el comportamiento se edita allá.
+
+### Arquitectura
+
+```
+Telegram → OpenClaw (WSL2 en la PC de José) → DeepSeek
+                     │
+                     ├─ enviar_correo          → SMTP Gmail
+                     ├─ leer_estado_cuenta     → Google Drive (cuenta de servicio)
+                     └─ buscar_* / cotizar     → https://www.cuanty.cloud/api/bot/*
+                                                        │
+                                                   Supabase (RLS + permisos)
+```
+
+**Decisión clave**: las herramientas del ERP **no hablan con Supabase directamente**. Llaman a la API de `cuanty.cloud` con el JWT de un usuario dedicado, para que apliquen RLS y `getPermisosEfectivos` igual que en la web. Nunca se usa `service_role`.
+
+### Lo que vive en este repo
+
+| Archivo | Qué hace |
+|---|---|
+| `src/lib/cotizaciones/calculo.ts` | `calcularPrecioFinal`, `calcularTotales`, `armarNotas`, `redondear`. **Funciones puras compartidas por la web y el bot** |
+| `src/lib/cotizaciones/crear.ts` | Creación completa de cotizaciones, con `dry_run` |
+| `src/app/api/bot/buscar/route.ts` | `GET ?tipo=producto\|cliente&q=` — devuelve **todas** las coincidencias |
+| `src/app/api/bot/cotizaciones/route.ts` | `POST` — crea la cotización |
+| `src/app/api/bot/cotizaciones/[id]/pdf/route.ts` | `GET` — el PDF, mismos bytes que la web |
+
+**Auth de estas rutas**: `Authorization: Bearer <JWT de Supabase>`. El token va al cliente de Supabase, no se usa `service_role`.
+
+### Por qué la lógica está compartida
+
+`cotizaciones/nueva/page.tsx` tenía su propia copia de `calcularPrecioFinal`. Si el bot hubiera tenido otra, **la web y el bot podrían cotizar precios distintos** y nadie se entera hasta que un cliente reclama. Por eso se extrajo a `src/lib/cotizaciones/` y ambos la importan.
+
+Dos bugs reales que salieron de ahí:
+- **Redondeo**: `Math.round(n * 100) / 100` arrastra el error de coma flotante. `258.33 × 17.5 = 4520.775` daba `4520.77`, pero Postgres guarda `4520.78`. Se usa notación exponencial: `` Number(`${Math.round(Number(`${abs}e2`))}e-2`) ``.
+- **El precio que se imprime es el que se multiplica**: se redondea el unitario ANTES de sacar el subtotal, para que la suma cuadre con lo que ve el cliente.
+
+### Reglas de negocio que aplica el bot
+
+- **Vigencia 30 días** (`erp.configuracion_sistema` → `cotizaciones.vigencia_dias_default` = 30 solo para Solac; otras orgs siguen en 15).
+- **Cliente sin lista de precios** → cae en la default (Público General).
+- **`SER-ENV`** (gastos de envío) entra con `precio_manual` en MXN y **no se convierte** por tipo de cambio, aunque las demás partidas sí (sus precios están en USD). Sí causa IVA.
+- **Notas automáticas**: `LAB GDL` siempre · `ENVIO POR COBRAR` solo si la cotización **no** lleva `SER-ENV` · la entrega se normaliza al formato de SOLAC (`TIEMPO DE ENTREGA 15 DIAS DESPUES DE OC O PAGO`, `ENTREGA INMEDIATA`).
+- **Status** `propuesta` · **almacén** el único activo · **`vendedor_nombre`** José Martínez aunque la cree el usuario del bot.
+
+### Reglas duras del asistente
+
+Diseñado para que **el modelo no pueda equivocarse**, en vez de pagar por uno más listo:
+
+1. **Nunca elige SKU.** Si `buscar_producto` devuelve más de uno, la herramienta obliga a preguntar. Hay SKUs casi idénticos con precios muy distintos (*"cable impresora carburación"* son tres: $9.50, $19.00 y $32.42 USD, y el que hace match literal es el más barato y casi siempre el equivocado).
+2. **Nunca escribe precios.** Manda `producto_id` + cantidad; el precio sale de `precios_productos`.
+3. **Nunca hace aritmética.** Antes de mostrar un borrador llama con `dry_run: true` y copia los números que devuelve la API. *(Se agregó porque describió el subtotal como total, sin IVA, y anunció `ENVIO POR COBRAR` en una cotización que sí llevaba envío. La cotización habría salido bien, pero José aprobaba cifras que no eran.)*
+4. **Nada se guarda ni se envía sin su ✅ explícito.**
+5. **Nunca lee montos de una imagen.** Los importes salen de la hoja de Drive o del ERP.
+6. **No devuelve inventario.** Se quitó el stock de `/api/bot/buscar` de raíz: si no tiene el dato, no puede reportarlo mal.
+
+### Cobranza
+
+**La fuente de verdad NO es el ERP**, es la hoja `COBRANZA_ACT.xlsx` en el Drive de José. Sus folios (`6xxx`) son los que el cliente reconoce; los `FAC-000xx` del ERP son internos y no le sirven a nadie afuera.
+
+- Pestaña **`NOEL`** = cartera viva. `QUERETARO` y `CELAYA` son históricos de marzo.
+- La columna **`ESTATUS`** (PENDIENTE/PAGADO) es la que manda. La columna `ESTADO` (VIGENTE/VENCIDA) **no se actualiza sola** — el vencimiento se calcula como fecha + días de crédito.
+- **A quién se le cobra**: en Gas Noel el dinero lo libera **corporativo**, no la plaza. Se escribe a **Rafael Mares** (`jjrmares@gasnoel.com`) directo, con la plaza en copia — nunca al revés. Querétaro lleva 15 meses sin acusar un correo.
+
+### Configuración de costo (importante)
+
+El heartbeat de OpenClaw **se comió $5 USD en 5 días**: corre cada 30 minutos, se manda `[OpenClaw heartbeat poll]` a sí mismo y dispara un turno completo contra todo el contexto acumulado (había crecido a 168K tokens). Al montar cualquier bot de OpenClaw, antes de conectar el modelo:
+
+| Ajuste | Valor | Por qué |
+|---|---|---|
+| `agents.defaults.heartbeat.every` | `"0m"` | Lo apaga. **No se quita con `openclaw cron delete`** — es trabajo declarado, se reprograma solo |
+| `agents.defaults.model.primary` | `deepseek/deepseek-v4-flash` | 3x más barato que `v4-pro` |
+| `agents.defaults.thinkingDefault` | `"minimal"` | Con `"off"` el modelo **escribe su razonamiento en la respuesta visible**. Valores: `off\|minimal\|low\|medium\|high\|xhigh\|adaptive\|max\|ultra` (no booleano) |
+| `agents.defaults.compaction.maxActiveTranscriptBytes` | `120000` | Acota el crecimiento del contexto |
+
+`openclaw sessions list` muestra el contexto real por sesión (`168k/1000k`). Es el primer lugar donde mirar si el gasto no cuadra.
+
+### Trampas de infraestructura
+
+- **WSL2 apaga la VM por inactividad** y se lleva cualquier servicio. Hacen falta las tres: `.wslconfig` con `vmIdleTimeout=-1`, el gateway como servicio **de sistema** (no `--user`, que muere al reciclarse la sesión), y un keepalive desde Windows (`OpenClaw-KeepAlive.vbs` en `shell:startup`). `loginctl enable-linger` **no basta**.
+- **DNS**: WSL usa un proxy NAT (`10.255.255.254`) que se rompe cuando Windows cambia de red o se suspende, y no se recupera. Tumbaba las cotizaciones con `Name or service not known`. Arreglado con `[network] generateResolvConf = false` en `/etc/wsl.conf` + `/etc/resolv.conf` fijo a 1.1.1.1 / 8.8.8.8 (marcado inmutable con `chattr +i`).
+- **Cortacircuitos**: tras varios arranques sucios OpenClaw activa un `restart-loop breaker` y **suprime el autostart de los canales**. El gateway se ve "arriba" pero Telegram no arranca, sin error visible.
+- **`plugins.allow`**: la auditoría lo pide como CRÍTICO, pero hay que listar **todos** los plugins stock en uso (14), no solo los propios — con 3 el gateway se queda sin piezas y entra en ciclo.
+- **Cooldown de facturación**: si se acaba el saldo del proveedor, OpenClaw deshabilita el perfil de auth ~24 h (`disabled:billing until ...`). No se limpia recargando ni repegando la llave: hay que `models auth logout <perfil> --yes` y volver a inscribirla.
+
+### Credenciales (en la PC de José, permisos 600)
+
+`~/.openclaw/secrets/` → `smtp.json` (App Password de Gmail) · `google.json` (id de la hoja) · `service-account.json` (Drive) · `erp.json` (URL del ERP + usuario del bot).
+
+Usuario del bot: `bot@solac.com.mx`, rol `super_admin` en `erp.usuarios` — **a petición de José**, para que no tope con el modo lectura de la suscripción y tenga margen. **La contención real está en las herramientas que se le dan, no en el rol de BD**: hoy son 7 y no incluyen shell, escritura de archivos ni automatización.
+
+### Estado y pendientes
+
+**Funcionando y probado en producción**: cotizar con folio real · PDF por Telegram y adjunto a correo · correos de cobranza (se enviaron de verdad a Gas Noel el 02-sep-2026) · estado de cuenta desde Drive · búsquedas con desambiguación forzada.
+
+**Pendientes**:
+- No aprende los defaults de desambiguación (pregunta desde cero cada vez).
+- No consulta el tipo de cambio del día (lo pregunta; el ERP tiene `/api/tipo-cambio/hoy` pero pide cookies).
+- Solo cotiza — no convierte a orden de venta ni factura.
+- Faltan capturar en el ERP 5 facturas del reporte de DGN (6218, 6254, 6282, 6295 y **6308 por $154,750.96**). No afecta al bot, que usa la hoja de Drive, pero el ERP reporta menos de lo real.
+- `.claude/agents/jordan-belfort.md` (en `Personal_Assistant/`) está desactualizado: firma vieja y contactos de cobranza equivocados. El bot ya tiene lo correcto; ese archivo no.
