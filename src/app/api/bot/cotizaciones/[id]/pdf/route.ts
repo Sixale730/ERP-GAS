@@ -12,28 +12,11 @@ import { createClient } from '@supabase/supabase-js'
 import dayjs from 'dayjs'
 import { generarPDFCotizacionBytes, type CotizacionPDF } from '@/lib/utils/pdf'
 import { EMPRESA } from '@/lib/config/empresa'
+import { LOGO_SOLAC_DATA_URL } from '@/lib/config/logo-solac'
 import type { CodigoMoneda } from '@/lib/config/moneda'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-
-// En la web, jsPDF carga el logo (/solac.png) desde el navegador. Aqui no hay
-// navegador: se descarga del propio sitio y se pasa como data URL, para que el
-// PDF salga igual que el de la web. Se conserva entre llamadas.
-let logoCache: string | null = null
-async function logoComoDataUrl(origen: string): Promise<string | null> {
-  if (logoCache) return logoCache
-  try {
-    const r = await fetch(new URL(EMPRESA.logo, origen))
-    // Si el middleware lo manda a /login llega HTML con 200: solo sirve si es imagen.
-    if (!r.ok || !(r.headers.get('content-type') ?? '').startsWith('image/')) return null
-    const b64 = Buffer.from(await r.arrayBuffer()).toString('base64')
-    logoCache = `data:image/png;base64,${b64}`
-    return logoCache
-  } catch {
-    return null
-  }
-}
 
 function clienteConToken(token: string) {
   return createClient(
@@ -127,7 +110,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       }
     })
 
-    const logo = await logoComoDataUrl(request.nextUrl.origin)
+    // En la web jsPDF carga '/solac.png' desde el navegador; aqui va incrustado.
     const bytes = await generarPDFCotizacionBytes(
       datos,
       partidas,
@@ -135,7 +118,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         moneda: (cot.moneda as CodigoMoneda) || 'MXN',
         tipoCambio: cot.tipo_cambio ?? undefined,
       },
-      { ...EMPRESA, logo: logo ?? '' },
+      { ...EMPRESA, logo: LOGO_SOLAC_DATA_URL },
     )
 
     return new NextResponse(Buffer.from(bytes), {
