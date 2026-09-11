@@ -758,7 +758,11 @@ Telegram → OpenClaw (WSL2 en la PC de José) → DeepSeek
 | `src/lib/cotizaciones/calculo.ts` | `calcularPrecioFinal`, `calcularTotales`, `armarNotas`, `redondear`. **Funciones puras compartidas por la web y el bot** |
 | `src/lib/cotizaciones/crear.ts` | Creación completa de cotizaciones, con `dry_run` |
 | `src/app/api/bot/buscar/route.ts` | `GET ?tipo=producto\|cliente&q=` — devuelve **todas** las coincidencias; los clientes traen sus `sucursales` |
-| `src/app/api/bot/cotizaciones/route.ts` | `POST` — crea la cotización (acepta `direccion_envio_id`) |
+| `src/app/api/bot/cotizaciones/route.ts` | `POST` — crea la cotización (acepta `direccion_envio_id`) · `GET ?cliente_id=` — sus últimas cotizaciones |
+| `src/app/api/bot/cotizaciones/[id]/route.ts` | `GET` — detalle por folio (`COT-06270`) o id · `PATCH` — edita (ver abajo) |
+| `src/lib/cotizaciones/editar.ts` | Edición: recibe la lista **completa** de partidas como debe quedar + cambios de cabecera, devuelve `cambios` en texto; `dry_run` no guarda |
+| `src/lib/bot/auth.ts` | Autenticación Bearer + permisos para las rutas nuevas de `/api/bot` |
+| `supabase/migrations/20260910_001_bot_editar_cotizacion.sql` | RPC `erp.bot_guardar_edicion_cotizacion`: cabecera + partidas en **una transacción**, solo en `propuesta` |
 | `src/app/api/bot/cotizaciones/[id]/pdf/route.ts` | `GET` — el PDF, mismo código que la web. En el servidor no hay navegador: el logo (`/solac.png`) se descarga del propio sitio y se pasa como data URL; si no, sale sin logo |
 
 **Auth de estas rutas**: `Authorization: Bearer <JWT de Supabase>`. El token va al cliente de Supabase, no se usa `service_role`.
@@ -780,6 +784,7 @@ Dos bugs reales que salieron de ahí:
 - **Status** `propuesta` · **almacén** el único activo · **`vendedor_nombre`** José Martínez aunque la cree el usuario del bot (sale de `erp.json`).
 - **Sucursal** (`direccion_envio_id`): la cobranza se lleva por sucursal, así que el bot pregunta a cuál va si el cliente tiene varias. La API valida que sea del cliente y esté activa.
 - **Totales redondeados a centavos** en `calcularTotales`, igual que las columnas `numeric(12,2)`: el ensayo muestra lo mismo que se guarda.
+- **Editar una cotización** (mismo folio): solo en `propuesta` (las OV reservan inventario y se editan en la web). **Los precios se conservan** al editar; se recalculan de la lista solo si se pide (`recalcular_precios`) o si cambia cliente, moneda o tipo de cambio. `precio_manual` acepta `moneda_precio_manual` y el sistema convierte. Si no se tocan las notas y la presencia de `SER-ENV` no cambia, las notas quedan idénticas. Las partidas reemplazadas quedan en `erp.items_eliminados_papelera` y se registra en `erp.historial_documentos`. A diferencia de la web (update + delete + insert sueltos), el guardado es atómico.
 
 ### Reglas duras del asistente
 
