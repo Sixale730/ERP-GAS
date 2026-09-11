@@ -75,10 +75,13 @@ function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: st
   const pageWidth = doc.internal.pageSize.getWidth()
   let y = 20
 
-  // Logo (si existe)
+  // Logo (si existe). El texto solo se recorre si el logo SI cargo: si falla,
+  // se queda al margen en vez de dejar un hueco de 4 cm.
+  let conLogo = false
   if (emp.logo) {
     try {
       doc.addImage(emp.logo, 'PNG', 14, y, 40, 40)
+      conLogo = true
     } catch {
       // Si falla el logo, continuar sin él
     }
@@ -88,13 +91,13 @@ function generarEncabezado(doc: jsPDF, tipo: 'COTIZACION' | 'FACTURA', folio: st
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLOR_PRIMARIO)
-  doc.text(emp.nombre, emp.logo ? 60 : 14, y + 8)
+  doc.text(emp.nombre, conLogo ? 60 : 14, y + 8)
 
   // Datos empresa
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLOR_GRIS)
-  const xDatos = emp.logo ? 60 : 14
+  const xDatos = conLogo ? 60 : 14
   doc.text(`RFC: ${emp.rfc}`, xDatos, y + 16)
   doc.text(emp.direccion, xDatos, y + 21)
   doc.text(`Tel: ${emp.telefono} | ${emp.email}`, xDatos, y + 26)

@@ -757,9 +757,9 @@ Telegram → OpenClaw (WSL2 en la PC de José) → DeepSeek
 |---|---|
 | `src/lib/cotizaciones/calculo.ts` | `calcularPrecioFinal`, `calcularTotales`, `armarNotas`, `redondear`. **Funciones puras compartidas por la web y el bot** |
 | `src/lib/cotizaciones/crear.ts` | Creación completa de cotizaciones, con `dry_run` |
-| `src/app/api/bot/buscar/route.ts` | `GET ?tipo=producto\|cliente&q=` — devuelve **todas** las coincidencias |
-| `src/app/api/bot/cotizaciones/route.ts` | `POST` — crea la cotización |
-| `src/app/api/bot/cotizaciones/[id]/pdf/route.ts` | `GET` — el PDF, mismos bytes que la web |
+| `src/app/api/bot/buscar/route.ts` | `GET ?tipo=producto\|cliente&q=` — devuelve **todas** las coincidencias; los clientes traen sus `sucursales` |
+| `src/app/api/bot/cotizaciones/route.ts` | `POST` — crea la cotización (acepta `direccion_envio_id`) |
+| `src/app/api/bot/cotizaciones/[id]/pdf/route.ts` | `GET` — el PDF, mismo código que la web. En el servidor no hay navegador: el logo (`/solac.png`) se descarga del propio sitio y se pasa como data URL; si no, sale sin logo |
 
 **Auth de estas rutas**: `Authorization: Bearer <JWT de Supabase>`. El token va al cliente de Supabase, no se usa `service_role`.
 
@@ -777,7 +777,9 @@ Dos bugs reales que salieron de ahí:
 - **Cliente sin lista de precios** → cae en la default (Público General).
 - **`SER-ENV`** (gastos de envío) entra con `precio_manual` en MXN y **no se convierte** por tipo de cambio, aunque las demás partidas sí (sus precios están en USD). Sí causa IVA.
 - **Notas automáticas**: `LAB GDL` siempre · `ENVIO POR COBRAR` solo si la cotización **no** lleva `SER-ENV` · la entrega se normaliza al formato de SOLAC (`TIEMPO DE ENTREGA 15 DIAS DESPUES DE OC O PAGO`, `ENTREGA INMEDIATA`).
-- **Status** `propuesta` · **almacén** el único activo · **`vendedor_nombre`** José Martínez aunque la cree el usuario del bot.
+- **Status** `propuesta` · **almacén** el único activo · **`vendedor_nombre`** José Martínez aunque la cree el usuario del bot (sale de `erp.json`).
+- **Sucursal** (`direccion_envio_id`): la cobranza se lleva por sucursal, así que el bot pregunta a cuál va si el cliente tiene varias. La API valida que sea del cliente y esté activa.
+- **Totales redondeados a centavos** en `calcularTotales`, igual que las columnas `numeric(12,2)`: el ensayo muestra lo mismo que se guarda.
 
 ### Reglas duras del asistente
 
@@ -827,7 +829,11 @@ Usuario del bot: `bot@solac.com.mx`, rol `super_admin` en `erp.usuarios` — **a
 
 ### Estado y pendientes
 
-**Funcionando y probado en producción**: cotizar con folio real · PDF por Telegram y adjunto a correo · correos de cobranza (se enviaron de verdad a Gas Noel el 02-sep-2026) · estado de cuenta desde Drive · búsquedas con desambiguación forzada.
+**Funcionando y probado en producción**: cotizar con folio real (COT-06270, 10-sep) · correos de cobranza (se enviaron de verdad a Gas Noel el 02-sep-2026) · estado de cuenta desde Drive · búsquedas con desambiguación forzada · facturas que José manda por Telegram (PDF + XML) adjuntas a un correo, con la herramienta `adjuntos_recibidos`.
+
+**PDF por Telegram: funciona desde el 10-sep.** Antes fallaba siempre: OpenClaw solo manda archivos desde tmp, `~/.openclaw/media`, `canvas`, `workspace` y `sandboxes`, y los PDF se guardaban en `~/.openclaw/descargas`. Ahora van a `~/.openclaw/workspace/cotizaciones/`.
+
+**Operación en la PC** (detalle en la memoria del proyecto): la PC despierta lunes a sábado a las 06:50 y se suspende a las 17:30 si no se usa (tareas `SolacBot-*` en el Programador de tareas, scripts en `C:\Users\PC\SolacBot\`). WSL arranca sin iniciar sesión. Aviso de saldo bajo de DeepSeek por Telegram (timer `saldo-deepseek`). La compactación usa v4-pro. El bot solo puede leer archivos de su workspace (`tools.fs.workspaceOnly`).
 
 **Pendientes**:
 - No aprende los defaults de desambiguación (pregunta desde cero cada vez).
