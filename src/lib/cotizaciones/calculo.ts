@@ -70,8 +70,16 @@ export function calcularPrecioFinal(
 export function calcularTotales(items: Pick<ItemCalculado, 'subtotal'>[], descuentoPct = 0) {
   const subtotalBruto = items.reduce((sum, i) => sum + i.subtotal, 0)
   const descuentoMonto = subtotalBruto * (descuentoPct / 100)
-  const { iva, total } = calcularTotal(subtotalBruto, descuentoMonto)
-  return { subtotal: subtotalBruto, descuentoMonto, iva, total }
+  const { iva } = calcularTotal(subtotalBruto, descuentoMonto)
+  // Redondeados a centavos, igual que las columnas numeric(12,2): lo que el
+  // ensayo le muestra a Jose es exactamente lo que se guarda.
+  const ivaRedondeado = redondear(iva)
+  return {
+    subtotal: redondear(subtotalBruto),
+    descuentoMonto: redondear(descuentoMonto),
+    iva: ivaRedondeado,
+    total: redondear(subtotalBruto - descuentoMonto + ivaRedondeado),
+  }
 }
 
 // ---------------------------------------------------------------------------

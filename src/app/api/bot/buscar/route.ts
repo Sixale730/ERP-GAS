@@ -80,6 +80,25 @@ export async function GET(request: NextRequest) {
         for (const l of listas ?? []) nombreLista.set(l.id, l.nombre)
       }
 
+      // Sucursales: la cobranza se lleva por sucursal, asi que la cotizacion debe
+      // quedar ligada a una. El asistente pregunta cual cuando hay varias.
+      type Sucursal = { id: string; alias: string; ciudad: string | null; estado: string | null; contacto: string | null }
+      const sucursalesDe = new Map<string, Sucursal[]>()
+      const idsClientes = (data ?? []).map((c) => c.id)
+      if (idsClientes.length) {
+        const { data: dirs } = await erp
+          .from('direcciones_envio')
+          .select('id, cliente_id, alias, ciudad, estado, contacto_nombre')
+          .in('cliente_id', idsClientes)
+          .eq('is_active', true)
+          .order('alias')
+        for (const d of dirs ?? []) {
+          const lista = sucursalesDe.get(d.cliente_id) ?? []
+          lista.push({ id: d.id, alias: (d.alias ?? '').trim(), ciudad: d.ciudad, estado: d.estado, contacto: d.contacto_nombre })
+          sucursalesDe.set(d.cliente_id, lista)
+        }
+      }
+
       return NextResponse.json({
         success: true,
         tipo: 'cliente',
@@ -95,6 +114,7 @@ export async function GET(request: NextRequest) {
           lista_precio: c.lista_precio_id
             ? nombreLista.get(c.lista_precio_id) ?? 'desconocida'
             : 'sin asignar (usara Publico General)',
+          sucursales: sucursalesDe.get(c.id) ?? [],
         })),
       })
     }

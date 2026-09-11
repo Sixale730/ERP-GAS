@@ -28,6 +28,8 @@ export interface ItemEntrada {
 
 export interface EntradaCotizacion {
   cliente_id: string
+  /** Sucursal del cliente (erp.direcciones_envio). La cobranza se lleva por sucursal. */
+  direccion_envio_id?: string | null
   items: ItemEntrada[]
   moneda?: CodigoMoneda
   tipo_cambio?: number
@@ -53,6 +55,8 @@ export interface ResultadoCotizacion {
   /** null en dry_run: el folio se pide al guardar, no antes. */
   folio: string | null
   guardada: boolean
+  /** Alias de la sucursal, o null si va sin sucursal. */
+  sucursal: string | null
   vigencia_dias: number
   subtotal: number
   descuento_monto: number
@@ -94,6 +98,22 @@ export async function crearCotizacion(
     .single()
   if (errCli || !cliente) throw new ErrorCotizacion('Cliente no encontrado', 404)
   if (!cliente.is_active) throw new ErrorCotizacion('El cliente esta inactivo')
+
+  // --- Sucursal -------------------------------------------------------------
+  let direccionEnvioId: string | null = null
+  let sucursal: string | null = null
+  if (entrada.direccion_envio_id) {
+    const { data: dir } = await erp
+      .from('direcciones_envio')
+      .select('id, cliente_id, alias, is_active')
+      .eq('id', entrada.direccion_envio_id)
+      .maybeSingle()
+    if (!dir || dir.cliente_id !== cliente.id || !dir.is_active) {
+      throw new ErrorCotizacion('La sucursal no existe, esta inactiva o no es de ese cliente')
+    }
+    direccionEnvioId = dir.id
+    sucursal = (dir.alias ?? '').trim() || null
+  }
 
   let listaPrecioId = cliente.lista_precio_id as string | null
   if (!listaPrecioId) {
@@ -231,6 +251,7 @@ export async function crearCotizacion(
       id: null,
       folio: null,
       guardada: false,
+      sucursal,
       vigencia_dias: vigenciaDias,
       subtotal,
       descuento_monto: descuentoMonto,
@@ -253,6 +274,7 @@ export async function crearCotizacion(
     .insert({
       folio,
       cliente_id: cliente.id,
+      direccion_envio_id: direccionEnvioId,
       almacen_id: almacenId,
       lista_precio_id: listaPrecioId,
       status: entrada.status ?? 'propuesta',
@@ -296,6 +318,7 @@ export async function crearCotizacion(
     id: cot.id,
     folio: cot.folio,
     guardada: true,
+    sucursal,
     vigencia_dias: vigenciaDias,
     subtotal,
     descuento_monto: descuentoMonto,
