@@ -13,8 +13,63 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { crearCotizacion, ErrorCotizacion, type EntradaCotizacion } from '@/lib/cotizaciones/crear'
+import { autenticarBot } from '@/lib/bot/auth'
 
 export const dynamic = 'force-dynamic'
+
+/**
+ * GET /api/bot/cotizaciones?cliente_id=uuid[&limite=5]
+ *
+ * Las ultimas cotizaciones de un cliente, para que el asistente le pregunte a
+ * Jose cual quiere corregir cuando no le dice el folio.
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const sesion = await autenticarBot(request, 'cotizaciones', 'ver')
+    if (sesion instanceof NextResponse) return sesion
+    const { supabase, usuario } = sesion
+
+    const sp = request.nextUrl.searchParams
+    const clienteId = sp.get('cliente_id')
+    if (!clienteId) return NextResponse.json({ success: false, error: 'Falta cliente_id' }, { status: 400 })
+    const limite = Math.min(Math.max(Number(sp.get('limite')) || 5, 1), 20)
+
+    const erp = supabase.schema('erp')
+    const { data, error } = await erp
+      .from('cotizaciones')
+      .select('id, folio, fecha, status, total, moneda, direccion_envio_id')
+      .eq('organizacion_id', usuario.organizacion_id)
+      .eq('cliente_id', clienteId)
+      .order('created_at', { ascending: false })
+      .limit(limite)
+    if (error) throw error
+
+    const dirIds = Array.from(new Set((data ?? []).map((c) => c.direccion_envio_id).filter(Boolean))) as string[]
+    const alias = new Map<string, string>()
+    if (dirIds.length) {
+      const { data: dirs } = await erp.from('direcciones_envio').select('id, alias').in('id', dirIds)
+      for (const d of dirs ?? []) alias.set(d.id, (d.alias ?? '').trim())
+    }
+
+    return NextResponse.json({
+      success: true,
+      total: data?.length ?? 0,
+      resultados: (data ?? []).map((c) => ({
+        id: c.id,
+        folio: c.folio,
+        fecha: c.fecha,
+        status: c.status,
+        editable: c.status === 'propuesta',
+        total: Number(c.total),
+        moneda: c.moneda,
+        sucursal: c.direccion_envio_id ? alias.get(c.direccion_envio_id) ?? null : null,
+      })),
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Error desconocido'
+    return NextResponse.json({ success: false, error: msg }, { status: 500 })
+  }
+}
 
 function clienteConToken(token: string) {
   return createClient(
