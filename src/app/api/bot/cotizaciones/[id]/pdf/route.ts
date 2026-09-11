@@ -25,7 +25,8 @@ async function logoComoDataUrl(origen: string): Promise<string | null> {
   if (logoCache) return logoCache
   try {
     const r = await fetch(new URL(EMPRESA.logo, origen))
-    if (!r.ok) return null
+    // Si el middleware lo manda a /login llega HTML con 200: solo sirve si es imagen.
+    if (!r.ok || !(r.headers.get('content-type') ?? '').startsWith('image/')) return null
     const b64 = Buffer.from(await r.arrayBuffer()).toString('base64')
     logoCache = `data:image/png;base64,${b64}`
     return logoCache

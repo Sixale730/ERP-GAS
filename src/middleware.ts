@@ -167,6 +167,8 @@ export const config = {
      * - icons/ (PWA icons)
      * - api/ routes (handled separately)
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|icons/|api/).*)',
+    // Tambien las imagenes de public/ (ej. /solac.png): son publicas, y la API del
+    // bot las descarga sin sesion para ponerle el logo al PDF.
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|icons/|api/|.*\\.(?:png|jpg|jpeg|gif|svg|webp)$).*)',
   ],
 }
